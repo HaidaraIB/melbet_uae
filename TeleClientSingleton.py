@@ -13,6 +13,7 @@ class TeleClientSingleton(TelegramClient):
                 api_id=Config.API_ID,
                 api_hash=Config.API_HASH,
             ).start(
-                bot_token=Config.BOT_TOKEN,
+                phone=Config.PHONE,
             )
         return cls._instance
+

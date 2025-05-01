@@ -1,4 +1,5 @@
 from telegram import Update
+from telethon import events
 from start import start_command, admin_command
 from common.common import create_folders
 from common.back_to_home_page import (
@@ -16,7 +17,11 @@ from admin.admin_settings import *
 from admin.broadcast import *
 from admin.ban import *
 
+from client.client_calls import *
+
 from models import init_db
+
+from TeleClientSingleton import TeleClientSingleton
 
 from MyApp import MyApp
 
@@ -26,7 +31,6 @@ def setup_and_run():
     init_db()
 
     app = MyApp.build_app()
-
 
     app.add_handler(user_settings_handler)
     app.add_handler(change_lang_handler)
@@ -52,4 +56,9 @@ def setup_and_run():
 
     app.add_error_handler(error_handler)
 
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    tele_client = TeleClientSingleton()
+    tele_client.add_event_handler(client_handler, events.NewMessage(incoming=True))
+
+    app.run_polling(allowed_updates=Update.ALL_TYPES, close_loop=False)
+
+    tele_client.disconnect()

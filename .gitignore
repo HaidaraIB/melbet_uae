@@ -2,5 +2,6 @@ data/*
 .env
 __pycache__/
 session.session
+session.session-journal
 test.py
 errors.txt
