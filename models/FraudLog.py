@@ -1,7 +1,6 @@
 import sqlalchemy as sa
 from sqlalchemy.orm import relationship
 from models.DB import Base
-from datetime import datetime
 
 
 class FraudLog(Base):

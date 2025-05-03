@@ -4,7 +4,7 @@ from client.client_calls.common import (
     extract_text_from_photo,
     save_message,
     gpt_reply,
-    is_financial_receipt,
+    kick_user_and_admin,
     now_iso,
     openai,
 )
@@ -88,7 +88,6 @@ async def client_handler(event: events.NewMessage.Event):
                         )
                         return
 
-                    is_financial = await is_financial_receipt(extracted)
                     if not (
                         parsed_details["amount"] and parsed_details["transaction_id"]
                     ):
@@ -195,7 +194,7 @@ async def client_handler(event: events.NewMessage.Event):
                             cid, f"{system_msg}\n\n{reply}"
                         )
             else:
-                txt = event.raw_text or ""
+                txt: str = event.raw_text or ""
                 if txt:
                     account_pattern = r"^\d{6,10}$"
                     if re.match(account_pattern, txt.strip()):
@@ -270,3 +269,19 @@ async def client_handler(event: events.NewMessage.Event):
                         save_message(uid, st, "user", txt, s)
                         reply = await gpt_reply(uid, st, txt)
                         await TeleClientSingleton().send_message(cid, reply)
+
+
+async def end_session(event: events.NewMessage.Event):
+    cid = event.chat_id
+    try:
+        ent = await TeleClientSingleton().get_entity(cid)
+    except Exception as e:
+        log.error(f"خطأ في جلب الكيان: {e}")
+        return
+    gid = ent.id
+    with models.session_scope() as s:
+        user_session = s.query(models.UserSession).filter_by(group_id=gid).first()
+        if user_session:
+            await kick_user_and_admin(
+                gid=user_session.group_id, uid=user_session.user_id
+            )

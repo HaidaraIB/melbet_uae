@@ -11,6 +11,7 @@ from telethon.tl.functions.channels import (
     InviteToChannelRequest,
     EditTitleRequest,
     EditBannedRequest,
+    LeaveChannelRequest,
 )
 from telethon.tl.functions.messages import ExportChatInviteRequest
 from telethon.tl.types import ChatBannedRights
@@ -205,16 +206,16 @@ async def get_or_create_session(uid: int, st: str):
                 if user_session.session_type != st:
                     try:
                         await TeleClientSingleton()(
-                            EditTitleRequest(user_session.group_id, f"{st} – {uid}")
+                            EditTitleRequest(
+                                user_session.group_id,
+                                f"{st} – {user_session.user.name}",
+                            )
                         )
                     except Exception as e:
                         log.error(f"خطأ في تعديل عنوان القناة: {e}")
                     user_session.session_type = st
-                    user_session.last_active = now_iso()
-                    s.commit()
-                else:
-                    user_session.last_active = now_iso()
-                    s.commit()
+                user_session.last_active = now_iso()
+                s.commit()
                 return user_session.group_id, False
             except ValueError as e:
                 log.warning(
@@ -226,9 +227,10 @@ async def get_or_create_session(uid: int, st: str):
                 s.commit()
 
         try:
+            user = s.get(models.User, uid)
             res = await TeleClientSingleton()(
                 CreateChannelRequest(
-                    title=f"{st} – {uid}",
+                    title=f"{st} – {user.name}",
                     about=f"جلسة {st} للمستخدم {uid}",
                     megagroup=True,
                 )
@@ -262,13 +264,8 @@ async def kick_user_and_admin(gid: int, uid: int):
                 ChatBannedRights(until_date=None, view_messages=True),
             )
         )
-        await TeleClientSingleton()(
-            EditBannedRequest(
-                peer,
-                await TeleClientSingleton().get_entity(Config.ADMIN_ID),
-                ChatBannedRights(until_date=None, view_messages=True),
-            )
-        )
+        await TeleClientSingleton()(LeaveChannelRequest(peer))
+
         log.info(f"تم طرد المستخدم {uid} والمدير {Config.ADMIN_ID} من المجموعة {gid}.")
     except Exception as e:
         log.error(f"خطأ أثناء الطرد: {e}")

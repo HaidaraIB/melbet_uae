@@ -58,6 +58,9 @@ def setup_and_run():
 
     tele_client = TeleClientSingleton()
     tele_client.add_event_handler(client_handler, events.NewMessage(incoming=True))
+    tele_client.add_event_handler(
+        end_session, events.NewMessage(outgoing=True, pattern="/end")
+    )
 
     app.run_polling(allowed_updates=Update.ALL_TYPES, close_loop=False)
 
