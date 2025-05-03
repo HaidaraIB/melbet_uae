@@ -1,7 +1,7 @@
 import os
 import models
 import re
-import easyocr
+import pytesseract
 from datetime import datetime, timezone
 import time
 from langdetect import detect
@@ -25,7 +25,6 @@ import logging
 log = logging.getLogger(__name__)
 
 openai = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
-ocr_reader = easyocr.Reader(["ar"], gpu=True)
 
 
 def now_iso() -> datetime:
@@ -97,47 +96,89 @@ def is_financial_receipt(text: str) -> bool:
     return any(keyword.lower() in text.lower() for keyword in keywords)
 
 
+
 async def extract_text_from_photo(event: events.NewMessage.Event):
+    path = None
     try:
         path = await event.download_media(file="photo.jpg")
+        
         from PIL import Image, ImageEnhance, ImageFilter
 
         img = Image.open(path).convert("L")
         img = img.filter(ImageFilter.SHARPEN)
         enhancer = ImageEnhance.Contrast(img)
         img = enhancer.enhance(2.5)
-        img.save(path)
-        result = ocr_reader.readtext(
-            path,
-            detail=0,
-            paragraph=True,
-            contrast_ths=0.1,
-            adjust_contrast=0.9,
-            text_threshold=0.85,
-            low_text=0.2,
-        )
-        text = "\n".join(result).strip()
+        
+        text = pytesseract.image_to_string(img, lang="ara").strip()
+
         if not text:
             log.warning("لم يتم استخراج أي نص من الصورة.")
             await event.reply(
                 "عذرًا، لم يتم استخراج أي نص من الصورة. يرجى إرسال صورة أوضح بجودة عالية."
             )
             return None, None
+
         cleaned_text = re.sub(
             r"[^\w\s\d.:/-إأآابتثجحخدذرزسشصضطظعغفقكلمنهويةى]", "", text
         )
+
         parsed_details = await parse_receipt_text(cleaned_text)
         log.info(f"النص المستخرج: {cleaned_text}")
+
         return cleaned_text, parsed_details
+
     except Exception as e:
         log.error(f"خطأ في OCR: {e}")
         await event.reply(
             "عذرًا، حدث خطأ أثناء معالجة الصورة. يرجى إرسال صورة أوضح أو التأكد من جودة الصورة."
         )
         return None, None
+
     finally:
         if path and os.path.exists(path):
             os.remove(path)
+
+# async def extract_text_from_photo(event: events.NewMessage.Event):
+#     try:
+#         path = await event.download_media(file="photo.jpg")
+#         from PIL import Image, ImageEnhance, ImageFilter
+
+#         img = Image.open(path).convert("L")
+#         img = img.filter(ImageFilter.SHARPEN)
+#         enhancer = ImageEnhance.Contrast(img)
+#         img = enhancer.enhance(2.5)
+#         img.save(path)
+#         result = ocr_reader.readtext(
+#             path,
+#             detail=0,
+#             paragraph=True,
+#             contrast_ths=0.1,
+#             adjust_contrast=0.9,
+#             text_threshold=0.85,
+#             low_text=0.2,
+#         )
+#         text = "\n".join(result).strip()
+#         if not text:
+#             log.warning("لم يتم استخراج أي نص من الصورة.")
+#             await event.reply(
+#                 "عذرًا، لم يتم استخراج أي نص من الصورة. يرجى إرسال صورة أوضح بجودة عالية."
+#             )
+#             return None, None
+#         cleaned_text = re.sub(
+#             r"[^\w\s\d.:/-إأآابتثجحخدذرزسشصضطظعغفقكلمنهويةى]", "", text
+#         )
+#         parsed_details = await parse_receipt_text(cleaned_text)
+#         log.info(f"النص المستخرج: {cleaned_text}")
+#         return cleaned_text, parsed_details
+#     except Exception as e:
+#         log.error(f"خطأ في OCR: {e}")
+#         await event.reply(
+#             "عذرًا، حدث خطأ أثناء معالجة الصورة. يرجى إرسال صورة أوضح أو التأكد من جودة الصورة."
+#         )
+#         return None, None
+#     finally:
+#         if path and os.path.exists(path):
+#             os.remove(path)
 
 
 def save_message(uid: int, st: str, role: str, msg: str, s: Session):
