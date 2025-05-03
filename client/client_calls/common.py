@@ -25,6 +25,7 @@ import logging
 log = logging.getLogger(__name__)
 
 openai = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
+ocr_reader = easyocr.Reader(["ar"], gpu=True)
 
 
 def now_iso() -> datetime:
@@ -97,7 +98,6 @@ def is_financial_receipt(text: str) -> bool:
 
 
 async def extract_text_from_photo(event: events.NewMessage.Event):
-    ocr_reader = easyocr.Reader(["ar"], gpu=True)
     try:
         path = await event.download_media(file="photo.jpg")
         from PIL import Image, ImageEnhance, ImageFilter
