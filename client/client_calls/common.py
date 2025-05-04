@@ -48,7 +48,7 @@ def parse_receipt_text(text: str):
     cleaned_text = re.sub(r"[^\w\s\d.:/-]", "", text)
 
     amount_pattern = r"(?:مبلغ|amount|total|قيمة|value|مبلغ العملية)[:\s]*([\d,.]+)\s*(?:USD|SAR|AED|دولار|ريال|جنيه|درهم)?|(\d+[\.,]\d+\s*(?:USD|SAR|AED|دولار|ريال|جنيه|درهم))"
-    transaction_id_pattern = r"(?:رقم العملية|transaction id|رقم المعاملة|ref|reference|رقم|معرف العملية|المرجعي)[:\s]*([\w-]+)"
+    transaction_id_pattern = r"(?:رقم العملية|transaction id|رقم المعاملة|ref|reference|رقم|معرف العملية|الرقم المرجعي|المرجعي)[:\s]*([\w-]+)"
     method_pattern = r"(?:الوسيلة|method|طريقة الدفع|طريقة|payment|via|بواسطة|paid by)[:\s]*(Visa|MasterCard|Bank Transfer|PayPal|تحويل بنكي|حوالة بنكية|حساب بنكي|[\w\s]+)|(\b(?:Visa|MasterCard|PayPal|تحويل بنكي|حوالة بنكية|حساب بنكي|بطاقة|كاش)\b)"
     date_pattern = r"(?:التاريخ|date|تاريخ|issued on)[:\s]*(\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}\s+[جمايو|يناير|فبراير|مارس|أبريل|مايو|يونيو|يوليو|أغسطس|سبتمبر|أكتوبر|نوفمبر|ديسمبر]+\s+\d{4})|(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{2}/\d{2}/\d{4}|\d{4}\s+\d{2}\s+\d{2}|\d{2}-\d{2}-\d{4})"
 
