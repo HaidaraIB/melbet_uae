@@ -2,6 +2,7 @@ import os
 import models
 import re
 import pytesseract
+from PIL import Image, ImageEnhance, ImageFilter
 from datetime import datetime, timezone
 import time
 from langdetect import detect
@@ -102,14 +103,12 @@ async def extract_text_from_photo(event: events.NewMessage.Event):
     try:
         path = await event.download_media(file="photo.jpg")
         
-        from PIL import Image, ImageEnhance, ImageFilter
-
         img = Image.open(path).convert("L")
         img = img.filter(ImageFilter.SHARPEN)
         enhancer = ImageEnhance.Contrast(img)
         img = enhancer.enhance(2.5)
         
-        text = pytesseract.image_to_string(img, lang="ara").strip()
+        text = pytesseract.image_to_string(img, lang="eng+ara").strip()
 
         if not text:
             log.warning("لم يتم استخراج أي نص من الصورة.")
