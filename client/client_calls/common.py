@@ -122,7 +122,7 @@ async def extract_text_from_photo(event: events.NewMessage.Event):
             r"[^\w\s\d.:/-إأآابتثجحخدذرزسشصضطظعغفقكلمنهويةى]", "", text
         )
 
-        parsed_details = await parse_receipt_text(cleaned_text)
+        parsed_details = parse_receipt_text(cleaned_text)
         log.info(f"النص المستخرج: {cleaned_text}")
 
         return cleaned_text, parsed_details
