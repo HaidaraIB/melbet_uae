@@ -15,6 +15,7 @@ from common.decorators import (
 from common.keyboards import build_user_keyboard, build_admin_keyboard
 from common.common import check_hidden_keyboard, get_lang
 from common.lang_dicts import TEXTS
+from client.client_calls.common import resume_timers_on_startup
 from Config import Config
 
 
@@ -44,6 +45,7 @@ async def inits(app: Application):
                 "If the user provides a different account number, warn them that it does not match their default account and request confirmation to update it."
             )
             s.add(models.Setting(key="gpt_prompt", value=default_prompt))
+    await resume_timers_on_startup()
 
 
 async def set_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -97,17 +97,16 @@ def is_financial_receipt(text: str) -> bool:
     return any(keyword.lower() in text.lower() for keyword in keywords)
 
 
-
 async def extract_text_from_photo(event: events.NewMessage.Event):
     path = None
     try:
         path = await event.download_media(file="photo.jpg")
-        
+
         img = Image.open(path).convert("L")
         img = img.filter(ImageFilter.SHARPEN)
         enhancer = ImageEnhance.Contrast(img)
         img = enhancer.enhance(2.5)
-        
+
         text = pytesseract.image_to_string(img, lang="eng+ara").strip()
 
         if not text:
@@ -136,6 +135,7 @@ async def extract_text_from_photo(event: events.NewMessage.Event):
     finally:
         if path and os.path.exists(path):
             os.remove(path)
+
 
 # async def extract_text_from_photo(event: events.NewMessage.Event):
 #     try:
@@ -245,10 +245,11 @@ async def get_or_create_session(uid: int, st: str):
                 await TeleClientSingleton().get_entity(user_session.group_id)
                 if user_session.session_type != st:
                     try:
+                        user: models.User = user_session.user
                         await TeleClientSingleton()(
                             EditTitleRequest(
                                 user_session.group_id,
-                                f"{st} – {user_session.user.name}",
+                                f"{st} – {user.username if user.username else user.name}",
                             )
                         )
                     except Exception as e:
@@ -270,7 +271,7 @@ async def get_or_create_session(uid: int, st: str):
             user = s.get(models.User, uid)
             res = await TeleClientSingleton()(
                 CreateChannelRequest(
-                    title=f"{st} – {user.name}",
+                    title=f"{st} – {user.username if user.username else user.name}",
                     about=f"جلسة {st} للمستخدم {uid}",
                     megagroup=True,
                 )
@@ -312,8 +313,35 @@ async def kick_user_and_admin(gid: int, uid: int):
 
 
 async def session_timer(gid: int, uid: int, duration: int = 900):
+    timer = models.SessionTimer(uid=uid, gid=gid, end_time=int(time.time()) + duration)
+    with models.session_scope() as s:
+        s.merge(timer)
+        s.commit()
     await asyncio.sleep(duration)
     await kick_user_and_admin(gid, uid)
+    with models.session_scope() as s:
+        s.query(models.SessionTimer).filter(
+            models.SessionTimer.uid == uid, models.SessionTimer.gid == gid
+        ).delete()
+        s.commit()
+
+
+async def resume_timers_on_startup():
+    with models.session_scope() as s:
+        timers = s.query(models.SessionTimer).all()
+        for timer in timers:
+            remaining_time = timer.end_time - int(time.time())
+            if remaining_time > 0:
+                asyncio.create_task(session_timer(timer.gid, timer.uid, remaining_time))
+                log.info(f"session timer {timer} resumed.")
+            else:
+                await kick_user_and_admin(timer.gid, timer.uid)
+                s.query(models.SessionTimer).filter(
+                    models.SessionTimer.uid == timer.uid,
+                    models.SessionTimer.gid == timer.gid,
+                ).delete()
+                s.commit()
+                log.info(f"session timer {timer} triggered.")
 
 
 async def start_session(uid: int, st: str):
