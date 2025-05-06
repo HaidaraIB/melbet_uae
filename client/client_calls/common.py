@@ -15,7 +15,8 @@ from telethon.tl.functions.channels import (
     LeaveChannelRequest,
 )
 from telethon.tl.functions.messages import ExportChatInviteRequest
-from telethon.tl.types import ChatBannedRights
+from telethon.tl.types import ChatBannedRights, InputMessagesFilterPinned
+from telethon.tl.patched import Message
 from openai import AsyncOpenAI
 from Config import Config
 from telethon import events
@@ -47,7 +48,7 @@ def parse_receipt_text(text: str):
 
     cleaned_text = re.sub(r"[^\w\s\d.:/-]", "", text)
 
-    amount_pattern = r"(?:مبلغ|amount|total|قيمة|value|مبلغ العملية)[:\s]*([\d,.]+)\s*(?:USD|SAR|AED|دولار|ريال|جنيه|درهم)?|(\d+[\.,]\d+\s*(?:USD|SAR|AED|دولار|ريال|جنيه|درهم))"
+    amount_pattern = r"(?:مبلغ|amount|total|قيمة|value|مبلغ العملية|إجمالي المبلغ|إجمالي المبلغ المقتطع)[:\s]*(?:USD|SAR|AED|دولار|ريال|جنيه|درهم)?\s*([\d,.]+)|([\d,.]+)\s*(?:USD|SAR|AED|دولار|ريال|جنيه|درهم)"
     transaction_id_pattern = r"(?:رقم العملية|transaction id|رقم المعاملة|ref|reference|رقم|معرف العملية|الرقم المرجعي|المرجعي)[:\s]*([\w-]+)"
     method_pattern = r"(?:الوسيلة|method|طريقة الدفع|طريقة|payment|via|بواسطة|paid by)[:\s]*(Visa|MasterCard|Bank Transfer|PayPal|تحويل بنكي|حوالة بنكية|حساب بنكي|[\w\s]+)|(\b(?:Visa|MasterCard|PayPal|تحويل بنكي|حوالة بنكية|حساب بنكي|بطاقة|كاش)\b)"
     date_pattern = r"(?:التاريخ|date|تاريخ|issued on)[:\s]*(\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}\s+[جمايو|يناير|فبراير|مارس|أبريل|مايو|يونيو|يوليو|أغسطس|سبتمبر|أكتوبر|نوفمبر|ديسمبر]+\s+\d{4})|(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{2}/\d{2}/\d{4}|\d{4}\s+\d{2}\s+\d{2}|\d{2}-\d{2}-\d{4})"
@@ -372,8 +373,10 @@ async def start_session(uid: int, st: str):
         if is_new:
             welcome = await gpt_reply(uid, st, "")
             msg = await TeleClientSingleton().send_message(peer, welcome)
+            end_cmd = await TeleClientSingleton().send_message(peer, "/end")
             try:
                 await TeleClientSingleton().pin_message(peer, msg, notify=False)
+                await TeleClientSingleton().pin_message(peer, end_cmd, notify=False)
             except Exception as e:
                 log.error(f"خطأ في تثبيت الرسالة: {e}")
         try:
@@ -405,6 +408,12 @@ async def start_session(uid: int, st: str):
         )
         if st == "Deposit":
             asyncio.create_task(session_timer(gid, uid))
+        else:
+            with models.session_scope() as s:
+                s.query(models.SessionTimer).filter(
+                    models.SessionTimer.uid == uid, models.SessionTimer.gid == gid
+                ).delete()
+                s.commit()
     except ValueError as e:
         log.error(f"فشل في بدء الجلسة للمستخدم {uid} بسبب خطأ في الكيان: {e}")
         await TeleClientSingleton().send_message(

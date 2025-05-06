@@ -14,6 +14,8 @@ import re
 from TeleClientSingleton import TeleClientSingleton
 from telethon import events
 import logging
+from zoneinfo import ZoneInfo
+from common.common import format_datetime
 
 log = logging.getLogger(__name__)
 
@@ -123,8 +125,15 @@ async def client_handler(event: events.NewMessage.Event):
                         .filter(models.PaymentText.transaction_id == transaction_id)
                         .first()
                     )
-                    if duplicate and duplicate[0] != uid:
-                        orig_uid, orig_username, orig_text, used_at = duplicate
+                    if duplicate and duplicate.user_id != uid:
+                        orig_uid, orig_username, orig_text, used_at = (
+                            duplicate.user_id,
+                            duplicate.username,
+                            duplicate.text,
+                            format_datetime(
+                                duplicate.timestamp.astimezone(ZoneInfo("Asia/Dubai"))
+                            ),
+                        )
                         s.add(
                             models.FraudLog(
                                 user_id=uid,
@@ -147,17 +156,17 @@ async def client_handler(event: events.NewMessage.Event):
                                 )
                             )
                             s.commit()
-                            system_msg = f"النظام: تم اكتشاف محاولة احتيال. هذه العملية (رقم العملية: {transaction_id}) استخدمها في الأصل المستخدم {orig_username} ({orig_uid}) في {used_at}. هذه محاولتك رقم {count}. لقد تم إضافتك إلى القائمة السوداء."
+                            system_msg = f"النظام: تم اكتشاف محاولة احتيال. هذه العملية (رقم العملية: {transaction_id}) استخدمها في الأصل المستخدم @{orig_username} ({orig_uid}) في {used_at}. هذه محاولتك رقم {count}. لقد تم إضافتك إلى القائمة السوداء."
                             save_message(uid, st, "system", system_msg, s)
                             await TeleClientSingleton().send_message(cid, system_msg)
-                            admin_msg = f"🚨 مستخدم في القائمة السوداء:\n- المستخدم: {sender_username} ({uid})\n- الإيصال الأصلي: {orig_username} ({orig_uid})\n- رقم العملية: {transaction_id}\n- التاريخ: {used_at}\n- عدد المحاولات: {count}\n- النص:\n{orig_text}"
+                            admin_msg = f"🚨 مستخدم في القائمة السوداء:\n- المستخدم: {sender_username} ({uid})\n- الإيصال الأصلي: @{orig_username} ({orig_uid})\n- رقم العملية: {transaction_id}\n- التاريخ: {used_at}\n- عدد المحاولات: {count}\n- النص:\n{orig_text}"
                             await TeleClientSingleton().send_message(
                                 Config.ADMIN_ID, admin_msg
                             )
                             return
-                        system_msg = f"النظام: تم اكتشاف محاولة احتيال. هذه العملية (رقم العملية: {transaction_id}) استخدمها في الأصل المستخدم {orig_username} ({orig_uid}) في {used_at}. هذه محاولتك رقم {count}. للعلم، في حال وصول عدد المحاولات إلى 5، سيتم إنهاء التعامل معك وإضافتك إلى القائمة السوداء."
+                        system_msg = f"النظام: تم اكتشاف محاولة احتيال. هذه العملية (رقم العملية: {transaction_id}) استخدمها في الأصل المستخدم @{orig_username} ({orig_uid}) في {used_at}. هذه محاولتك رقم {count}. للعلم، في حال وصول عدد المحاولات إلى 5، سيتم إنهاء التعامل معك وإضافتك إلى القائمة السوداء."
                         save_message(uid, st, "system", system_msg, s)
-                        admin_msg = f"🚨 محاولة احتيال:\n- المستخدم: {sender_username} ({uid})\n- الإيصال الأصلي: {orig_username} ({orig_uid})\n- رقم العملية: {transaction_id}\n- التاريخ: {used_at}\n- عدد المحاولات: {count}\n- النص:\n{orig_text}"
+                        admin_msg = f"🚨 محاولة احتيال:\n- المستخدم: {sender_username} ({uid})\n- الإيصال الأصلي: @{orig_username} ({orig_uid})\n- رقم العملية: {transaction_id}\n- التاريخ: {used_at}\n- عدد المحاولات: {count}\n- النص:\n{orig_text}"
                         await TeleClientSingleton().send_message(
                             Config.ADMIN_ID, admin_msg
                         )
@@ -166,17 +175,18 @@ async def client_handler(event: events.NewMessage.Event):
                             cid, f"{system_msg}\n\n{reply}"
                         )
                     else:
-                        s.add(
-                            models.PaymentText(
-                                user_id=uid,
-                                session_type=st,
-                                text=extracted,
-                                username=sender_username,
-                                transaction_id=transaction_id,
-                                timestamp=now_iso(),
+                        if not duplicate:
+                            s.add(
+                                models.PaymentText(
+                                    user_id=uid,
+                                    session_type=st,
+                                    text=extracted,
+                                    username=sender_username,
+                                    transaction_id=transaction_id,
+                                    timestamp=now_iso(),
+                                )
                             )
-                        )
-                        s.commit()
+                            s.commit()
                         details_str = "".join(
                             [f"{k}: {v}\n" for k, v in parsed_details.items() if v]
                         )
@@ -207,8 +217,28 @@ async def client_handler(event: events.NewMessage.Event):
                             .filter(models.MelbetAccount.user_id == uid)
                             .first()
                         )
-                        if existing_account:
-                            default_account, timestamp = existing_account
+                        if existing_account and existing_account.user_id != uid:
+                            system_msg = f"هذا الحساب {txt.strip()} عائد لمستخدم آخر"
+                            save_message(uid, st, "system", system_msg, s)
+                            await TeleClientSingleton().send_message(cid, system_msg)
+                        elif existing_account:
+                            count = (
+                                s.query(models.MelbetAccountChange)
+                                .filter_by(user_id=uid)
+                                .count()
+                            )
+                            if count >= 3:
+                                system_msg = (
+                                    "فشل تغيير الحساب ❗️\n"
+                                    f"النظام: تم اكتشاف محاولات متكررة لتغيير رقم الحساب. هذه محاولتك رقم {count}."
+                                )
+                                save_message(uid, st, "system", system_msg, s)
+                                await TeleClientSingleton().send_message(
+                                    cid, system_msg
+                                )
+                                return
+                            default_account = existing_account.account_number
+                            existing_account.account_number = txt.strip()
                             s.add(
                                 models.MelbetAccountChange(
                                     user_id=uid,
@@ -219,38 +249,15 @@ async def client_handler(event: events.NewMessage.Event):
                                 )
                             )
                             s.commit()
-                            count = (
-                                s.query(models.MelbetAccountChange)
-                                .filter_by(user_id=uid)
-                                .count
-                            )
-                            if count >= 3:
-                                s.add(
-                                    models.Blacklist(
-                                        user_id=uid,
-                                        username=sender_username,
-                                        timestamp=now_iso(),
-                                    )
-                                )
-                                s.commit()
-                                system_msg = f"النظام: تم اكتشاف محاولات متكررة لتغيير رقم الحساب. هذه محاولتك رقم {count}. لقد تم إضافتك إلى القائمة السوداء."
-                                save_message(uid, st, "system", system_msg, s)
-                                await TeleClientSingleton().send_message(
-                                    cid, system_msg
-                                )
-                                admin_msg = f"🚨 مستخدم في القائمة السوداء:\n- المستخدم: {sender_username} ({uid})\n- الحساب الافتراضي: {default_account}\n- الحساب الجديد: {txt.strip()}\n- عدد المحاولات: {count}"
-                                await TeleClientSingleton().send_message(
-                                    Config.ADMIN_ID, admin_msg
-                                )
-                                return
-                            system_msg = f"النظام: تحذير: رقم الحساب {txt.strip()} لا يتطابق مع حسابك الافتراضي ({default_account}) المسجل في {timestamp}. يرجى استخدام الحساب الافتراضي أو التواصل مع الدعم لتحديث الحساب. هذه محاولتك رقم {count}."
+
+                            system_msg = f"تم تحديث الحساب الخاص بك من {existing_account.account_number} إلى {txt.strip()}. هذه محاولتك رقم {count + 1}"
                             save_message(uid, st, "system", system_msg, s)
                             reply = await gpt_reply(uid, st, system_msg)
                             await TeleClientSingleton().send_message(
                                 cid, f"{system_msg}\n\n{reply}"
                             )
                         else:
-                            s.merge(
+                            s.add(
                                 models.MelbetAccount(
                                     user_id=uid,
                                     account_number=txt.strip(),

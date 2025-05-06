@@ -8,7 +8,7 @@ class MelbetAccount(Base):
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
 
-    user_id = sa.Column(sa.BigInteger, sa.ForeignKey("users.user_id"))
+    user_id = sa.Column(sa.BigInteger, sa.ForeignKey("users.user_id"), unique=True)
     account_number = sa.Column(sa.String, nullable=False)
     username = sa.Column(sa.String)
     timestamp = sa.Column(sa.DateTime)

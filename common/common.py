@@ -4,6 +4,7 @@ from common.keyboards import build_request_buttons
 import os
 import models
 import uuid
+from datetime import datetime
 
 
 def check_hidden_keyboard(context: ContextTypes.DEFAULT_TYPE):
@@ -30,3 +31,7 @@ def create_folders():
 def get_lang(user_id: int):
     with models.session_scope() as s:
         return s.get(models.User, user_id).lang
+
+
+def format_datetime(d: datetime):
+    return d.strftime("%Y-%m-%d %H:%M:%S")

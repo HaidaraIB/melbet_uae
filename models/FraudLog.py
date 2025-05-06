@@ -13,7 +13,7 @@ class FraudLog(Base):
     copied_from_username = sa.Column(sa.String)
     timestamp = sa.Column(sa.DateTime)
     receipt_text = sa.Column(sa.Text, nullable=False)
-    transaction_id = sa.Column(sa.String, unique=True)
+    transaction_id = sa.Column(sa.String)
 
     user = relationship(
         "User", foreign_keys=[user_id], back_populates="fraud_committed"
