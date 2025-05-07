@@ -39,6 +39,8 @@ async def choose_prompt_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "session": "برومبت الجلسات",
             "manager": "برومبت المدير",
             "change_account": "برومبت تغيير الحساب",
+            "deposit": "برومبت الإيداع",
+            "withdraw": "برومبت السحب",
         }
         back_buttons = [
             build_back_button(data="back_to_choose_prompt_type"),
