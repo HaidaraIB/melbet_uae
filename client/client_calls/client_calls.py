@@ -37,7 +37,7 @@ async def client_handler(event: events.NewMessage.Event):
         try:
             with models.session_scope() as s:
                 monitor_prompt = s.get(models.Setting, "gpt_prompt_monitor")
-            system = f"{monitor_prompt.value if monitor_prompt else ''} Notify the team: User {uid} wants to {intent}"
+                system = f"{monitor_prompt.value if monitor_prompt else ''} Notify the team: User {uid} wants to {intent}"
             note = (
                 (
                     await openai.chat.completions.create(
