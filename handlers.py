@@ -16,6 +16,7 @@ from admin.admin_calls import *
 from admin.admin_settings import *
 from admin.broadcast import *
 from admin.ban import *
+from admin.prompt_settings import *
 
 from client.client_calls import *
 
@@ -34,6 +35,8 @@ def setup_and_run():
 
     app.add_handler(user_settings_handler)
     app.add_handler(change_lang_handler)
+
+    app.add_handler(prompt_settings_handler)
 
     # ADMIN SETTINGS
     app.add_handler(show_admins_handler)

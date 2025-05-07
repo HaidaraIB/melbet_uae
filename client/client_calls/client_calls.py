@@ -64,6 +64,7 @@ async def client_handler(event: events.NewMessage.Event):
         return
     gid = ent.id
     with models.session_scope() as s:
+        prompt = s.get(models.Setting, "gpt_prompt_session").value
         user_session = s.query(models.UserSession).filter_by(group_id=gid).first()
         if user_session and event.sender_id == user_session.user_id:
             uid, st = user_session.user_id, user_session.session_type
@@ -84,7 +85,7 @@ async def client_handler(event: events.NewMessage.Event):
                         )
                         save_message(uid, st, "system", system_msg, s)
                         save_message(uid, st, "user", user_msg, s)
-                        reply = await gpt_reply(uid, st, user_msg)
+                        reply = await gpt_reply(uid, st, prompt, user_msg)
                         await TeleClientSingleton().send_message(
                             cid, f"{system_msg}\n\n{reply}"
                         )
@@ -105,7 +106,7 @@ async def client_handler(event: events.NewMessage.Event):
                         user_msg = f"المستخدم: أرسلت إيصال دفع. التفاصيل المستخرجة:\n{details_str}"
                         save_message(uid, st, "system", system_msg, s)
                         save_message(uid, st, "user", user_msg, s)
-                        reply = await gpt_reply(uid, st, user_msg)
+                        reply = await gpt_reply(uid, st, prompt, user_msg)
                         await TeleClientSingleton().send_message(
                             cid, f"{system_msg}\n\n{reply}"
                         )
@@ -170,7 +171,7 @@ async def client_handler(event: events.NewMessage.Event):
                         await TeleClientSingleton().send_message(
                             Config.ADMIN_ID, admin_msg
                         )
-                        reply = await gpt_reply(uid, st)
+                        reply = await gpt_reply(uid, st, prompt)
                         await TeleClientSingleton().send_message(
                             cid, f"{system_msg}\n\n{reply}"
                         )
@@ -199,7 +200,7 @@ async def client_handler(event: events.NewMessage.Event):
                         user_msg = f"المستخدم: أرسلت إيصال دفع. التفاصيل المستخرجة:\n{details_str}"
                         save_message(uid, st, "system", system_msg, s)
                         save_message(uid, st, "user", user_msg, s)
-                        reply = await gpt_reply(uid, st, user_msg)
+                        reply = await gpt_reply(uid, st, prompt, user_msg)
                         await TeleClientSingleton().send_message(
                             cid, f"{system_msg}\n\n{reply}"
                         )
@@ -252,7 +253,7 @@ async def client_handler(event: events.NewMessage.Event):
 
                             system_msg = f"تم تحديث الحساب الخاص بك من {existing_account.account_number} إلى {txt.strip()}. هذه محاولتك رقم {count + 1}"
                             save_message(uid, st, "system", system_msg, s)
-                            reply = await gpt_reply(uid, st, system_msg)
+                            reply = await gpt_reply(uid, st, prompt, system_msg)
                             await TeleClientSingleton().send_message(
                                 cid, f"{system_msg}\n\n{reply}"
                             )
@@ -268,13 +269,13 @@ async def client_handler(event: events.NewMessage.Event):
                             s.commit()
                             system_msg = f"النظام: تم حفظ رقم حساب MELBET {txt.strip()} بنجاح. جاري معالجة الإيداع."
                             save_message(uid, st, "system", system_msg, s)
-                            reply = await gpt_reply(uid, st, system_msg)
+                            reply = await gpt_reply(uid, st, prompt, system_msg)
                             await TeleClientSingleton().send_message(
                                 cid, f"{system_msg}\n\n{reply}"
                             )
                     else:
                         save_message(uid, st, "user", txt, s)
-                        reply = await gpt_reply(uid, st, txt)
+                        reply = await gpt_reply(uid, st, prompt, txt)
                         await TeleClientSingleton().send_message(cid, reply)
 
 

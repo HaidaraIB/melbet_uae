@@ -25,8 +25,14 @@ def build_admin_keyboard():
     keyboard = [
         [
             InlineKeyboardButton(
-                text="إعدادات الآدمن ⚙️🎛",
+                text="إعدادات الآدمن 🎛",
                 callback_data="admin_settings",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="إعدادات البرومبت 💬",
+                callback_data="prompt_settings",
             )
         ],
         [
@@ -37,13 +43,13 @@ def build_admin_keyboard():
         ],
         [
             InlineKeyboardButton(
-                text="إخفاء/إظهار كيبورد معرفة الآيديات🪄",
+                text="إخفاء/إظهار كيبورد معرفة الآيديات 🪄",
                 callback_data="hide_ids_keyboard",
             )
         ],
         [
             InlineKeyboardButton(
-                text="رسالة جماعية👥",
+                text="رسالة جماعية 👥",
                 callback_data="broadcast",
             )
         ],

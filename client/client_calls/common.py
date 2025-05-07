@@ -198,9 +198,8 @@ def save_message(uid: int, st: str, role: str, msg: str, s: Session):
     s.commit()
 
 
-async def gpt_reply(uid: int, st: str, msg: str = None) -> str:
+async def gpt_reply(uid: int, st: str, prompt:str, msg: str = None) -> str:
     with models.session_scope() as s:
-        prompt = s.get(models.Setting, "gpt_prompt").value
         s_msgs = (
             s.query(models.SessionMessage)
             .filter(
