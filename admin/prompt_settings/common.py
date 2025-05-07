@@ -11,8 +11,12 @@ def prompt_panel():
         ],
         [
             InlineKeyboardButton(
-                "برومبت الجلسات 🤖",
-                callback_data="edit_prompt_session",
+                "برومبت الإيداع 📥",
+                callback_data="edit_prompt_deposit",
+            ),
+            InlineKeyboardButton(
+                "برومبت السحب 📤",
+                callback_data="edit_prompt_withdraw",
             )
         ],
         [

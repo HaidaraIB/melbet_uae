@@ -63,10 +63,10 @@ async def client_handler(event: events.NewMessage.Event):
     gid = ent.id
     with models.session_scope() as s:
         default_prompt = s.get(models.Setting, "gpt_prompt")
-        session_prompt = s.get(models.Setting, "gpt_prompt_session")
         user_session = s.query(models.UserSession).filter_by(group_id=gid).first()
         if user_session and event.sender_id == user_session.user_id:
             uid, st = user_session.user_id, user_session.session_type
+            session_prompt = s.get(models.Setting, f"gpt_prompt_{st}")
             if event.photo:
                 extracted, parsed_details = await extract_text_from_photo(event)
                 if extracted:

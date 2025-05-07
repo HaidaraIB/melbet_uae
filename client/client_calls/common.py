@@ -15,8 +15,7 @@ from telethon.tl.functions.channels import (
     LeaveChannelRequest,
 )
 from telethon.tl.functions.messages import ExportChatInviteRequest
-from telethon.tl.types import ChatBannedRights, InputMessagesFilterPinned
-from telethon.tl.patched import Message
+from telethon.tl.types import ChatBannedRights
 from openai import AsyncOpenAI
 from Config import Config
 from telethon import events
@@ -35,10 +34,10 @@ def now_iso() -> datetime:
 
 def classify_intent(text: str):
     t = (text or "").lower()
-    if any(k in t for k in ("dp", "deposit", "ايداع")):
-        return "Deposit"
+    if any(k in t for k in ("dp", "deposit", "ايداع", "إيداع")):
+        return "deposit"
     if any(k in t for k in ("wd", "withdraw", "سحب")):
-        return "Withdraw"
+        return "withdraw"
     return None
 
 
@@ -137,48 +136,6 @@ async def extract_text_from_photo(event: events.NewMessage.Event):
         if path and os.path.exists(path):
             os.remove(path)
 
-
-# async def extract_text_from_photo(event: events.NewMessage.Event):
-#     try:
-#         path = await event.download_media(file="photo.jpg")
-#         from PIL import Image, ImageEnhance, ImageFilter
-
-#         img = Image.open(path).convert("L")
-#         img = img.filter(ImageFilter.SHARPEN)
-#         enhancer = ImageEnhance.Contrast(img)
-#         img = enhancer.enhance(2.5)
-#         img.save(path)
-#         result = ocr_reader.readtext(
-#             path,
-#             detail=0,
-#             paragraph=True,
-#             contrast_ths=0.1,
-#             adjust_contrast=0.9,
-#             text_threshold=0.85,
-#             low_text=0.2,
-#         )
-#         text = "\n".join(result).strip()
-#         if not text:
-#             log.warning("لم يتم استخراج أي نص من الصورة.")
-#             await event.reply(
-#                 "عذرًا، لم يتم استخراج أي نص من الصورة. يرجى إرسال صورة أوضح بجودة عالية."
-#             )
-#             return None, None
-#         cleaned_text = re.sub(
-#             r"[^\w\s\d.:/-إأآابتثجحخدذرزسشصضطظعغفقكلمنهويةى]", "", text
-#         )
-#         parsed_details = await parse_receipt_text(cleaned_text)
-#         log.info(f"النص المستخرج: {cleaned_text}")
-#         return cleaned_text, parsed_details
-#     except Exception as e:
-#         log.error(f"خطأ في OCR: {e}")
-#         await event.reply(
-#             "عذرًا، حدث خطأ أثناء معالجة الصورة. يرجى إرسال صورة أوضح أو التأكد من جودة الصورة."
-#         )
-#         return None, None
-#     finally:
-#         if path and os.path.exists(path):
-#             os.remove(path)
 
 
 def save_message(uid: int, st: str, role: str, msg: str, s: Session):
