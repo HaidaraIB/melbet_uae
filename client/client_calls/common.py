@@ -137,7 +137,6 @@ async def extract_text_from_photo(event: events.NewMessage.Event):
             os.remove(path)
 
 
-
 def save_message(uid: int, st: str, role: str, msg: str, s: Session):
     valid_roles = {"system", "assistant", "user"}
     if role not in valid_roles:
@@ -155,7 +154,7 @@ def save_message(uid: int, st: str, role: str, msg: str, s: Session):
     s.commit()
 
 
-async def gpt_reply(uid: int, st: str, prompt:str, msg: str = None) -> str:
+async def gpt_reply(uid: int, st: str, prompt: str, msg: str = None) -> str:
     with models.session_scope() as s:
         s_msgs = (
             s.query(models.SessionMessage)
@@ -205,8 +204,8 @@ async def get_or_create_session(uid: int, st: str):
                         user: models.User = user_session.user
                         await TeleClientSingleton()(
                             EditTitleRequest(
-                                user_session.group_id,
-                                f"{st} – {user.username if user.username else user.name}",
+                                channel=user_session.group_id,
+                                title=f"{st} – {user.username if user.username else user.name}",
                             )
                         )
                     except Exception as e:
@@ -257,12 +256,12 @@ async def kick_user_and_admin(gid: int, uid: int):
         peer = await TeleClientSingleton().get_entity(gid)
         await TeleClientSingleton()(
             EditBannedRequest(
-                peer,
-                await TeleClientSingleton().get_entity(uid),
-                ChatBannedRights(until_date=None, view_messages=True),
+                channel=peer,
+                participant=await TeleClientSingleton().get_entity(uid),
+                banned_rights=ChatBannedRights(until_date=None, view_messages=True),
             )
         )
-        await TeleClientSingleton()(LeaveChannelRequest(peer))
+        await TeleClientSingleton()(LeaveChannelRequest(channel=peer))
 
         log.info(f"تم طرد المستخدم {uid} والمدير {Config.ADMIN_ID} من المجموعة {gid}.")
     except Exception as e:
@@ -347,8 +346,8 @@ async def start_session(uid: int, st: str):
             log.error(f"خطأ في تعديل الأذونات: {e}")
         await TeleClientSingleton()(
             InviteToChannelRequest(
-                peer,
-                [
+                channel=peer,
+                users=[
                     tg_user,
                     await TeleClientSingleton().get_entity(Config.ADMIN_ID),
                 ],
@@ -356,13 +355,15 @@ async def start_session(uid: int, st: str):
         )
         inv = await TeleClientSingleton()(
             ExportChatInviteRequest(
-                peer, expire_date=int(time.time()) + 3600, usage_limit=1
+                peer=peer,
+                expire_date=int(time.time()) + 3600,
+                usage_limit=1,
             )
         )
         await TeleClientSingleton().send_message(
             uid, f"🔗 Private {st} session link:\n{inv.link}"
         )
-        if st == "Deposit":
+        if st == "deposit":
             asyncio.create_task(session_timer(gid, uid))
         else:
             with models.session_scope() as s:

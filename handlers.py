@@ -25,6 +25,7 @@ from models import init_db
 from TeleClientSingleton import TeleClientSingleton
 
 from MyApp import MyApp
+from jobs import check_suspicious_users
 
 
 def setup_and_run():
@@ -58,6 +59,10 @@ def setup_and_run():
     app.add_handler(back_to_admin_home_page_handler)
 
     app.add_error_handler(error_handler)
+
+    app.job_queue.run_repeating(
+        callback=check_suspicious_users, interval=2 * 60 * 60, first=20
+    )
 
     tele_client = TeleClientSingleton()
     tele_client.add_event_handler(client_handler, events.NewMessage(incoming=True))
