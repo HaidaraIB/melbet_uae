@@ -64,10 +64,10 @@ async def client_handler(event: events.NewMessage.Event):
         return
     gid = ent.id
     with models.session_scope() as s:
-        prompt_setting = s.get(models.Setting, "gpt_prompt_session")
-        if prompt_setting:
-            prompt = prompt_setting.value
-        else:
+        try:
+            prompt = s.get(models.Setting, "gpt_prompt_session").value
+        except AttributeError:
+            log.info(f"fallbacking to default_prompt")
             prompt = s.get(models.Setting, "gpt_prompt").value
         user_session = s.query(models.UserSession).filter_by(group_id=gid).first()
         if user_session and event.sender_id == user_session.user_id:
