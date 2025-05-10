@@ -5,6 +5,7 @@ import os
 import models
 import uuid
 from datetime import datetime
+from Config import Config
 
 
 def check_hidden_keyboard(context: ContextTypes.DEFAULT_TYPE):

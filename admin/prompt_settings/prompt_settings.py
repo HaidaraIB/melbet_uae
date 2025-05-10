@@ -35,12 +35,14 @@ async def prompt_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def choose_prompt_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
         title_map = {
-            "monitor": "برومبت المراقبة",
-            "session": "برومبت الجلسات",
-            "manager": "برومبت المدير",
-            "change_account": "برومبت تغيير الحساب",
-            "deposit": "برومبت الإيداع",
-            "withdraw": "برومبت السحب",
+            "monitor": "المراقبة",
+            "session": "الجلسات",
+            "manager": "المدير",
+            "change_account": "تغيير الحساب",
+            "deposit": "الإيداع",
+            "withdraw": "السحب",
+            "security_messages": "رسائل الأمان",
+            "promotional": "الترويج",
         }
         back_buttons = [
             build_back_button(data="back_to_choose_prompt_type"),

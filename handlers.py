@@ -8,6 +8,9 @@ from common.back_to_home_page import (
 )
 from common.error_handler import error_handler
 from common.force_join import check_joined_handler
+from common.constants import TIMEZONE
+
+from utils.api_calls import schedule_daily_fixtures
 
 from user.user_calls import *
 from user.user_settings import *
@@ -25,7 +28,9 @@ from models import init_db
 from TeleClientSingleton import TeleClientSingleton
 
 from MyApp import MyApp
-from jobs import check_suspicious_users
+from jobs import check_suspicious_users, send_periodic_messages
+
+from datetime import time
 
 
 def setup_and_run():
@@ -61,7 +66,27 @@ def setup_and_run():
     app.add_error_handler(error_handler)
 
     app.job_queue.run_repeating(
-        callback=check_suspicious_users, interval=2 * 60 * 60, first=20
+        callback=check_suspicious_users,
+        interval=2 * 60 * 60,
+    )
+
+    app.job_queue.run_repeating(
+        callback=send_periodic_messages,
+        interval=2 * 60 * 60,
+        data="security_messages",
+    )
+    app.job_queue.run_repeating(
+        callback=send_periodic_messages,
+        interval=2 * 60 * 60,
+        data="promotional",
+    )
+    app.job_queue.run_daily(
+        callback=schedule_daily_fixtures,
+        time=time(
+            hour=0,
+            minute=0,
+            tzinfo=TIMEZONE,
+        ),
     )
 
     tele_client = TeleClientSingleton()

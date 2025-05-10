@@ -343,6 +343,20 @@ async def client_handler(event: events.NewMessage.Event):
                         )
                         await TeleClientSingleton().send_message(cid, reply)
 
+        elif not user_session:
+            manager_prompt = s.get(models.Setting, f"gpt_prompt_manager")
+
+            save_message(uid, "general", "user", txt, s)
+            reply = await gpt_reply(
+                uid=uid,
+                st="general",
+                prompt=(
+                    manager_prompt.value if manager_prompt else default_prompt.value
+                ),
+                msg=txt,
+            )
+            await TeleClientSingleton().send_message(cid, reply)
+
 
 async def end_session(event: events.NewMessage.Event):
     cid = event.chat_id

@@ -23,3 +23,6 @@ class Config:
 
     GPT_MODEL = os.getenv("GPT_MODEL")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+    X_RAPIDAPI_KEY = os.getenv("X_RAPIDAPI_KEY")
+    X_RAPIDAPI_HOST = os.getenv("X_RAPIDAPI_HOST")

@@ -8,11 +8,34 @@ from telethon.tl.types import (
 )
 from telethon.tl.functions.channels import EditBannedRequest
 from telethon.tl.types import ChatBannedRights
+from client.client_calls.common import openai
 from Config import Config
 import re
 import logging
+import models
+import requests
+from datetime import datetime, timedelta
 
 log = logging.getLogger(__name__)
+
+
+async def send_periodic_messages(context: ContextTypes.DEFAULT_TYPE):
+    with models.session_scope() as s:
+        prompt = s.get(models.Setting, f"gpt_prompt_{context.job.data}")
+        default_prompt = s.get(models.Setting, "gpt_prompt")
+        system = f"{prompt.value if prompt else default_prompt.value}"
+    note = (
+        (
+            await openai.chat.completions.create(
+                model=Config.GPT_MODEL,
+                messages=[{"role": "system", "content": system}],
+                temperature=0.3,
+            )
+        )
+        .choices[0]
+        .message.content.strip()
+    )
+    await context.bot.send_message(chat_id=Config.MONITOR_GROUP_ID, text=note)
 
 
 async def check_suspicious_users(context: ContextTypes.DEFAULT_TYPE):
@@ -35,12 +58,16 @@ async def check_suspicious_users(context: ContextTypes.DEFAULT_TYPE):
         )
         if is_scammer:
             try:
-                monitor_group = await TeleClientSingleton().get_entity(Config.MONITOR_GROUP_ID)
+                monitor_group = await TeleClientSingleton().get_entity(
+                    Config.MONITOR_GROUP_ID
+                )
                 await TeleClientSingleton()(
                     EditBannedRequest(
                         channel=monitor_group,
                         participant=await TeleClientSingleton().get_entity(member.id),
-                        banned_rights=ChatBannedRights(until_date=None, view_messages=True),
+                        banned_rights=ChatBannedRights(
+                            until_date=None, view_messages=True
+                        ),
                     )
                 )
                 log.info(f"تم طرد المستخدم {member.id} من مجموعة المراقبة.")
@@ -82,3 +109,34 @@ def contains_restricted_word(text: str):
     pattern = r"(?:" + "|".join(restricted_words) + r")"
     match = re.search(pattern, text, re.IGNORECASE)
     return match is not None
+
+
+async def schedule_pre_match_lineups(matches, context: ContextTypes.DEFAULT_TYPE):
+    for match in matches:
+        # Schedule lineup posting 55 minutes before match
+        lineup_time: datetime = match["start_time"] - timedelta(minutes=55)
+
+        context.job_queue.run_once(
+            callback=send_lineups,
+            when=(lineup_time - datetime.now()).total_seconds(),
+            data=match,
+        )
+
+
+async def send_lineups(context: ContextTypes.DEFAULT_TYPE):
+    match = context.job.data
+    # Replace with your lineup API call
+    home_lineup = "Team A Lineup:\nPlayer1\nPlayer2\n..."
+    away_lineup = "Team B Lineup:\nPlayer1\nPlayer2\n..."
+
+    message = (
+        f"⚠️ <b>Lineups for {match['home_team']} vs {match['away_team']}</b> ⚠️\n\n"
+        f"{home_lineup}\n\n"
+        f"{away_lineup}\n\n"
+        f"⏰ Match starts at <code>{match['start_time'].strftime('%H:%M UTC')}</code>"
+    )
+
+    await context.bot.send_message(
+        chat_id=Config.MONITOR_GROUP_ID,
+        text=message,
+    )
