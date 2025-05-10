@@ -337,11 +337,6 @@ async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
-    # Clear existing match jobs
-    current_jobs = context.job_queue.get_jobs_by_name("match_update")
-    for job in current_jobs:
-        job.schedule_removal()
-
     # Get today's fixtures
     fixtures = get_daily_fixtures()
 
@@ -370,6 +365,10 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
                     first=30,
                     data=match_data,
                     name=f"match_update_{fixture['fixture_id']}_monitor",
+                    job_kwargs={
+                        "id": f"monitor_live_events_{fixture['fixture_id']}",
+                        "replace_existing": True,
+                    },
                 )
 
                 # Check if we missed lineups (if match started less than 55 mins ago)
@@ -385,6 +384,10 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
                 when=(lineup_time - now).total_seconds(),
                 data=match_data,
                 name=f"match_update_{fixture['fixture_id']}_lineup",
+                job_kwargs={
+                    "id": f"send_pre_match_lineup_{fixture['fixture_id']}",
+                    "replace_existing": True,
+                },
             )
 
             # Schedule live monitoring
@@ -395,6 +398,10 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
                 first=(monitor_start - now).total_seconds(),
                 data=match_data,
                 name=f"match_update_{fixture['fixture_id']}_monitor",
+                job_kwargs={
+                    "id": f"monitor_live_events_{fixture['fixture_id']}",
+                    "replace_existing": True,
+                },
             )
 
         # Schedule post-match stats (either immediately or at scheduled time)
@@ -409,6 +416,10 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
                 when=(stats_time - now).total_seconds(),
                 data=match_data,
                 name=f"match_update_{fixture['fixture_id']}_stats",
+                job_kwargs={
+                    "id": f"send_post_match_stats_{fixture['fixture_id']}",
+                    "replace_existing": True,
+                },
             )
 
     # Send confirmation with status information

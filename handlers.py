@@ -68,17 +68,29 @@ def setup_and_run():
     app.job_queue.run_repeating(
         callback=check_suspicious_users,
         interval=2 * 60 * 60,
+        job_kwargs={
+            "id": "check_suspicious_users",
+            "replace_existing": True,
+        },
     )
 
     app.job_queue.run_repeating(
         callback=send_periodic_messages,
         interval=2 * 60 * 60,
         data="security_messages",
+        job_kwargs={
+            "id": "send_periodic_security_messages",
+            "replace_existing": True,
+        },
     )
     app.job_queue.run_repeating(
         callback=send_periodic_messages,
         interval=2 * 60 * 60,
         data="promotional",
+        job_kwargs={
+            "id": "send_periodic_promotional_messages",
+            "replace_existing": True,
+        },
     )
     app.job_queue.run_daily(
         callback=schedule_daily_fixtures,
@@ -87,6 +99,10 @@ def setup_and_run():
             minute=0,
             tzinfo=TIMEZONE,
         ),
+        job_kwargs={
+            "id": "schedule_daily_fixtures",
+            "replace_existing": True,
+        },
     )
 
     tele_client = TeleClientSingleton()
