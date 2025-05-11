@@ -7,6 +7,6 @@ HOME_PAGE_TEXT = "القائمة الرئيسية 🔝"
 BACK_BUTTON_TEXT = "الرجوع 🔙"
 
 
-TIMEZONE_NAME = "Asia/Damascus"
+TIMEZONE_NAME = "Asia/Dubai"
 
 TIMEZONE = tz.gettz(TIMEZONE_NAME)

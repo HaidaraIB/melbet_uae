@@ -8,7 +8,7 @@ import logging
 log = logging.getLogger(__name__)
 
 
-BASE_URL = f"https://{Config.X_RAPIDAPI_HOST}"
+BASE_URL = f"https://{Config.X_RAPIDAPI_HOST}/v3"
 HEADERS = {
     "X-RapidAPI-Key": Config.X_RAPIDAPI_KEY,
     "X-RapidAPI-Host": Config.X_RAPIDAPI_HOST,
@@ -237,15 +237,14 @@ def get_daily_fixtures() -> list[dict]:
     """Fetch all fixtures for today across important leagues"""
     now = datetime.now(TIMEZONE)
     today = now.strftime("%Y-%m-%d")
-    # season = now.year
-    season = "2022"
+    season = now.year
     all_fixtures = []
 
     for league_id in [league["id"] for league in IMPORTANT_LEAGUES.values()]:
         url = f"{BASE_URL}/fixtures"
         querystring = {
             "league": league_id,
-            # "date": today,
+            "date": today,
             "timezone": TIMEZONE_NAME,
             "season": season,
         }
