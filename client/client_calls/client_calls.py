@@ -86,8 +86,8 @@ async def client_handler(event: events.NewMessage.Event):
             )
             await TeleClientSingleton().send_message(uid, reply)
             return
-        
-        user_session = s.query(models.UserSession).filter_by(group_id=cid).first()
+        ent = await TeleClientSingleton().get_entity(cid)
+        user_session = s.query(models.UserSession).filter_by(group_id=ent.id).first()
         if user_session and event.sender_id == user_session.user_id:
             uid, st = user_session.user_id, user_session.session_type
             session_prompt = s.get(models.Setting, f"gpt_prompt_{st}")
