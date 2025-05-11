@@ -28,7 +28,7 @@ async def send_periodic_messages(context: ContextTypes.DEFAULT_TYPE):
         (
             await openai.chat.completions.create(
                 model=Config.GPT_MODEL,
-                messages=[{"role": "system", "content": system}],
+                messages=[{"role": "user", "content": system}],
                 temperature=0.3,
             )
         )
