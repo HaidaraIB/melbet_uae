@@ -138,7 +138,7 @@ async def send_lineups(context: ContextTypes.DEFAULT_TYPE):
         f"⚠️ <b>Lineups for {match['home_team']} vs {match['away_team']}</b> ⚠️\n\n"
         f"{home_lineup}\n\n"
         f"{away_lineup}\n\n"
-        f"⏰ Match starts at <code>{match['start_time'].strftime('%H:%M UTC')}</code>"
+        f"⏰ Match starts at <code>{match['start_time'].strftime('%H:%M')}</code>"
     )
 
     await context.bot.send_message(

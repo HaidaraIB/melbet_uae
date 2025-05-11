@@ -105,11 +105,6 @@ def setup_and_run():
         },
     )
 
-    app.job_queue.run_once(
-        callback=schedule_daily_fixtures,
-        when=20,
-    )
-
     tele_client = TeleClientSingleton()
     tele_client.add_event_handler(client_handler, events.NewMessage(incoming=True))
     tele_client.add_event_handler(

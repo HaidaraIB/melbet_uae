@@ -437,7 +437,7 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
 
         match_list.append(
             f"• {status_emoji} {fixture['home_team']} vs {fixture['away_team']} "
-            f"({fixture['league_name']}) at {fixture['start_time'].strftime('%H:%M UTC')}"
+            f"({fixture['league_name']}) at {fixture['start_time'].strftime('%H:%M')}"
         )
 
     await context.bot.send_message(
@@ -445,7 +445,7 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
         text=(
             f"📅 <b>Today's Matches:</b>\n\n" + "\n".join(match_list) + "\n\n"
             f"Total matches: {len(fixtures)}\n"
-            f"⏰ Last update: {now.strftime('%H:%M UTC')}"
+            f"⏰ Last update: {now.strftime('%H:%M')}"
         ),
     )
 
@@ -463,7 +463,7 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
             f"⚠️ <b>Lineups for {match['home_team']} vs {match['away_team']}</b> ⚠️\n\n"
             f"{home_lineup}\n\n"
             f"{away_lineup}\n\n"
-            f"⏰ Match starts at <code>{match['start_time'].strftime('%H:%M UTC')}</code>"
+            f"⏰ Match starts at <code>{match['start_time'].strftime('%H:%M')}</code>"
         )
 
         await context.bot.send_message(
