@@ -360,6 +360,7 @@ async def client_handler(event: events.NewMessage.Event):
             uid = event.sender_id
             manager_prompt = s.get(models.Setting, f"gpt_prompt_manager")
 
+            txt: str = event.raw_text or ""
             save_message(uid, "general", "user", txt, s)
             reply = await gpt_reply(
                 uid=uid,
