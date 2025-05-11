@@ -237,43 +237,44 @@ def get_daily_fixtures() -> list[dict]:
     """Fetch all fixtures for today across important leagues"""
     now = datetime.now(TIMEZONE)
     today = now.strftime("%Y-%m-%d")
-    season = now.year
+    seasons = now.year - 1, now.year
     all_fixtures = []
 
     for league_id in [league["id"] for league in IMPORTANT_LEAGUES.values()]:
         url = f"{BASE_URL}/fixtures"
-        querystring = {
-            "league": league_id,
-            "date": today,
-            "timezone": TIMEZONE_NAME,
-            "season": season,
-        }
+        for season in seasons:
+            querystring = {
+                "league": league_id,
+                "date": today,
+                "timezone": TIMEZONE_NAME,
+                "season": season,
+            }
 
-        try:
-            response = requests.get(url, headers=HEADERS, params=querystring)
-            data = response.json()
+            try:
+                response = requests.get(url, headers=HEADERS, params=querystring)
+                data = response.json()
 
-            if data["response"]:
-                for fixture in data["response"]:
-                    all_fixtures.append(
-                        {
-                            "fixture_id": fixture["fixture"]["id"],
-                            "home_team": fixture["teams"]["home"]["name"],
-                            "away_team": fixture["teams"]["away"]["name"],
-                            "start_time": datetime.fromtimestamp(
-                                fixture["fixture"]["timestamp"], tz=TIMEZONE
-                            ),
-                            "league_id": league_id,
-                            "league_name": next(
-                                league["name"]
-                                for league in IMPORTANT_LEAGUES.values()
-                                if league["id"] == league_id
-                            ),
-                        }
-                    )
+                if data["response"]:
+                    for fixture in data["response"]:
+                        all_fixtures.append(
+                            {
+                                "fixture_id": fixture["fixture"]["id"],
+                                "home_team": fixture["teams"]["home"]["name"],
+                                "away_team": fixture["teams"]["away"]["name"],
+                                "start_time": datetime.fromtimestamp(
+                                    fixture["fixture"]["timestamp"], tz=TIMEZONE
+                                ),
+                                "league_id": league_id,
+                                "league_name": next(
+                                    league["name"]
+                                    for league in IMPORTANT_LEAGUES.values()
+                                    if league["id"] == league_id
+                                ),
+                            }
+                        )
 
-        except Exception as e:
-            log.error(f"Error fetching fixtures for league {league_id}: {e}")
+            except Exception as e:
+                log.error(f"Error fetching fixtures for league {league_id}: {e}")
 
     return all_fixtures
 
