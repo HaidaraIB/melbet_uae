@@ -147,20 +147,34 @@ def get_fixture_lineups(fixture_id: int) -> tuple:
 
         def format_lineup(team):
             lineup = f"<b>{team['team']['name']} ({team['formation']})</b>\n"
+            positions = {
+                "G": "🧤 Goalkeeper",
+                "D": "🛡️ Defenders",
+                "M": "⚙️ Midfielders",
+                "F": "🎯 Forwards",
+            }
             lineup += "<b>Starting XI:</b>\n"
-            lineup += "\n".join(
-                [
+
+            grouped = {"G": [], "D": [], "M": [], "F": []}
+            for player in team["startXI"]:
+                pos = player["player"]["pos"]
+                grouped.get(pos, []).append(
                     f"• {player['player']['name']} ({player['player']['number']})"
-                    for player in team["startXI"]
-                ]
-            )
-            lineup += "\n\n<b>Substitutes:</b>\n"
+                )
+
+            for code, title in positions.items():
+                if grouped[code]:
+                    lineup += f"\n<b>{title}:</b>\n" + "\n".join(grouped[code]) + "\n"
+
+            # Substitutes
+            lineup += "\n<b>Substitutes:</b>\n"
             lineup += "\n".join(
                 [
                     f"• {player['player']['name']} ({player['player']['number']})"
                     for player in team["substitutes"]
                 ]
             )
+
             return lineup
 
         return format_lineup(home), format_lineup(away)
