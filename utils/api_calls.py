@@ -4,6 +4,7 @@ from Config import Config
 from telegram.ext import ContextTypes
 from common.constants import TIMEZONE, TIMEZONE_NAME
 import logging
+import asyncio
 
 log = logging.getLogger(__name__)
 
@@ -233,7 +234,7 @@ def build_match_stats_message_from_json(json_data: list) -> str:
     return "\n".join(message_lines)
 
 
-def get_daily_fixtures() -> list[dict]:
+async def get_daily_fixtures() -> list[dict]:
     """Fetch all fixtures for today across important leagues"""
     now = datetime.now(TIMEZONE)
     today = now.strftime("%Y-%m-%d")
@@ -272,7 +273,7 @@ def get_daily_fixtures() -> list[dict]:
                                 ),
                             }
                         )
-
+                await asyncio.sleep(5)
             except Exception as e:
                 log.error(f"Error fetching fixtures for league {league_id}: {e}")
 
@@ -338,7 +339,7 @@ async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
 
 async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
     # Get today's fixtures
-    fixtures = get_daily_fixtures()
+    fixtures = await get_daily_fixtures()
 
     if not fixtures:
         return
