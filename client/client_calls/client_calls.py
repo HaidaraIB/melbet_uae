@@ -22,9 +22,9 @@ log = logging.getLogger(__name__)
 
 async def client_handler(event: events.NewMessage.Event):
     cid = event.chat_id
+    me = (await TeleClientSingleton().get_me()).id
     if cid == Config.MONITOR_GROUP_ID:
         uid = event.sender_id
-        me = (await TeleClientSingleton().get_me()).id
         if uid in (me, Config.ADMIN_ID):
             return
         intent = classify_intent(event.raw_text)
@@ -68,14 +68,30 @@ async def client_handler(event: events.NewMessage.Event):
         await start_session(uid, intent)
         return
 
-    try:
-        ent = await TeleClientSingleton().get_entity(cid)
-    except Exception as e:
-        log.error(f"خطأ في جلب الكيان: {e}")
-        return
-    gid = ent.id
     with models.session_scope() as s:
         default_prompt = s.get(models.Setting, "gpt_prompt")
+        if event.is_private:
+            uid = event.sender_id
+            manager_prompt = s.get(models.Setting, f"gpt_prompt_manager")
+
+            txt: str = event.raw_text or ""
+            save_message(uid, "general", "user", txt, s)
+            reply = await gpt_reply(
+                uid=uid,
+                st="general",
+                prompt=(
+                    manager_prompt.value if manager_prompt else default_prompt.value
+                ),
+                msg=txt,
+            )
+            await TeleClientSingleton().send_message(uid, reply)
+            return
+        try:
+            ent = await TeleClientSingleton().get_entity(cid)
+        except Exception as e:
+            log.error(f"خطأ في جلب الكيان: {e}")
+            return
+        gid = ent.id
         user_session = s.query(models.UserSession).filter_by(group_id=gid).first()
         if user_session and event.sender_id == user_session.user_id:
             uid, st = user_session.user_id, user_session.session_type
@@ -356,21 +372,6 @@ async def client_handler(event: events.NewMessage.Event):
                         )
                         await TeleClientSingleton().send_message(cid, reply)
 
-        elif not user_session:
-            uid = event.sender_id
-            manager_prompt = s.get(models.Setting, f"gpt_prompt_manager")
-
-            txt: str = event.raw_text or ""
-            save_message(uid, "general", "user", txt, s)
-            reply = await gpt_reply(
-                uid=uid,
-                st="general",
-                prompt=(
-                    manager_prompt.value if manager_prompt else default_prompt.value
-                ),
-                msg=txt,
-            )
-            await TeleClientSingleton().send_message(cid, reply)
 
 
 async def end_session(event: events.NewMessage.Event):
