@@ -75,16 +75,19 @@ async def client_handler(event: events.NewMessage.Event):
             manager_prompt = s.get(models.Setting, f"gpt_prompt_manager")
 
             txt: str = event.raw_text or ""
-            save_message(uid, "general", "user", txt, s)
-            reply = await gpt_reply(
-                uid=uid,
-                st="general",
-                prompt=(
-                    manager_prompt.value if manager_prompt else default_prompt.value
-                ),
-                msg=txt,
-            )
-            await TeleClientSingleton().send_message(uid, reply)
+            try:
+                save_message(uid, "general", "user", txt, s)
+                reply = await gpt_reply(
+                    uid=uid,
+                    st="general",
+                    prompt=(
+                        manager_prompt.value if manager_prompt else default_prompt.value
+                    ),
+                    msg=txt,
+                )
+                await TeleClientSingleton().send_message(uid, reply)
+            except Exception as e:
+                log.error(f"Error while generally responding to user {uid}: {e}")
             return
         ent = await TeleClientSingleton().get_entity(cid)
         user_session = s.query(models.UserSession).filter_by(group_id=ent.id).first()
