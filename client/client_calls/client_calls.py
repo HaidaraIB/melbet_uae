@@ -36,20 +36,33 @@ async def client_handler(event: events.NewMessage.Event):
             log.error(f"خطأ في حذف الرسالة: {e}")
         try:
             with models.session_scope() as s:
+                default_prompt = s.get(models.Setting, "gpt_prompt")
                 monitor_prompt = s.get(models.Setting, "gpt_prompt_monitor")
-                system = f"{monitor_prompt.value if monitor_prompt else ''} Notify the team: User {uid} wants to {intent}"
-            note = (
-                (
-                    await openai.chat.completions.create(
-                        model=Config.GPT_MODEL,
-                        messages=[{"role": "system", "content": system}],
-                        temperature=0.3,
+                note = (
+                    (
+                        await openai.chat.completions.create(
+                            model=Config.GPT_MODEL,
+                            messages=[
+                                {
+                                    "role": "system",
+                                    "content": (
+                                        monitor_prompt.value
+                                        if monitor_prompt
+                                        else default_prompt.value
+                                    ),
+                                },
+                                {
+                                    "role": "system",
+                                    "content": f"Notify the team: User {uid} wants to {intent}",
+                                },
+                            ],
+                            temperature=0.3,
+                        )
                     )
+                    .choices[0]
+                    .message.content.strip()
                 )
-                .choices[0]
-                .message.content.strip()
-            )
-            await TeleClientSingleton().send_message(Config.MONITOR_GROUP_ID, note)
+                await TeleClientSingleton().send_message(Config.MONITOR_GROUP_ID, note)
         except Exception as e:
             log.error(f"خطأ في إنشاء إشعار OpenAI: {e}")
         await start_session(uid, intent)
