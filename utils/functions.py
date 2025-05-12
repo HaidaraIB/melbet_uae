@@ -3,26 +3,32 @@ import matplotlib.pyplot as plt
 
 
 def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict) -> BytesIO:
-    # جمع كل المفاتيح المشتركة
+    # Collect all common keys
     labels = list(stats1.keys())
 
     values1 = []
     values2 = []
     for label in labels:
-        val1 = stats1[label] or 0
-        val2 = stats2[label] or 0
+        val1 = stats1.get(label, 0) or 0
+        val2 = stats2.get(label, 0) or 0
 
-        # تحويل إلى أرقام إن كانت نسب مئوية
+        # Handle percentage values
         if isinstance(val1, str) and val1.endswith("%"):
-            val1 = val1.strip("%")
+            val1 = float(val1.strip("%")) / 100
         if isinstance(val2, str) and val2.endswith("%"):
-            val2 = val2.strip("%")
+            val2 = float(val2.strip("%")) / 100
 
-        values1.append(float(val1))
-        values2.append(float(val2))
+        try:
+            values1.append(float(val1))
+            values2.append(float(val2))
+        except (ValueError, TypeError):
+            values1.append(0.0)
+            values2.append(0.0)
 
     x = range(len(labels))
-    plt.figure(figsize=(12, 0.5 * len(labels) + 2))  # حجم ديناميكي حسب عدد الإحصائيات
+    # Dynamic figure size with minimum height
+    fig_height = max(6, 0.5 * len(labels) + 2)
+    plt.figure(figsize=(12, fig_height))
 
     bar1 = plt.barh(
         x,
@@ -40,17 +46,25 @@ def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict) -> 
     )
 
     plt.yticks([i + 0.2 for i in x], labels)
-    plt.xlabel("القيمة")
+    plt.xlabel("Value")
     plt.title("Match Statistics")
     plt.legend()
 
-    # إضافة القيم بجانب كل عمود
+    # Determine a good position for the text labels
+    max_value = max(max(values1), max(values2)) if values1 or values2 else 1
+    text_offset = max_value * 0.05  # 5% of max value as offset
+
+    # Add value labels
     for bars in [bar1, bar2]:
         for bar in bars:
             plt.text(
-                bar.get_width() + 1,
+                bar.get_width() + text_offset,
                 bar.get_y() + bar.get_height() / 2,
-                f"{int(bar.get_width())}",
+                (
+                    f"{bar.get_width():.1f}"
+                    if isinstance(bar.get_width(), float)
+                    else f"{int(bar.get_width())}"
+                ),
                 va="center",
                 fontsize=8,
                 color="black",
@@ -58,7 +72,7 @@ def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict) -> 
 
     plt.tight_layout()
     buf = BytesIO()
-    plt.savefig(buf, format="png")
+    plt.savefig(buf, format="png", dpi=120)
     plt.close()
     buf.seek(0)
     return buf
