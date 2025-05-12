@@ -2,58 +2,61 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 
 
-def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict):
-    labels = ["Possession", "Shots", "Passes", "Corners", "Yellow Cards"]
-    values1 = [
-        stats1.get("Ball Possession", 0),
-        stats1.get("Total Shots", 0),
-        stats1.get("Total passes", 0),
-        stats1.get("Corner Kicks", 0),
-        stats1.get("Yellow Cards", 0),
-    ]
-    values2 = [
-        stats2.get("Ball Possession", 0),
-        stats2.get("Total Shots", 0),
-        stats2.get("Total passes", 0),
-        stats2.get("Corner Kicks", 0),
-        stats2.get("Yellow Cards", 0),
-    ]
+def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict) -> BytesIO:
+    # جمع كل المفاتيح المشتركة
+    labels = list(stats1.keys())
+
+    values1 = []
+    values2 = []
+    for label in labels:
+        val1 = stats1[label] or 0
+        val2 = stats2[label] or 0
+
+        # تحويل إلى أرقام إن كانت نسب مئوية
+        if isinstance(val1, str) and val1.endswith("%"):
+            val1 = val1.strip("%")
+        if isinstance(val2, str) and val2.endswith("%"):
+            val2 = val2.strip("%")
+
+        values1.append(float(val1))
+        values2.append(float(val2))
+
     x = range(len(labels))
-    plt.figure(figsize=(10, 5))
-    bar1 = plt.bar(
+    plt.figure(figsize=(12, 0.5 * len(labels) + 2))  # حجم ديناميكي حسب عدد الإحصائيات
+
+    bar1 = plt.barh(
         x,
         values1,
-        width=0.4,
+        height=0.4,
         label=team1,
-        align="center",
         color="#1f77b4",
     )
-    bar2 = plt.bar(
+    bar2 = plt.barh(
         [i + 0.4 for i in x],
         values2,
-        width=0.4,
+        height=0.4,
         label=team2,
-        align="center",
         color="#d62728",
     )
-    plt.xticks([i + 0.2 for i in x], labels)
-    plt.legend()
-    plt.title("Match Statistics")
-    # عرض القيم فوق الأعمدة
-    for bar in bar1 + bar2:
-        yval = bar.get_height()
-        plt.text(
-            bar.get_x() + bar.get_width() / 2,
-            yval + (max(values1 + values2) * 0.02),
-            str(yval),
-            ha="center",
-            va="bottom",
-            fontsize=9,
-            color="black",
-        )
-    plt.tight_layout()
 
-    # Save to BytesIO instead of disk
+    plt.yticks([i + 0.2 for i in x], labels)
+    plt.xlabel("القيمة")
+    plt.title("Match Statistics")
+    plt.legend()
+
+    # إضافة القيم بجانب كل عمود
+    for bars in [bar1, bar2]:
+        for bar in bars:
+            plt.text(
+                bar.get_width() + 1,
+                bar.get_y() + bar.get_height() / 2,
+                f"{int(bar.get_width())}",
+                va="center",
+                fontsize=8,
+                color="black",
+            )
+
+    plt.tight_layout()
     buf = BytesIO()
     plt.savefig(buf, format="png")
     plt.close()

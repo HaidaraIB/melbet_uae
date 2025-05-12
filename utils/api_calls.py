@@ -212,7 +212,7 @@ def get_fixture_events(fixture_id: int) -> list:
         return []
 
 
-def build_match_stats_message_from_json(
+def build_match_stats_message(
     team1: str, stats1: dict, team2: str, stats2: dict
 ) -> str:
 
@@ -503,9 +503,9 @@ async def _send_post_match_stats(match, context: ContextTypes.DEFAULT_TYPE):
 
     if stats_data:
         team1, stats1, team2, stats2 = extract_stats(stats_data)
-        stats_msg = build_match_stats_message_from_json(
-            team1=team1, stats1=stats1, team2=team2, stats2=stats2
-        )
+        # stats_msg = build_match_stats_message(
+        #     team1=team1, stats1=stats1, team2=team2, stats2=stats2
+        # )
         summary = await generate_match_summary(
             team1=team1, stats1=stats1, team2=team2, stats2=stats2
         )
@@ -515,30 +515,29 @@ async def _send_post_match_stats(match, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_photo(
             chat_id=Config.MONITOR_GROUP_ID,
             photo=infographic,
-            caption=stats_msg + "\n\n" + summary,
+            caption=summary,
         )
 
 
-async def generate_match_summary(
-    team1: str, stats1: dict, team2: str, stats2: dict
-) -> str:
+async def generate_match_summary(team1, team2, stats1, stats2):
+    summary_stats = []
+    for key in ["Ball Possession", "Total Shots", "Passes %", "Shots on Goal"]:
+        val1 = stats1[key]
+        val2 = stats2[key]
+        summary_stats.append(f"- {key}: {team1} ({val1}) / {team2} ({val2})")
+
     prompt = (
-        f"بناءً على هذه الإحصائيات:\n\n"
-        f"Match between {team1} and {team2} just finished.\n"
-        f"Stats:\n"
-        f"{team1}: {stats1}\n"
-        f"{team2}: {stats2}\n\n"
-        "اكتب ملخصاً احترافياً للمباراة من منظور محلل رياضي."
+        f"انتهت مباراة {team1} ضد {team2}. إليك أبرز الإحصائيات:\n"
+        f"{'\n'.join(summary_stats)}\n\n"
+        "اكتب تحليلًا ذكيًا من 3 أسطر يوضح:\n"
+        "1. من الفريق المسيطر ولماذا؟\n"
+        "2. من اللاعب الأبرز؟\n"
+        "3. كيف يمكن أن تؤثر النتيجة على المباريات القادمة؟\n"
     )
+
     response = await openai.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt,
-            }
-        ],
-        temperature=0.7,
+        model=Config.GPT_MODEL,
+        messages=[{"role": "user", "content": prompt}],
         max_tokens=200,
     )
     return response.choices[0].message.content.strip()
