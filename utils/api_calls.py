@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 from Config import Config
 from telegram.ext import ContextTypes
 from common.constants import TIMEZONE, TIMEZONE_NAME
+from client.client_calls.common import openai
+from utils.functions import generate_infographic
 import logging
 import asyncio
 
@@ -210,12 +212,9 @@ def get_fixture_events(fixture_id: int) -> list:
         return []
 
 
-def build_match_stats_message_from_json(json_data: list) -> str:
-    """Convert API stats data to formatted message (HTML)"""
-    team1 = json_data[0]["team"]["name"]
-    stats1 = {item["type"]: item["value"] for item in json_data[0]["statistics"]}
-    team2 = json_data[1]["team"]["name"]
-    stats2 = {item["type"]: item["value"] for item in json_data[1]["statistics"]}
+def build_match_stats_message_from_json(
+    team1, stats1: dict, team2, stats2: dict
+) -> str:
 
     def format_stat_row(emoji: str, label: str, stat_key: str) -> str:
         val1 = stats1.get(stat_key, "N/A")
@@ -246,6 +245,14 @@ def build_match_stats_message_from_json(json_data: list) -> str:
     ]
 
     return "\n".join(message_lines)
+
+
+def extract_stats(json_data: list[dict]):
+    team1 = json_data[0]["team"]["name"]
+    stats1 = {item["type"]: item["value"] for item in json_data[0]["statistics"]}
+    team2 = json_data[1]["team"]["name"]
+    stats2 = {item["type"]: item["value"] for item in json_data[1]["statistics"]}
+    return team1, stats1, team2, stats2
 
 
 async def get_daily_fixtures() -> list[dict]:
@@ -495,8 +502,39 @@ async def _send_post_match_stats(match, context: ContextTypes.DEFAULT_TYPE):
     stats_data = get_fixture_stats(match["fixture_id"])
 
     if stats_data:
-        message = build_match_stats_message_from_json(stats_data)
-        await context.bot.send_message(
-            chat_id=Config.MONITOR_GROUP_ID,
-            text=message,
+        team1, stats1, team2, stats2 = extract_stats(stats_data)
+        stats_msg = build_match_stats_message_from_json(
+            team1=team1, stats1=stats1, team2=team2, stats2=stats2
         )
+        summary = await generate_match_summary(stats_msg)
+        infographic = generate_infographic(
+            team1=team1, stats1=stats1, team2=team2, stats2=stats2
+        )
+        await context.bot.send_photo(
+            chat_id=Config.MONITOR_GROUP_ID,
+            photo=infographic,
+            caption=stats_msg + "\n\n" + summary,
+        )
+
+
+async def generate_match_summary(team1, stats1: dict, team2, stats2: dict) -> str:
+    prompt = (
+        f"بناءً على هذه الإحصائيات:\n\n"
+        f"Match between {team1} and {team2} just finished.\n"
+        f"Stats:\n"
+        f"{team1}: {stats1}\n"
+        f"{team2}: {stats2}\n\n"
+        "اكتب ملخصاً احترافياً للمباراة من منظور محلل رياضي."
+    )
+    response = await openai.chat.completions.create(
+        model="gpt-4",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
+        temperature=0.7,
+        max_tokens=200,
+    )
+    return response.choices[0].message.content.strip()
