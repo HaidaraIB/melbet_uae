@@ -213,7 +213,7 @@ def get_fixture_events(fixture_id: int) -> list:
 
 
 def build_match_stats_message_from_json(
-    team1, stats1: dict, team2, stats2: dict
+    team1: str, stats1: dict, team2: str, stats2: dict
 ) -> str:
 
     def format_stat_row(emoji: str, label: str, stat_key: str) -> str:
@@ -506,7 +506,9 @@ async def _send_post_match_stats(match, context: ContextTypes.DEFAULT_TYPE):
         stats_msg = build_match_stats_message_from_json(
             team1=team1, stats1=stats1, team2=team2, stats2=stats2
         )
-        summary = await generate_match_summary(stats_msg)
+        summary = await generate_match_summary(
+            team1=team1, stats1=stats1, team2=team2, stats2=stats2
+        )
         infographic = generate_infographic(
             team1=team1, stats1=stats1, team2=team2, stats2=stats2
         )
@@ -517,7 +519,9 @@ async def _send_post_match_stats(match, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def generate_match_summary(team1, stats1: dict, team2, stats2: dict) -> str:
+async def generate_match_summary(
+    team1: str, stats1: dict, team2: str, stats2: dict
+) -> str:
     prompt = (
         f"بناءً على هذه الإحصائيات:\n\n"
         f"Match between {team1} and {team2} just finished.\n"
