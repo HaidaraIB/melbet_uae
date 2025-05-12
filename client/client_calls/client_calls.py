@@ -72,6 +72,8 @@ async def client_handler(event: events.NewMessage.Event):
         default_prompt = s.get(models.Setting, "gpt_prompt")
         if event.is_private:
             uid = event.sender_id
+            if not s.get(models.User, uid):
+                return
             manager_prompt = s.get(models.Setting, f"gpt_prompt_manager")
 
             txt: str = event.raw_text or ""
