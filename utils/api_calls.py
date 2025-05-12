@@ -4,7 +4,7 @@ from Config import Config
 from telegram.ext import ContextTypes
 from common.constants import TIMEZONE, TIMEZONE_NAME
 from client.client_calls.common import openai
-from utils.functions import generate_infographic
+from utils.functions import generate_infographic, draw_lineup_image
 import logging
 import asyncio
 
@@ -477,19 +477,61 @@ async def send_pre_match_lineup(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
-    home_lineup, away_lineup = get_fixture_lineups(match["fixture_id"])
+    home_lineup_data, away_lineup_data = get_fixture_lineups(match["fixture_id"])
 
-    if home_lineup and away_lineup:
-        message = (
-            f"⚠️ <b>Lineups for {match['home_team']} vs {match['away_team']}</b> ⚠️\n\n"
-            f"{home_lineup}\n\n"
-            f"{away_lineup}\n\n"
-            f"⏰ Match starts at <code>{match['start_time'].strftime('%H:%M')}</code>"
+    if home_lineup_data and away_lineup_data:
+
+        def extract_players(team_data):
+            return [
+                {"number": p["player"]["number"], "name": p["player"]["name"]}
+                for p in team_data["startXI"]
+            ]
+
+        # Generate images for both lineups
+        home_img = draw_lineup_image(
+            team_name=match["home_team"],
+            formation=home_lineup_data["formation"],
+            players=extract_players(home_lineup_data),
         )
+
+        away_img = draw_lineup_image(
+            team_name=match["away_team"],
+            formation=away_lineup_data["formation"],
+            players=extract_players(away_lineup_data),
+        )
+
+        # Send images only
+        await context.bot.send_photo(
+            chat_id=Config.MONITOR_GROUP_ID,
+            photo=home_img,
+            caption=f"🟢 <b>{match['home_team']} - {home_lineup_data['formation']}</b>",
+            parse_mode="HTML",
+        )
+
+        await context.bot.send_photo(
+            chat_id=Config.MONITOR_GROUP_ID,
+            photo=away_img,
+            caption=f"🔵 <b>{match['away_team']} - {away_lineup_data['formation']}</b>",
+            parse_mode="HTML",
+        )
+
+        # Generate GPT preview
+        prompt = (
+            f"The starting lineups for {match['home_team']} vs {match['away_team']} are confirmed.\n"
+            f"Write a short 2-3 line preview analysis that hints at tactical expectations based on the formations.\n"
+            f'End with this phrase: "MELBET users already know what to expect. Get your insights before kickoff."'
+        )
+        response = await openai.chat.completions.create(
+            model=Config.GPT_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=250,
+        )
+        analysis = response.choices[0].message.content.strip()
 
         await context.bot.send_message(
             chat_id=Config.MONITOR_GROUP_ID,
-            text=message,
+            text=f"{analysis}\n\n⏰ Match starts at <code>{match['start_time'].strftime('%H:%M')}</code>",
+            parse_mode="HTML",
         )
 
 
@@ -519,25 +561,34 @@ async def _send_post_match_stats(match, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def generate_match_summary(team1, team2, stats1, stats2):
+async def generate_match_summary(team1: str, team2: str, stats1: dict, stats2: dict):
     summary_stats = []
     for key in ["Ball Possession", "Total Shots", "Passes %", "Shots on Goal"]:
-        val1 = stats1[key]
-        val2 = stats2[key]
+        val1 = stats1.get(key, "N/A")
+        val2 = stats2.get(key, "N/A")
         summary_stats.append(f"- {key}: {team1} ({val1}) / {team2} ({val2})")
 
     prompt = (
-        f"انتهت مباراة {team1} ضد {team2}. إليك أبرز الإحصائيات:\n"
-        f"{'\n'.join(summary_stats)}\n\n"
-        "اكتب تحليلًا ذكيًا من 3 أسطر يوضح:\n"
-        "1. من الفريق المسيطر ولماذا؟\n"
-        "2. من اللاعب الأبرز؟\n"
-        "3. كيف يمكن أن تؤثر النتيجة على المباريات القادمة؟\n"
+        "You're a smart football analyst writing a short match summary on behalf of MELBET.\n\n"
+        f"Match: {team1} vs {team2}\n"
+        "Stats:\n"
+        f"{chr(10).join(summary_stats)}\n\n"
+        "Write a concise, stylish summary in English (max 4 lines) that:\n"
+        "- Starts with storytelling (not just stats)\n"
+        "- Weaves in some of the stats smoothly\n"
+        "- Ends with a soft CTA inviting the reader to create a MELBET account to access pre-match insights and analysis\n\n"
+        "Avoid exaggeration or direct 'betting' words. Use a confident, professional tone."
     )
 
     response = await openai.chat.completions.create(
         model=Config.GPT_MODEL,
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=200,
+        messages=[
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
+        max_tokens=250,
     )
+
     return response.choices[0].message.content.strip()
