@@ -43,6 +43,7 @@ async def choose_prompt_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "withdraw": "السحب",
             "security_messages": "رسائل الأمان",
             "promotional": "الترويج",
+            "match_summary": "ملخص المباريات",
         }
         back_buttons = [
             build_back_button(data="back_to_choose_prompt_type"),

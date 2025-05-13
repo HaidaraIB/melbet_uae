@@ -7,6 +7,7 @@ from client.client_calls.common import openai
 from utils.functions import generate_infographic, draw_lineup_image
 import logging
 import asyncio
+import models
 
 log = logging.getLogger(__name__)
 
@@ -147,39 +148,7 @@ def get_fixture_lineups(fixture_id: int) -> tuple:
         home = data["response"][0]
         away = data["response"][1]
 
-        def format_lineup(team):
-            lineup = f"<b>{team['team']['name']} ({team['formation']})</b>\n"
-            positions = {
-                "G": "🧤 Goalkeeper",
-                "D": "🛡️ Defenders",
-                "M": "⚙️ Midfielders",
-                "F": "🎯 Forwards",
-            }
-            lineup += "<b>Starting XI:</b>\n"
-
-            grouped = {"G": [], "D": [], "M": [], "F": []}
-            for player in team["startXI"]:
-                pos = player["player"]["pos"]
-                grouped.get(pos, []).append(
-                    f"• {player['player']['name']} ({player['player']['number']})"
-                )
-
-            for code, title in positions.items():
-                if grouped[code]:
-                    lineup += f"\n<b>{title}:</b>\n" + "\n".join(grouped[code]) + "\n"
-
-            # Substitutes
-            lineup += "\n<b>Substitutes:</b>\n"
-            lineup += "\n".join(
-                [
-                    f"• {player['player']['name']} ({player['player']['number']})"
-                    for player in team["substitutes"]
-                ]
-            )
-
-            return lineup
-
-        return format_lineup(home), format_lineup(away)
+        return home, away
 
     except Exception as e:
         log.error(f"Error fetching lineups: {e}")
@@ -523,14 +492,22 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
         )
         response = await openai.chat.completions.create(
             model=Config.GPT_MODEL,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
             max_tokens=250,
         )
         analysis = response.choices[0].message.content.strip()
 
         await context.bot.send_message(
             chat_id=Config.MONITOR_GROUP_ID,
-            text=f"{analysis}\n\n⏰ Match starts at <code>{match['start_time'].strftime('%H:%M')}</code>",
+            text=(
+                f"{analysis}\n\n"
+                f"⏰ Match starts at <code>{match['start_time'].strftime('%H:%M')}</code>"
+            ),
             parse_mode="HTML",
         )
 
@@ -545,9 +522,6 @@ async def _send_post_match_stats(match, context: ContextTypes.DEFAULT_TYPE):
 
     if stats_data:
         team1, stats1, team2, stats2 = extract_stats(stats_data)
-        # stats_msg = build_match_stats_message(
-        #     team1=team1, stats1=stats1, team2=team2, stats2=stats2
-        # )
         summary = await generate_match_summary(
             team1=team1, stats1=stats1, team2=team2, stats2=stats2
         )
@@ -568,27 +542,46 @@ async def generate_match_summary(team1: str, team2: str, stats1: dict, stats2: d
         val2 = stats2.get(key, "N/A")
         summary_stats.append(f"- {key}: {team1} ({val1}) / {team2} ({val2})")
 
-    prompt = (
-        "You're a smart football analyst writing a short match summary on behalf of MELBET.\n\n"
-        f"Match: {team1} vs {team2}\n"
-        "Stats:\n"
-        f"{chr(10).join(summary_stats)}\n\n"
-        "Write a concise, stylish summary in English (max 4 lines) that:\n"
-        "- Starts with storytelling (not just stats)\n"
-        "- Weaves in some of the stats smoothly\n"
-        "- Ends with a soft CTA inviting the reader to create a MELBET account to access pre-match insights and analysis\n\n"
-        "Avoid exaggeration or direct 'betting' words. Use a confident, professional tone."
+    match_details = (
+        f"Match: {team1} vs {team2}\n" "Stats:\n" f"{chr(10).join(summary_stats)}\n\n"
     )
+    with models.session_scope() as s:
+        prompt = s.get(models.Setting, "gpt_prompt_match_summary")
+        if prompt:
+            prompt = prompt.value
+        else:
+            prompt = (
+                "You're a smart football analyst writing a short match summary on behalf of MELBET.\n\n"
+                "Write a concise, stylish summary in English (max 4 lines) that:\n"
+                "- Starts with storytelling (not just stats)\n"
+                "- Weaves in some of the stats smoothly\n"
+                "- Ends with a soft CTA inviting the reader to create a MELBET account to access pre-match insights and analysis\n\n"
+                "Avoid exaggeration or direct 'betting' words. Use a confident, professional tone."
+            )
 
     response = await openai.chat.completions.create(
         model=Config.GPT_MODEL,
         messages=[
             {
-                "role": "user",
+                "role": "system",
                 "content": prompt,
-            }
+            },
+            {
+                "role": "user",
+                "content": match_details,
+            },
         ],
         max_tokens=250,
     )
 
-    return response.choices[0].message.content.strip()
+    cta = (
+        "\n\n"
+        "Want to see the full picture before kickoff?\n"
+        "Request your <b>MELBET</b> account through us and receive:\n"
+        "— Pre-match insights\n"
+        "— Tactical breakdowns\n"
+        "— Exclusive strategic advantages\n"
+        "<i>Only for our users.</i>"
+    )
+
+    return response.choices[0].message.content.strip() + cta

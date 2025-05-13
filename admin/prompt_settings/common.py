@@ -33,7 +33,11 @@ def prompt_panel():
             InlineKeyboardButton(
                 "برومبت الترويج 🎟",
                 callback_data="edit_prompt_promotional",
-            )
+            ),
+            InlineKeyboardButton(
+                "برومبت ملخص المباريات ⚽️",
+                callback_data="edit_prompt_match_summary",
+            ),
         ],
         [
             InlineKeyboardButton(

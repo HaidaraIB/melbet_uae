@@ -78,12 +78,8 @@ def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict) -> 
     return buf
 
 
-from io import BytesIO
-import matplotlib.pyplot as plt
-
-
 def draw_lineup_image(team_name: str, formation: str, players: list) -> BytesIO:
-    fig, ax = plt.subplots(figsize=(6, 9))
+    _, ax = plt.subplots(figsize=(6, 9))
     ax.set_facecolor("#0B6623")  # لون الملعب (أخضر)
     ax.set_xlim(0, 100)
     ax.set_ylim(0, 100)
