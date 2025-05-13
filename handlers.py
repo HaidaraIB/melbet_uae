@@ -20,6 +20,7 @@ from admin.admin_settings import *
 from admin.broadcast import *
 from admin.ban import *
 from admin.prompt_settings import *
+from admin.test_settings import *
 
 from client.client_calls import *
 
@@ -38,6 +39,9 @@ def setup_and_run():
     init_db()
 
     app = MyApp.build_app()
+
+    app.add_handler(test_match_lineup_handler)
+    app.add_handler(test_settings_handler)
 
     app.add_handler(user_settings_handler)
     app.add_handler(change_lang_handler)

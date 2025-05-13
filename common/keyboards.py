@@ -49,6 +49,12 @@ def build_admin_keyboard():
         ],
         [
             InlineKeyboardButton(
+                text="اختبارات 🧪",
+                callback_data="test_settings",
+            )
+        ],
+        [
+            InlineKeyboardButton(
                 text="رسالة جماعية 👥",
                 callback_data="broadcast",
             )

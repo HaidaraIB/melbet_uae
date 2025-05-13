@@ -247,27 +247,29 @@ async def get_daily_fixtures() -> list[dict]:
 
                 if data["response"]:
                     for fixture in data["response"]:
-                        all_fixtures.append(
-                            {
-                                "fixture_id": fixture["fixture"]["id"],
-                                "home_team": fixture["teams"]["home"]["name"],
-                                "away_team": fixture["teams"]["away"]["name"],
-                                "start_time": datetime.fromtimestamp(
-                                    fixture["fixture"]["timestamp"], tz=TIMEZONE
-                                ),
-                                "league_id": league_id,
-                                "league_name": next(
-                                    league["name"]
-                                    for league in IMPORTANT_LEAGUES.values()
-                                    if league["id"] == league_id
-                                ),
-                            }
-                        )
+                        _extract_fixture_data(fixture=fixture, league_id=league_id)
                 await asyncio.sleep(5)
             except Exception as e:
                 log.error(f"Error fetching fixtures for league {league_id}: {e}")
 
     return all_fixtures
+
+
+def _extract_fixture_data(fixture: dict, league_id: int):
+    return {
+        "fixture_id": fixture["fixture"]["id"],
+        "home_team": fixture["teams"]["home"]["name"],
+        "away_team": fixture["teams"]["away"]["name"],
+        "start_time": datetime.fromtimestamp(
+            fixture["fixture"]["timestamp"], tz=TIMEZONE
+        ),
+        "league_id": league_id,
+        "league_name": next(
+            league["name"]
+            for league in IMPORTANT_LEAGUES.values()
+            if league["id"] == league_id
+        ),
+    }
 
 
 def get_fixture_status(fixture_id: int) -> str:
