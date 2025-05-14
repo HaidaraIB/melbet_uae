@@ -4,7 +4,10 @@ from Config import Config
 from telegram.ext import ContextTypes
 from common.constants import TIMEZONE, TIMEZONE_NAME
 from client.client_calls.common import openai
-from utils.functions import generate_infographic, draw_lineup_image
+from utils.functions import (
+    generate_infographic,
+    draw_double_lineup_image,
+)
 import logging
 import asyncio
 import models
@@ -458,58 +461,47 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
                 for p in team_data["startXI"]
             ]
 
-        # Generate images for both lineups
-        home_img = draw_lineup_image(
-            team_name=match["home_team"],
-            formation=home_lineup_data["formation"],
-            players=extract_players(home_lineup_data),
-        )
-
-        away_img = draw_lineup_image(
-            team_name=match["away_team"],
-            formation=away_lineup_data["formation"],
-            players=extract_players(away_lineup_data),
-        )
-
-        # Send images only
-        await context.bot.send_photo(
-            chat_id=Config.MONITOR_GROUP_ID,
-            photo=home_img,
-            caption=f"🟢 <b>{match['home_team']} - {home_lineup_data['formation']}</b>",
-            parse_mode="HTML",
+        # Generate lineup image for both teams on one field
+        lineup_img = draw_double_lineup_image(
+            home_team=match["home_team"],
+            away_team=match["away_team"],
+            formation_home=home_lineup_data["formation"],
+            formation_away=away_lineup_data["formation"],
+            coach_home=home_lineup_data["coach"]["name"],
+            coach_away=away_lineup_data["coach"]["name"],
+            players_home=extract_players(home_lineup_data),
+            players_away=extract_players(away_lineup_data),
         )
 
         await context.bot.send_photo(
             chat_id=Config.MONITOR_GROUP_ID,
-            photo=away_img,
-            caption=f"🔵 <b>{match['away_team']} - {away_lineup_data['formation']}</b>",
+            photo=lineup_img,
+            caption=f"⚠️ <b>{match['home_team']} vs {match['away_team']} - Confirmed Lineups</b>",
             parse_mode="HTML",
         )
 
-        # Generate GPT preview
+        # GPT analysis prompt
         prompt = (
-            f"The starting lineups for {match['home_team']} vs {match['away_team']} are confirmed.\n"
-            f"Write a short 2-3 line preview analysis that hints at tactical expectations based on the formations.\n"
-            f'End with this phrase: "MELBET users already know what to expect. Get your insights before kickoff."'
+            f"The confirmed lineups for {match['home_team']} vs {match['away_team']} "
+            f"are set.\nHome formation: {home_lineup_data['formation']} (coach: {home_lineup_data['coach']['name']})\n"
+            f"Away formation: {away_lineup_data['formation']} (coach: {away_lineup_data['coach']['name']})\n\n"
+            "Write a short, exciting 3-line analysis for fans that includes:\n"
+            "1. Tactical expectations from formations\n"
+            "2. Possible impact players\n"
+            "3. End with: 'Want exclusive pre-match insights? Get your MELBET account through us now!'"
         )
+
         response = await openai.chat.completions.create(
             model=Config.GPT_MODEL,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
+            messages=[{"role": "user", "content": prompt}],
             max_tokens=250,
         )
+
         analysis = response.choices[0].message.content.strip()
 
         await context.bot.send_message(
             chat_id=Config.MONITOR_GROUP_ID,
-            text=(
-                f"{analysis}\n\n"
-                f"⏰ Match starts at <code>{match['start_time'].strftime('%H:%M')}</code>"
-            ),
+            text=f"{analysis}\n\n⏰ Kickoff at <code>{match['start_time'].strftime('%H:%M')}</code>",
             parse_mode="HTML",
         )
 

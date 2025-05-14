@@ -1,5 +1,7 @@
 from io import BytesIO
 import matplotlib.pyplot as plt
+from matplotlib.patches import Circle, Rectangle, Arc
+from matplotlib.axes import Axes
 
 
 def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict) -> BytesIO:
@@ -78,84 +80,198 @@ def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict) -> 
     return buf
 
 
-def draw_lineup_image(team_name: str, formation: str, players: list) -> BytesIO:
-    _, ax = plt.subplots(figsize=(6, 9))
-    ax.set_facecolor("#0B6623")  # لون الملعب (أخضر)
-    ax.set_xlim(0, 100)
-    ax.set_ylim(0, 100)
-    ax.axis("off")
+def draw_double_lineup_image(
+    home_team,
+    away_team,
+    formation_home,
+    formation_away,
+    coach_home,
+    coach_away,
+    players_home,
+    players_away,
+) -> BytesIO:
 
-    # عنوان الفريق والتشكيلة
+    # Change figure size to accommodate vertical layout
+    fig, ax = plt.subplots(figsize=(10, 16))  # Taller figure for vertical layout
+
+    # خلفية الملعب
+    ax.set_facecolor("#065C32")
+    ax.set_xticks([])
+    ax.set_yticks([])
+
+    # Vertical pitch dimensions (now 100 tall, 70 wide)
+    pitch_width = 70
+    pitch_height = 100
+
+    # حدود الملعب (vertical)
+    pitch = Rectangle(
+        (15, 0),  # Shifted right to center in the figure
+        pitch_width,
+        pitch_height,
+        fill=False,
+        edgecolor="white",
+        lw=2,
+    )
+    ax.add_patch(pitch)
+
+    # منتصف الملعب وخط المنتصف (now horizontal)
+    ax.plot(
+        [15, 15 + pitch_width],  # Horizontal line across width
+        [pitch_height / 2, pitch_height / 2],
+        color="white",
+        lw=2,
+    )
+    center_circle = Arc(
+        (15 + pitch_width / 2, pitch_height / 2),  # Center point
+        20,
+        20,
+        angle=90,  # Rotated 90 degrees for vertical pitch
+        theta1=0,
+        theta2=360,
+        color="white",
+        lw=2,
+    )
+    ax.add_patch(center_circle)
+    ax.plot(15 + pitch_width / 2, pitch_height / 2, marker="o", color="white")
+
+    # أسماء الفرق والتشكيلات (now stacked vertically)
     ax.text(
-        50,
-        98,
-        f"{team_name} ({formation})",
+        15 + pitch_width / 2,
+        pitch_height + 8,
+        f"{home_team} ({formation_home})",
         ha="center",
         va="top",
-        fontsize=14,
+        fontsize=16,
+        color="white",
+        weight="bold",
+    )
+    ax.text(
+        15 + pitch_width / 2,
+        -8,
+        f"{away_team} ({formation_away})",
+        ha="center",
+        va="bottom",
+        fontsize=16,
         color="white",
         weight="bold",
     )
 
-    # ✅ كلمة MELBET بالخلفية كعلامة مائية شفافة
+    # أسماء المدربين (moved to sides)
     ax.text(
-        50,
-        50,
+        5,
+        pitch_height / 2,
+        f"Coach: {coach_home}",
+        ha="left",
+        va="center",
+        fontsize=12,
+        color="white",
+        style="italic",
+        rotation=90,
+    )
+    ax.text(
+        15 + pitch_width + 5,
+        pitch_height / 2,
+        f"Coach: {coach_away}",
+        ha="right",
+        va="center",
+        fontsize=12,
+        color="white",
+        style="italic",
+        rotation=270,
+    )
+
+    # شعار MELBET بشكل واضح (centered)
+    ax.text(
+        15 + pitch_width / 2,
+        pitch_height / 2,
         "MELBET",
         ha="center",
         va="center",
         fontsize=50,
-        color="white",
-        alpha=0.08,
+        color="orange",
         weight="bold",
-        rotation=30,
+        alpha=0.2,
     )
 
-    # توزيع اللاعبين بناءً على التشكيلة
-    formation_parts = list(map(int, formation.split("-")))
-    total_lines = len(formation_parts) + 1
-    y_positions = list(
-        reversed([10 + i * (80 // (total_lines - 1)) for i in range(total_lines)])
+    def plot_team(y_min, y_max, formation, players, team_color, reverse=False):
+        formation_numbers = list(map(int, formation.split("-")))
+        if not reverse:
+            formation_numbers.insert(0, 1)
+        else:
+            formation_numbers.append(1)
+        total_lines = len(formation_numbers)
+        y_spacing = (y_max - y_min) / (total_lines - 1)
+        current_player = 0
+
+        for line_idx, players_in_line in enumerate(formation_numbers):
+            y = y_min + line_idx * y_spacing
+            x_spacing = pitch_width / (players_in_line + 1)
+
+            for i in range(players_in_line):
+                if current_player >= len(players):
+                    break
+                x = 15 + (i + 1) * x_spacing
+
+                shadow = Circle((x + 0.3, y - 0.3), 3, color="black", alpha=0.3)
+                player_circle = Circle((x, y), 3, color=team_color, ec="white", lw=1.5)
+
+                ax.add_patch(shadow)
+                ax.add_patch(player_circle)
+
+                ax.text(
+                    x,
+                    y,
+                    players[current_player]["number"],
+                    fontsize=9,
+                    ha="center",
+                    va="center",
+                    color="white",
+                    weight="bold",
+                )
+
+                ax.text(
+                    x,
+                    y - 4,
+                    players[current_player]["name"],
+                    fontsize=7,
+                    ha="center",
+                    va="top",
+                    color="white",
+                )
+
+                current_player += 1
+
+    # الآن التطبيق بوضوح على الفريقين:
+
+    pitch_height = 100
+    pitch_width = 70
+
+    # المضيف (بدون عكس)
+    plot_team(
+        pitch_height / 2 + 10,
+        pitch_height - 10,
+        "-".join(list(reversed(formation_home.split("-")))),
+        list(reversed(players_home)),
+        "#1f77b4",
+        reverse=True,
     )
 
-    player_index = 0
-
-    # حارس مرمى
-    ax.text(
-        50,
-        y_positions[0],
-        f"{players[player_index]['number']} - {players[player_index]['name']}",
-        ha="center",
-        va="center",
-        fontsize=10,
-        color="white",
-        bbox=dict(boxstyle="round,pad=0.3", fc="black", ec="white"),
+    # الضيف (بعكس الترتيب)
+    plot_team(
+        10,
+        pitch_height / 2 - 10,
+        formation_away,
+        players_away,
+        "#d62728",
+        reverse=False,
     )
-    player_index += 1
 
-    # الخطوط الأخرى
-    for line_idx, count in enumerate(formation_parts):
-        x_spacing = 100 // (count + 1)
-        y = y_positions[line_idx + 1]
-        for i in range(count):
-            if player_index >= len(players):
-                break
-            x = (i + 1) * x_spacing
-            ax.text(
-                x,
-                y,
-                f"{players[player_index]['number']} - {players[player_index]['name']}",
-                ha="center",
-                va="center",
-                fontsize=9,
-                color="white",
-                bbox=dict(boxstyle="round,pad=0.2", fc="black", ec="white"),
-            )
-            player_index += 1
+    plt.xlim(0, 15 + pitch_width + 15)
+    plt.ylim(-15, pitch_height + 15)
 
+    # حفظ الصورة
     buf = BytesIO()
-    plt.tight_layout()
-    plt.savefig(buf, format="png", dpi=150)
-    plt.close()
+    plt.savefig(buf, format="png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
     buf.seek(0)
     return buf
