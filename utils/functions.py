@@ -81,14 +81,14 @@ def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict) -> 
 
 
 def draw_double_lineup_image(
-    home_team,
-    away_team,
-    formation_home,
-    formation_away,
-    coach_home,
-    coach_away,
-    players_home,
-    players_away,
+    home_team: str,
+    away_team: str,
+    formation_home: str,
+    formation_away: str,
+    coach_home: str,
+    coach_away: str,
+    players_home: list[dict],
+    players_away: list[dict],
 ) -> BytesIO:
 
     # Change figure size to accommodate vertical layout
@@ -105,9 +105,9 @@ def draw_double_lineup_image(
 
     # حدود الملعب (vertical)
     pitch = Rectangle(
-        (15, 0),  # Shifted right to center in the figure
-        pitch_width,
-        pitch_height,
+        xy=(15, 0),  # Shifted right to center in the figure
+        width=pitch_width,
+        height=pitch_height,
         fill=False,
         edgecolor="white",
         lw=2,
@@ -122,9 +122,9 @@ def draw_double_lineup_image(
         lw=2,
     )
     center_circle = Arc(
-        (15 + pitch_width / 2, pitch_height / 2),  # Center point
-        20,
-        20,
+        xy=(15 + pitch_width / 2, pitch_height / 2),  # Center point
+        width=20,
+        height=20,
         angle=90,  # Rotated 90 degrees for vertical pitch
         theta1=0,
         theta2=360,
@@ -132,13 +132,18 @@ def draw_double_lineup_image(
         lw=2,
     )
     ax.add_patch(center_circle)
-    ax.plot(15 + pitch_width / 2, pitch_height / 2, marker="o", color="white")
+    ax.plot(
+        15 + pitch_width / 2,
+        pitch_height / 2,
+        marker="o",
+        color="white",
+    )
 
     # أسماء الفرق والتشكيلات (now stacked vertically)
     ax.text(
-        15 + pitch_width / 2,
-        pitch_height + 8,
-        f"{home_team} ({formation_home})",
+        x=15 + pitch_width / 2,
+        y=pitch_height + 8,
+        s=f"{home_team} ({formation_home})",
         ha="center",
         va="top",
         fontsize=16,
@@ -146,9 +151,9 @@ def draw_double_lineup_image(
         weight="bold",
     )
     ax.text(
-        15 + pitch_width / 2,
-        -8,
-        f"{away_team} ({formation_away})",
+        x=15 + pitch_width / 2,
+        y=-8,
+        s=f"{away_team} ({formation_away})",
         ha="center",
         va="bottom",
         fontsize=16,
@@ -158,9 +163,9 @@ def draw_double_lineup_image(
 
     # أسماء المدربين (moved to sides)
     ax.text(
-        5,
-        pitch_height / 2,
-        f"Coach: {coach_home}",
+        x=5,
+        y=pitch_height / 2,
+        s=f"Coach: {coach_home}",
         ha="left",
         va="center",
         fontsize=12,
@@ -169,9 +174,9 @@ def draw_double_lineup_image(
         rotation=90,
     )
     ax.text(
-        15 + pitch_width + 5,
-        pitch_height / 2,
-        f"Coach: {coach_away}",
+        x=15 + pitch_width + 5,
+        y=pitch_height / 2,
+        s=f"Coach: {coach_away}",
         ha="right",
         va="center",
         fontsize=12,
@@ -182,9 +187,9 @@ def draw_double_lineup_image(
 
     # شعار MELBET بشكل واضح (centered)
     ax.text(
-        15 + pitch_width / 2,
-        pitch_height / 2,
-        "MELBET",
+        x=15 + pitch_width / 2,
+        y=pitch_height / 2,
+        s="MELBET",
         ha="center",
         va="center",
         fontsize=50,
@@ -193,12 +198,21 @@ def draw_double_lineup_image(
         alpha=0.2,
     )
 
-    def plot_team(y_min, y_max, formation, players, team_color, reverse=False):
-        formation_numbers = list(map(int, formation.split("-")))
-        if not reverse:
-            formation_numbers.insert(0, 1)
-        else:
+    def plot_team(
+        y_min: float,
+        y_max: float,
+        formation: str,
+        players: list[dict],
+        team_color: str,
+        reverse=False,
+    ):
+        if reverse:
+            players = list(reversed(players))
+            formation_numbers = list(map(int, reversed(formation.split("-"))))
             formation_numbers.append(1)
+        else:
+            formation_numbers = list(map(int, formation.split("-")))
+            formation_numbers.insert(0, 1)
         total_lines = len(formation_numbers)
         y_spacing = (y_max - y_min) / (total_lines - 1)
         current_player = 0
@@ -212,16 +226,27 @@ def draw_double_lineup_image(
                     break
                 x = 15 + (i + 1) * x_spacing
 
-                shadow = Circle((x + 0.3, y - 0.3), 3, color="black", alpha=0.3)
-                player_circle = Circle((x, y), 3, color=team_color, ec="white", lw=1.5)
+                shadow = Circle(
+                    xy=(x + 0.3, y - 0.3),
+                    radius=3,
+                    color="black",
+                    alpha=0.3,
+                )
+                player_circle = Circle(
+                    xy=(x, y),
+                    radius=3,
+                    color=team_color,
+                    ec="white",
+                    lw=1.5,
+                )
 
                 ax.add_patch(shadow)
                 ax.add_patch(player_circle)
 
                 ax.text(
-                    x,
-                    y,
-                    players[current_player]["number"],
+                    x=x,
+                    y=y,
+                    s=players[current_player]["number"],
                     fontsize=9,
                     ha="center",
                     va="center",
@@ -230,9 +255,9 @@ def draw_double_lineup_image(
                 )
 
                 ax.text(
-                    x,
-                    y - 4,
-                    players[current_player]["name"],
+                    x=x,
+                    y=y - 4,
+                    s=players[current_player]["name"],
                     fontsize=7,
                     ha="center",
                     va="top",
@@ -241,28 +266,23 @@ def draw_double_lineup_image(
 
                 current_player += 1
 
-    # الآن التطبيق بوضوح على الفريقين:
-
-    pitch_height = 100
-    pitch_width = 70
-
-    # المضيف (بدون عكس)
+    # المضيف
     plot_team(
-        pitch_height / 2 + 10,
-        pitch_height - 10,
-        "-".join(list(reversed(formation_home.split("-")))),
-        list(reversed(players_home)),
-        "#1f77b4",
+        y_min=pitch_height / 2 + 10,
+        y_max=pitch_height - 10,
+        formation=formation_home,
+        players=players_home,
+        team_color="#1f77b4",
         reverse=True,
     )
 
-    # الضيف (بعكس الترتيب)
+    # الضيف
     plot_team(
-        10,
-        pitch_height / 2 - 10,
-        formation_away,
-        players_away,
-        "#d62728",
+        y_min=10,
+        y_max=pitch_height / 2 - 10,
+        formation=formation_away,
+        players=players_away,
+        team_color="#d62728",
         reverse=False,
     )
 
