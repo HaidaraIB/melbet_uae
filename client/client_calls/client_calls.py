@@ -22,10 +22,10 @@ log = logging.getLogger(__name__)
 
 async def client_handler(event: events.NewMessage.Event):
     cid = event.chat_id
-    me = (await TeleClientSingleton().get_me()).id
     if cid == Config.MONITOR_GROUP_ID:
         uid = event.sender_id
-        if uid in (me, Config.ADMIN_ID):
+        sender = await TeleClientSingleton().get_permissions(entity=Config.MONITOR_GROUP_ID, user=uid)
+        if sender.is_admin:
             return
         intent = classify_intent(event.raw_text)
         if not intent:

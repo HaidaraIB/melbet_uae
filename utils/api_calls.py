@@ -250,7 +250,7 @@ async def get_daily_fixtures() -> list[dict]:
 
                 if data["response"]:
                     for fixture in data["response"]:
-                        _extract_fixture_data(fixture=fixture, league_id=league_id)
+                        all_fixtures.append(_extract_fixture_data(fixture=fixture, league_id=league_id))
                 await asyncio.sleep(5)
             except Exception as e:
                 log.error(f"Error fetching fixtures for league {league_id}: {e}")
