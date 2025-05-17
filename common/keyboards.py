@@ -13,10 +13,20 @@ def build_user_keyboard(lang: Language):
     keyboard = [
         [
             InlineKeyboardButton(
-                text=TEXTS[lang]["settings"],
+                text=BUTTONS[lang]["buy_voucher"],
+                callback_data="buy_voucher",
+            ),
+            InlineKeyboardButton(
+                text=BUTTONS[lang]["analyze_game"],
+                callback_data="analyze_game",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text=BUTTONS[lang]["settings"],
                 callback_data="user_settings",
             ),
-        ]
+        ],
     ]
     return InlineKeyboardMarkup(keyboard)
 

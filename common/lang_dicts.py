@@ -13,6 +13,28 @@ TEXTS = {
         "change_lang": "اختر اللغة 🌐",
         "change_lang_success": "تم تغيير اللغة بنجاح ✅",
         "home_page": "القائمة الرئيسية 🔝",
+        "request_home_team": "أرسل اسم الفريق الأول",
+        "request_away_team": "أرسل اسم الفريق الثاني",
+        "request_date": "أرسل تاريخ المباراة بالصيغة التالية YYYY-MM-DD",
+        "request_league": "أرسل اسم دوري هذه المباراة",
+        "request_league_year": "أرسل عام هذا الدوري",
+        "wrong_home_team": "اسم الفريق الأول خاطئ ❗️",
+        "wrong_away_team": "اسم الفريق الثاني خاطئ ❗️",
+        "no_h2h": "لا يوجد مباراة بين {} و {} في تاريخ {} ❗️",
+        "request_game_info": "أرسل بيانات المباراة",
+        "either_teams_wrong": "تعذر العثور على أحد الفريقين.",
+        "analyze_game_ai_result": (
+            "أقرب مواجهة بين <b>{}</b> و <b>{}</b>:\n\n"
+            "• التاريخ:\n<b>{}</b>\n"
+            "• البطولة: <b>{}</b>\n"
+            "• الملعب: <b>{}</b>\n"
+            "• المواجهة: <b>{}</b>\n\n"
+            "هل تريد تحليلًا ذكيًا؟ اضغط على زر الدفع."
+        ),
+        "no_upcoming_games": "لا توجد مواجهة قادمة بين الفريقين.",
+        "plz_wait": "الرجاء الانتظار ⏳",
+        "soon": "قريباً 🔜",
+
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -26,6 +48,27 @@ TEXTS = {
         "change_lang": "Choose a language 🌐",
         "change_lang_success": "Language changed ✅",
         "home_page": "Home page 🔝",
+        "request_home_team": "Send the First team name",
+        "request_away_team": "Send the Second team name",
+        "request_date": "Send the Date fo the game in this format YYYY-MM-DD",
+        "request_league": "Send the League of this game",
+        "request_league_year": "Send the Year Of The League",
+        "wrong_home_team": "Wrong First team name ❗️",
+        "wrong_away_team": "Wrong Second team name ❗️",
+        "no_h2h": "There's no game between {} and {} in {} ❗️",
+        "request_game_info": "Send the Game info",
+        "either_teams_wrong": "Can't find one of the teams.",
+        "analyze_game_ai_result": (
+            "The closest match between <b>{}</b> and <b>{}</b>:\n\n"
+            "• Date: <b>{}</b>\n"
+            "• League: <b>{}</b>\n"
+            "• Venue: <b>{}</b>\n"
+            "• Teams: <b>{}</b>\n\n"
+            "Want smart analysis, Press Pay."
+        ),
+        "no_upcoming_games": "There's no upcoming games between these teams.",
+        "plz_wait": "Please Wait ⏳",
+        "soon": "Coming Soon 🔜",
     },
 }
 
@@ -37,7 +80,9 @@ BUTTONS = {
         "settings": "الإعدادات ⚙️",
         "lang": "اللغة 🌐",
         "back_to_home_page": "العودة إلى القائمة الرئيسية 🔙",
-        
+        "buy_voucher": "شراء قسيمة 🎟",
+        "analyze_game": "تحليل مباراة ⚽️",
+        "pay": "الدفع 💳",
     },
     Language.ENGLISH: {
         "check_joined": "Verify ✅",
@@ -46,5 +91,8 @@ BUTTONS = {
         "settings": "Settings ⚙️",
         "lang": "Language 🌐",
         "back_to_home_page": "Back to home page 🔙",
+        "buy_voucher": "Buy Voucher 🎟",
+        "analyze_game": "Analyze Game ⚽️",
+        "pay": "Pay 💳",
     },
 }

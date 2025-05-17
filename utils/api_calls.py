@@ -136,6 +136,62 @@ IMPORTANT_LEAGUES = {
 }
 
 
+def get_team(name: str):
+    url = f"{BASE_URL}/teams"
+    querystring = {"search": name}
+
+    return _get_request(url, querystring)
+
+
+def search_team_id_by_name(name: str):
+    url = f"{BASE_URL}/teams"
+    params = {"search": name}
+
+    response = requests.get(url, headers=HEADERS, params=params)
+    data = response.json()
+    if data.get("response", []):
+        return data["response"]
+    return None
+
+
+def get_h2h(h2h: str):
+    url = f"{BASE_URL}/fixtures/headtohead"
+    querystring = {
+        "h2h": h2h,
+        "timezone": TIMEZONE_NAME,
+    }
+
+    response = requests.get(url, headers=HEADERS, params=querystring)
+    data = response.json()
+
+    if not data.get("response"):
+        return None
+
+    next_fixtures = [
+        fix for fix in data["response"] if fix["fixture"]["status"]["short"] == "NS"
+    ]
+    if next_fixtures:
+        fixture = next_fixtures[0]
+        return {
+            "date": fixture["fixture"]["date"],
+            "league": fixture["league"]["name"],
+            "venue": fixture["fixture"]["venue"]["name"],
+            "teams": f"{fixture['teams']['home']['name']} vs {fixture['teams']['away']['name']}",
+        }
+    return None
+
+
+def _get_request(url, params):
+    try:
+        response = requests.get(url, headers=HEADERS, params=params)
+        data = response.json()
+        return data["response"]
+
+    except Exception as e:
+        log.error(f"Error fetching lineups: {e}")
+        return None
+
+
 def get_fixture_lineups(fixture_id: int) -> tuple:
     """Fetch starting lineups for a fixture"""
     url = f"{BASE_URL}/fixtures/lineups"
@@ -163,12 +219,7 @@ def get_fixture_stats(fixture_id: int) -> dict:
     url = f"{BASE_URL}/fixtures/statistics"
     querystring = {"fixture": fixture_id}
 
-    try:
-        response = requests.get(url, headers=HEADERS, params=querystring)
-        return response.json()["response"]
-    except Exception as e:
-        log.error(f"Error fetching stats: {e}")
-        return None
+    return _get_request(url, querystring)
 
 
 def get_fixture_events(fixture_id: int) -> list:
@@ -182,49 +233,6 @@ def get_fixture_events(fixture_id: int) -> list:
     except Exception as e:
         log.error(f"Error fetching events: {e}")
         return []
-
-
-def build_match_stats_message(
-    team1: str, stats1: dict, team2: str, stats2: dict
-) -> str:
-
-    def format_stat_row(emoji: str, label: str, stat_key: str) -> str:
-        val1 = stats1.get(stat_key, "N/A")
-        val2 = stats2.get(stat_key, "N/A")
-
-        return (
-            f"{emoji} <b>{label}</b>\n"
-            f"<code>{team1[:12]:<12} {str(val1):>5}</code>\n"
-            f"<code>{team2[:12]:<12} {str(val2):>5}</code>\n"
-        )
-
-    message_lines = [
-        f"⚽ <b>{team1} vs {team2}</b> ⚽",
-        "",
-        "📊 <b>Match Statistics</b>",
-        "",
-        format_stat_row("🔵", "Possession", "Ball Possession"),
-        format_stat_row("🎯", "Shots on Target", "Shots on Goal"),
-        format_stat_row("⚡", "Total Shots", "Total Shots"),
-        format_stat_row("📦", "Shots in Box", "Shots insidebox"),
-        format_stat_row("🔄", "Total Passes", "Total passes"),
-        format_stat_row("🎯", "Pass Accuracy", "Passes %"),
-        format_stat_row("🧤", "Goalkeeper Saves", "Goalkeeper Saves"),
-        format_stat_row("↗️", "Corner Kicks", "Corner Kicks"),
-        format_stat_row("🟨", "Yellow Cards", "Yellow Cards"),
-        "",
-        "🔹 <i>Stats update in real-time</i>",
-    ]
-
-    return "\n".join(message_lines)
-
-
-def extract_stats(json_data: list[dict]):
-    team1 = json_data[0]["team"]["name"]
-    stats1 = {item["type"]: item["value"] for item in json_data[0]["statistics"]}
-    team2 = json_data[1]["team"]["name"]
-    stats2 = {item["type"]: item["value"] for item in json_data[1]["statistics"]}
-    return team1, stats1, team2, stats2
 
 
 async def get_daily_fixtures() -> list[dict]:
@@ -250,7 +258,9 @@ async def get_daily_fixtures() -> list[dict]:
 
                 if data["response"]:
                     for fixture in data["response"]:
-                        all_fixtures.append(_extract_fixture_data(fixture=fixture, league_id=league_id))
+                        all_fixtures.append(
+                            _extract_fixture_data(fixture=fixture, league_id=league_id)
+                        )
                 await asyncio.sleep(5)
             except Exception as e:
                 log.error(f"Error fetching fixtures for league {league_id}: {e}")
@@ -300,7 +310,7 @@ async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
     status = get_fixture_status(match["fixture_id"])
     if status == "FT":
         # Match finished, post stats and remove monitoring job
-        await _send_post_match_stats(match=match, context=context)
+        await _send_post_match_stats(fixture_id=match["fixture_id"], context=context)
         context.job.schedule_removal()
         return
 
@@ -404,7 +414,9 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
         stats_time: datetime = start_time + timedelta(hours=2)
         if status == "FT":
             # Match already finished, post stats now
-            await _send_post_match_stats(match=match_data, context=context)
+            await _send_post_match_stats(
+                fixture_id=match_data["fixture_id"], context=context
+            )
         else:
             # Schedule normal stats posting
             context.job_queue.run_once(
@@ -508,11 +520,15 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
 
 async def send_post_match_stats(context: ContextTypes.DEFAULT_TYPE):
     match = context.job.data
-    await _send_post_match_stats(match=match, context=context)
+    await _send_post_match_stats(fixture_id=match["fixture_id"], context=context)
 
 
-async def _send_post_match_stats(match, context: ContextTypes.DEFAULT_TYPE):
-    stats_data = get_fixture_stats(match["fixture_id"])
+async def _send_post_match_stats(
+    fixture_id: int,
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int = Config.MONITOR_GROUP_ID,
+):
+    stats_data = get_fixture_stats(fixture_id)
 
     if stats_data:
         team1, stats1, team2, stats2 = extract_stats(stats_data)
@@ -523,10 +539,18 @@ async def _send_post_match_stats(match, context: ContextTypes.DEFAULT_TYPE):
             team1=team1, stats1=stats1, team2=team2, stats2=stats2
         )
         await context.bot.send_photo(
-            chat_id=Config.MONITOR_GROUP_ID,
+            chat_id=chat_id,
             photo=infographic,
             caption=summary,
         )
+
+
+def extract_stats(json_data: list[dict]):
+    team1 = json_data[0]["team"]["name"]
+    stats1 = {item["type"]: item["value"] for item in json_data[0]["statistics"]}
+    team2 = json_data[1]["team"]["name"]
+    stats2 = {item["type"]: item["value"] for item in json_data[1]["statistics"]}
+    return team1, stats1, team2, stats2
 
 
 async def generate_match_summary(team1: str, team2: str, stats1: dict, stats2: dict):
