@@ -136,6 +136,40 @@ IMPORTANT_LEAGUES = {
 }
 
 
+def get_team_statistics(team_id: int, league_id: int, season: int):
+    url = f"{BASE_URL}/teams/statistics"
+    params = {"team": team_id, "league": league_id, "season": season}
+    return _get_request(url=url, params=params)
+
+
+def get_team_injuries(team_id: int, season: str):
+    url = f"{BASE_URL}/injuries"
+    params = {"team": team_id, "season": 2024}
+    return _get_request(url=url, params=params)
+
+
+def get_team_standing(team_id:int, league_id: int, season: str):
+    url = f"{BASE_URL}/standings"
+    params = {"league": league_id, "season": season, "team": team_id}
+    res = requests.get(url, headers=HEADERS, params=params)
+    data = res.json().get("response", [])
+    if data:
+        return data[0]["league"]["standings"][0]
+    return []
+
+
+def get_last_matches(team_id: int):
+    url = f"{BASE_URL}/fixtures"
+    params = {"team": team_id, "last": 5}
+    return _get_request(url=url, params=params)
+
+
+def get_fixture_odds(fixture_id: int):
+    url = f"{BASE_URL}/odds"
+    params = {"fixture": fixture_id}
+    return _get_request(url=url, params=params)
+
+
 def get_team(name: str):
     url = f"{BASE_URL}/teams"
     querystring = {"search": name}
@@ -147,11 +181,7 @@ def search_team_id_by_name(name: str):
     url = f"{BASE_URL}/teams"
     params = {"search": name}
 
-    response = requests.get(url, headers=HEADERS, params=params)
-    data = response.json()
-    if data.get("response", []):
-        return data["response"]
-    return None
+    return _get_request(url=url, params=params)
 
 
 def get_h2h(h2h: str):
@@ -170,15 +200,34 @@ def get_h2h(h2h: str):
     next_fixtures = [
         fix for fix in data["response"] if fix["fixture"]["status"]["short"] == "NS"
     ]
-    if next_fixtures:
-        fixture = next_fixtures[0]
-        return {
-            "date": fixture["fixture"]["date"],
-            "league": fixture["league"]["name"],
-            "venue": fixture["fixture"]["venue"]["name"],
-            "teams": f"{fixture['teams']['home']['name']} vs {fixture['teams']['away']['name']}",
-        }
-    return None
+    finished_fixtures = [
+        fix for fix in data["response"] if fix["fixture"]["status"]["short"] == "FT"
+    ]
+    returned_fixtures = {
+        "new": [],
+        "finished": [],
+    }
+    for fixture in next_fixtures:
+        returned_fixtures['new'].append(
+            {
+                "teams": fixture["teams"],
+                "goals": fixture["goals"],
+                "fixture": fixture["fixture"],
+                "league": fixture["league"],
+            }
+        )
+    for fixture in finished_fixtures:
+        returned_fixtures['finished'].append(
+            {
+                "teams": fixture["teams"],
+                "goals": fixture["goals"],
+                "fixture": fixture["fixture"],
+                "league": fixture["league"],
+            }
+        )
+        if len(returned_fixtures['finished']) == 5:
+            break
+    return returned_fixtures
 
 
 def _get_request(url, params):

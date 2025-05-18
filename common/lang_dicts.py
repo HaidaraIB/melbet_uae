@@ -34,6 +34,11 @@ TEXTS = {
         "no_upcoming_games": "لا توجد مواجهة قادمة بين الفريقين.",
         "plz_wait": "الرجاء الانتظار ⏳",
         "soon": "قريباً 🔜",
+        "game_smart_analysis": "تحليل ذكي للمباراة:\n\n{}",
+        "send_voucher_odd_number": "كم تريد odd القسيمة؟",
+        "choose_duration_type": "ما هي مدة القسيمة?",
+        "send_duration_days": "أدخل عدد الأيام بدءا من اليوم؟",
+        "send_duration_hours": "أرسل عدد الساعات، يمكنك إرسال حتى 72 ساعة"
 
     },
     Language.ENGLISH: {
@@ -69,6 +74,12 @@ TEXTS = {
         "no_upcoming_games": "There's no upcoming games between these teams.",
         "plz_wait": "Please Wait ⏳",
         "soon": "Coming Soon 🔜",
+        "game_smart_analysis": "Smart Analysis for the game:\n\n{}",
+        "send_voucher_odd_number": "How much is the voucher's odd number you want?",
+        "choose_duration_type": "What is the voucher duration?",
+        "send_duration_days": "Enter number of days. Time starts from now.\n\nHow many days?",
+        "send_duration_hours": "You can enter up to 72 hours. Time starts from now.\n\nEnter number of hours:"
+
     },
 }
 
@@ -83,6 +94,8 @@ BUTTONS = {
         "buy_voucher": "شراء قسيمة 🎟",
         "analyze_game": "تحليل مباراة ⚽️",
         "pay": "الدفع 💳",
+        "duration_days": "أيام",
+        "duration_hours": "ساعات",
     },
     Language.ENGLISH: {
         "check_joined": "Verify ✅",
@@ -94,5 +107,7 @@ BUTTONS = {
         "buy_voucher": "Buy Voucher 🎟",
         "analyze_game": "Analyze Game ⚽️",
         "pay": "Pay 💳",
+        "duration_days": "Days",
+        "duration_hours": "Hours",
     },
 }

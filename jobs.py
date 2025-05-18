@@ -1,4 +1,5 @@
 from telegram.ext import ContextTypes
+from telegram.constants import ParseMode
 from TeleClientSingleton import TeleClientSingleton
 from telethon.tl.types import (
     ChannelParticipantAdmin,
@@ -13,8 +14,6 @@ from Config import Config
 import re
 import logging
 import models
-import requests
-from datetime import datetime, timedelta
 
 log = logging.getLogger(__name__)
 
@@ -28,19 +27,18 @@ async def send_periodic_messages(context: ContextTypes.DEFAULT_TYPE):
         (
             await openai.chat.completions.create(
                 model=Config.GPT_MODEL,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": system,
-                    }
-                ],
+                messages=[{"role": "user", "content": system}],
                 temperature=0.3,
             )
         )
         .choices[0]
         .message.content.strip()
     )
-    await context.bot.send_message(chat_id=Config.MONITOR_GROUP_ID, text=note)
+    await context.bot.send_message(
+        chat_id=Config.MONITOR_GROUP_ID,
+        text=note,
+        parse_mode=ParseMode.MARKDOWN,
+    )
 
 
 async def check_suspicious_users(context: ContextTypes.DEFAULT_TYPE):
@@ -114,34 +112,3 @@ def contains_restricted_word(text: str):
     pattern = r"(?:" + "|".join(restricted_words) + r")"
     match = re.search(pattern, text, re.IGNORECASE)
     return match is not None
-
-
-async def schedule_pre_match_lineups(matches, context: ContextTypes.DEFAULT_TYPE):
-    for match in matches:
-        # Schedule lineup posting 55 minutes before match
-        lineup_time: datetime = match["start_time"] - timedelta(minutes=55)
-
-        context.job_queue.run_once(
-            callback=send_lineups,
-            when=(lineup_time - datetime.now()).total_seconds(),
-            data=match,
-        )
-
-
-async def send_lineups(context: ContextTypes.DEFAULT_TYPE):
-    match = context.job.data
-    # Replace with your lineup API call
-    home_lineup = "Team A Lineup:\nPlayer1\nPlayer2\n..."
-    away_lineup = "Team B Lineup:\nPlayer1\nPlayer2\n..."
-
-    message = (
-        f"⚠️ <b>Lineups for {match['home_team']} vs {match['away_team']}</b> ⚠️\n\n"
-        f"{home_lineup}\n\n"
-        f"{away_lineup}\n\n"
-        f"⏰ Match starts at <code>{match['start_time'].strftime('%H:%M')}</code>"
-    )
-
-    await context.bot.send_message(
-        chat_id=Config.MONITOR_GROUP_ID,
-        text=message,
-    )
