@@ -1,8 +1,6 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, Chat
 from telegram.ext import (
-    ApplicationBuilder,
     CallbackQueryHandler,
-    CommandHandler,
     MessageHandler,
     filters,
     ConversationHandler,
@@ -11,13 +9,21 @@ from telegram.ext import (
 from common.keyboards import build_back_button, build_back_to_home_page_button
 from common.common import get_lang
 from common.lang_dicts import *
+from start import start_command
+from common.back_to_home_page import back_to_user_home_page_handler
+from datetime import datetime, timedelta
+from user.buy_voucher.common import (
+    extract_ids,
+    get_fixture_odds,
+    build_gpt_prompt,
+    get_fixtures,
+    summarize_fixtures_with_odds_stats,
+    gpt_analyze_bet_slips,
+)
 
-AMOUNT, DURATION_TYPE, DURATION_VALUE, ODDS = range(4)
-
-TOKEN = "YOUR_TOKEN_HERE"
+AMOUNT, DURATION_TYPE, DURATION_VALUE, ODDS, PREFERENCES, CONFIRM = range(6)
 
 
-# Step 1: Buy voucher button
 async def buy_voucher(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
@@ -30,7 +36,6 @@ async def buy_voucher(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return AMOUNT
 
 
-# Step 2: Enter amount
 async def get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
@@ -44,7 +49,7 @@ async def get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ),
             ],
             build_back_button(data="back_to_get_amount", lang=lang),
-            build_back_to_home_page_button(lang=lang, is_admin=False),
+            build_back_to_home_page_button(lang=lang, is_admin=False)[0],
         ]
         if update.message:
             context.user_data["amount"] = update.message.text.strip()
@@ -60,13 +65,15 @@ async def get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return DURATION_TYPE
 
 
-# Step 3: Choose duration type
+back_to_get_amount = buy_voucher
+
+
 async def get_duration_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
         back_buttons = [
             build_back_button(data="back_to_get_duration_type", lang=lang),
-            build_back_to_home_page_button(lang=lang, is_admin=False),
+            build_back_to_home_page_button(lang=lang, is_admin=False)[0],
         ]
         if not update.callback_query.data.startswith("back"):
             duration_type = update.callback_query.data.replace("duration_", "")
@@ -80,114 +87,189 @@ async def get_duration_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=msg,
                 reply_markup=InlineKeyboardMarkup(back_buttons),
             )
-    return DURATION_VALUE
+        return DURATION_VALUE
 
 
-# Step 4: Enter duration value
+back_to_get_duration_type = get_amount
+
+
 async def get_duration_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
-        try:
-            value = int(update.message.text.strip())
+        back_buttons = [
+            build_back_button(data="back_to_get_duration_value", lang=lang),
+            build_back_to_home_page_button(lang=lang, is_admin=False)[0],
+        ]
+        value = int(update.message.text.strip())
+        if update.message:
             if context.user_data["duration_type"] == "hours" and not (1 <= value <= 72):
+                back_buttons = [
+                    build_back_button(data="back_to_get_duration_type", lang=lang),
+                    build_back_to_home_page_button(lang=lang, is_admin=False)[0],
+                ]
                 await update.message.reply_text(
-                    "Please enter a number between 1 and 72."
+                    text=TEXTS[lang]["send_duration_hours"],
+                    reply_markup=InlineKeyboardMarkup(back_buttons),
                 )
                 return DURATION_VALUE
 
             context.user_data["duration_value"] = value
-            await update.message.reply_text("Enter the odds you want (e.g. 2.5):")
-            return ODDS
-        except ValueError:
-            await update.message.reply_text("Please enter a valid number.")
-            return DURATION_VALUE
-
-
-# Step 5: Enter odds and calculate price
-async def get_odds(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        odds = float(update.message.text.strip())
-        context.user_data["odds"] = odds
-
-        amount = context.user_data["amount"]
-        duration = f"{context.user_data['duration_value']} {context.user_data['duration_type']}"
-        price = round(odds * 5, 2)
-
-        summary = (
-            f"Voucher Summary\n"
-            f"- Amount: {amount} AED\n"
-            f"- Duration: {duration}\n"
-            f"- Odds: {odds}\n"
-            f"- Price: {price} AED\n\n"
-            f"Do you want to continue to payment?"
-        )
-
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    "✅ Continue to Payment", callback_data="confirm_payment"
-                ),
-                InlineKeyboardButton("❌ Cancel", callback_data="cancel_voucher"),
-            ]
-        ]
-
-        await update.message.reply_text(
-            summary, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown"
-        )
-        return ConversationHandler.END
-    except ValueError:
-        await update.message.reply_text("Please enter a valid number for odds.")
+            await update.message.reply_text(
+                text=TEXTS[lang]["send_odds"],
+                reply_markup=InlineKeyboardMarkup(back_buttons),
+            )
+        else:
+            await update.callback_query.edit_message_text(
+                text=TEXTS[lang]["send_odds"],
+                reply_markup=InlineKeyboardMarkup(back_buttons),
+            )
         return ODDS
 
 
-# Step 6: Handle confirm/cancel
-async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    if query.data == "confirm_payment":
-        await query.message.edit_text("✅ Payment processing... (This is a mock step)")
-    else:
-        await query.message.edit_text("❌ Voucher cancelled.")
-    return ConversationHandler.END
+back_to_get_duration_value = get_duration_type
 
 
-# Cancel fallback
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Cancelled.")
-    return ConversationHandler.END
+async def get_odds(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == Chat.PRIVATE:
+        lang = get_lang(update.effective_user.id)
+        back_buttons = [
+            build_back_button(data="back_to_get_odds", lang=lang),
+            build_back_to_home_page_button(lang=lang, is_admin=False)[0],
+        ]
+        if update.message:
+            odds = float(update.message.text.strip())
+            context.user_data["odds"] = odds
+
+            await update.message.reply_text(
+                text=TEXTS[lang]["send_preferences"],
+                reply_markup=InlineKeyboardMarkup(back_buttons),
+            )
+        else:
+            await update.callback_query.edit_message_text(
+                text=TEXTS[lang]["send_preferences"],
+                reply_markup=InlineKeyboardMarkup(back_buttons),
+            )
+        return PREFERENCES
 
 
-# Main entry point
-def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+back_to_get_odds = get_duration_value
 
-    conv_handler = ConversationHandler(
-        entry_points=[CallbackQueryHandler(buy_voucher, pattern="^buy_voucher$")],
-        states={
-            AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_amount)],
-            DURATION_TYPE: [
-                CallbackQueryHandler(get_duration_type, pattern="^duration_")
-            ],
-            DURATION_VALUE: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND, get_duration_value)
-            ],
-            ODDS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_odds)],
-        },
-        fallbacks=[CommandHandler("cancel", cancel)],
-        allow_reentry=True,
-    )
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(conv_handler)
-    app.add_handler(
-        CallbackQueryHandler(
-            handle_payment, pattern="^(confirm_payment|cancel_voucher)$"
+async def get_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == Chat.PRIVATE:
+        lang = get_lang(update.effective_user.id)
+        context.user_data["preferences"] = update.message.text.strip()
+        price = round(float(context.user_data["odds"]) * 5, 2)
+        summary = (
+            f"Voucher Request Summary\n"
+            f"- Amount: {context.user_data['amount']} AED\n"
+            f"- Duration: {context.user_data['duration_value']} {context.user_data['duration_type']}\n"
+            f"- Odds: {context.user_data['odds']}\n"
+            f"- Preferences: {context.user_data['preferences']}\n"
+            f"- Price: {price} AED\n\n"
+            f"Continue to payment?"
         )
-    )
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    text=BUTTONS[lang]["confirm_payment"],
+                    callback_data="confirm_payment",
+                ),
+                InlineKeyboardButton(
+                    text=BUTTONS[lang]["cancel_voucher"],
+                    callback_data="cancel_voucher",
+                ),
+            ]
+        ]
+        await update.message.reply_text(
+            text=summary, reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return CONFIRM
 
-    print("Bot is running...")
-    app.run_polling()
+
+async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == Chat.PRIVATE:
+        lang = get_lang(update.effective_user.id)
+        if update.callback_query.data == "confirm_payment":
+            await update.callback_query.edit_message_text(
+                text=TEXTS[lang]['payment_confirmed'],
+            )
+            # جمع البيانات من المستخدم
+            data = context.user_data
+            now = datetime.now()
+            duration_value = int(data["duration_value"])
+            duration_type = data["duration_type"]
+            end_time = now + (
+                timedelta(hours=duration_value)
+                if duration_type == "hours"
+                else timedelta(days=duration_value)
+            )
+            from_date = now
+            to_date = end_time
+            league_id, team_id, country = extract_ids(data["preferences"])
+            # جلب الأحداث
+            fixtures = get_fixtures(league_id, team_id, country, from_date, to_date)
+            fixtures_summary = summarize_fixtures_with_odds_stats(fixtures, max_count=8)
+            # تجهيز البرومبت وإرساله إلى GPT
+            prompt = build_gpt_prompt(data, fixtures_summary)
+            reply = gpt_analyze_bet_slips(prompt)
+            await update.callback_query.edit_message_text(
+                text=reply,
+                disable_web_page_preview=True,
+            )
+        else:
+            await update.callback_query.edit_message_text("❌ Voucher cancelled.")
 
 
-if name == "main":
-    main()
+buy_voucher_handler = ConversationHandler(
+    entry_points=[
+        CallbackQueryHandler(
+            buy_voucher,
+            "^buy_voucher$",
+        )
+    ],
+    states={
+        AMOUNT: [
+            MessageHandler(
+                filters=filters.TEXT & ~filters.COMMAND,
+                callback=get_amount,
+            )
+        ],
+        DURATION_TYPE: [
+            CallbackQueryHandler(
+                get_duration_type,
+                "^duration_",
+            )
+        ],
+        DURATION_VALUE: [
+            MessageHandler(
+                filters=filters.Regex("^[0-9]+$"),
+                callback=get_duration_value,
+            )
+        ],
+        ODDS: [
+            MessageHandler(
+                filters=filters.Regex("^[0-9]+\.?[0-9]*$"),
+                callback=get_odds,
+            )
+        ],
+        PREFERENCES: [],
+        CONFIRM: [
+            CallbackQueryHandler(
+                handle_payment,
+                "^(confirm_payment|cancel_voucher)$",
+            )
+        ],
+    },
+    fallbacks=[
+        start_command,
+        back_to_user_home_page_handler,
+        CallbackQueryHandler(back_to_get_amount, "^back_to_get_amount$"),
+        CallbackQueryHandler(back_to_get_duration_type, "^back_to_get_duration_type$"),
+        CallbackQueryHandler(
+            back_to_get_duration_value, "^back_to_get_duration_value$"
+        ),
+    ],
+    name="buy_voucher_conv",
+    persistent=True,
+)

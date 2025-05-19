@@ -36,10 +36,25 @@ TEXTS = {
         "soon": "قريباً 🔜",
         "game_smart_analysis": "تحليل ذكي للمباراة:\n\n{}",
         "send_voucher_odd_number": "كم تريد odd القسيمة؟",
-        "choose_duration_type": "ما هي مدة القسيمة?",
+        "choose_duration_type": "ما هي مدة القسيمة؟",
         "send_duration_days": "أدخل عدد الأيام بدءا من اليوم؟",
-        "send_duration_hours": "أرسل عدد الساعات، يمكنك إرسال حتى 72 ساعة"
-
+        "send_duration_hours": "أرسل عدد الساعات، يمكنك إرسال حتى 72 ساعة",
+        "send_odds": "أرسل الodds، مثال: 2.5",
+        "voucher_summary": (
+            "ملخص القسيمة\n"
+            "- الكمية: {} AED\n"
+            "- المدة: {}\n"
+            "- Odds: {}\n"
+            "- السعر: {} AED\n\n"
+            "هل تريد المتابعة للدفع؟"
+        ),
+        "voucher_canceled": "تم إلغاء القسيمة",
+        "send_preferences": (
+            "الرجاء كتابة تفضيلاتك من أجل هذه القسيمة.\n"
+            "يمكنك ذكر دوريات، فرق، دول (مثال: La Liga, Barcelona, Spain).\n"
+            "أو اكتب <code>Choose for me</code> إذا لم يكن لديك أي تفضيلات."
+        ),
+        "payment_confirmed": "نقوم بتوليد تحليل ذكي، الرجاء الانتظار...⏳",
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -78,8 +93,23 @@ TEXTS = {
         "send_voucher_odd_number": "How much is the voucher's odd number you want?",
         "choose_duration_type": "What is the voucher duration?",
         "send_duration_days": "Enter number of days. Time starts from now.\n\nHow many days?",
-        "send_duration_hours": "You can enter up to 72 hours. Time starts from now.\n\nEnter number of hours:"
-
+        "send_duration_hours": "You can enter up to 72 hours. Time starts from now.\n\nEnter number of hours:",
+        "send_odds": "Enter the odds you want (e.g. 2.5):",
+        "voucher_summary": (
+            "Voucher Summary\n"
+            "- Amount: {} AED\n"
+            "- Duration: {}\n"
+            "- Odds: {}\n"
+            "- Price: {} AED\n\n"
+            "Do you want to continue to payment?"
+        ),
+        "voucher_canceled": "Voucher Canceled",
+        "send_preferences": (
+            "Please write your preferences for this voucher.\n"
+            "You can mention leagues, teams, or countries (for example: La Liga, Barcelona, Spain).\n"
+            "Or write 'choose for me' if you don’t have any preferences."
+        ),
+        "payment_confirmed": "Generating smart slips for you, please wait...⏳",
     },
 }
 
@@ -96,6 +126,8 @@ BUTTONS = {
         "pay": "الدفع 💳",
         "duration_days": "أيام",
         "duration_hours": "ساعات",
+        "confirm_payment": "المتابعة والدفع ✅",
+        "cancel_voucher": "إلغاء ❌",
     },
     Language.ENGLISH: {
         "check_joined": "Verify ✅",
@@ -109,5 +141,7 @@ BUTTONS = {
         "pay": "Pay 💳",
         "duration_days": "Days",
         "duration_hours": "Hours",
+        "confirm_payment": "Continue to Payment ✅",
+        "cancel_voucher": "Cancel ❌",
     },
 }
