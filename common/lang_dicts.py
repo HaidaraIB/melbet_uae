@@ -45,13 +45,14 @@ TEXTS = {
             "- الكمية: {} AED\n"
             "- المدة: {}\n"
             "- Odds: {}\n"
+            "- التفضيلات: {}\n"
             "- السعر: {} AED\n\n"
             "هل تريد المتابعة للدفع؟"
         ),
         "voucher_canceled": "تم إلغاء القسيمة",
         "send_preferences": (
             "الرجاء كتابة تفضيلاتك من أجل هذه القسيمة.\n"
-            "يمكنك ذكر دوريات، فرق، دول (مثال: La Liga, Barcelona, Spain).\n"
+            "يمكنك ذكر دوريات، فرق (مثال: La Liga, Barcelona).\n"
             "أو اكتب <code>Choose for me</code> إذا لم يكن لديك أي تفضيلات."
         ),
         "payment_confirmed": "نقوم بتوليد تحليل ذكي، الرجاء الانتظار...⏳",
@@ -100,8 +101,9 @@ TEXTS = {
             "- Amount: {} AED\n"
             "- Duration: {}\n"
             "- Odds: {}\n"
+            "- Preferences: {}\n"
             "- Price: {} AED\n\n"
-            "Do you want to continue to payment?"
+            "Continue to Payment?"
         ),
         "voucher_canceled": "Voucher Canceled",
         "send_preferences": (

@@ -6,7 +6,12 @@ from telegram.ext import (
     ConversationHandler,
     ContextTypes,
 )
-from common.keyboards import build_back_button, build_back_to_home_page_button
+from telegram.constants import ParseMode
+from common.keyboards import (
+    build_back_button,
+    build_back_to_home_page_button,
+    build_user_keyboard,
+)
 from common.common import get_lang
 from common.lang_dicts import *
 from start import start_command
@@ -81,7 +86,7 @@ async def get_duration_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if duration_type == "hours":
                 msg = TEXTS[lang]["send_duration_hours"]
             else:
-                msg = TEXTS[lang]["send_durstion_days"]
+                msg = TEXTS[lang]["send_duration_days"]
 
             await update.callback_query.edit_message_text(
                 text=msg,
@@ -160,15 +165,6 @@ async def get_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lang = get_lang(update.effective_user.id)
         context.user_data["preferences"] = update.message.text.strip()
         price = round(float(context.user_data["odds"]) * 5, 2)
-        summary = (
-            f"Voucher Request Summary\n"
-            f"- Amount: {context.user_data['amount']} AED\n"
-            f"- Duration: {context.user_data['duration_value']} {context.user_data['duration_type']}\n"
-            f"- Odds: {context.user_data['odds']}\n"
-            f"- Preferences: {context.user_data['preferences']}\n"
-            f"- Price: {price} AED\n\n"
-            f"Continue to payment?"
-        )
         keyboard = [
             [
                 InlineKeyboardButton(
@@ -179,12 +175,24 @@ async def get_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text=BUTTONS[lang]["cancel_voucher"],
                     callback_data="cancel_voucher",
                 ),
-            ]
+            ],
+            build_back_button(data="back_to_get_preferences", lang=lang),
+            build_back_to_home_page_button(lang=lang, is_admin=False)[0],
         ]
         await update.message.reply_text(
-            text=summary, reply_markup=InlineKeyboardMarkup(keyboard)
+            text=TEXTS[lang]["voucher_summary"].format(
+                context.user_data["amount"],
+                f"{context.user_data['duration_value']} {context.user_data['duration_type']}",
+                context.user_data["odds"],
+                context.user_data["preferences"],
+                price,
+            ),
+            reply_markup=InlineKeyboardMarkup(keyboard),
         )
         return CONFIRM
+
+
+back_to_get_preferences = get_odds
 
 
 async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -192,33 +200,37 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lang = get_lang(update.effective_user.id)
         if update.callback_query.data == "confirm_payment":
             await update.callback_query.edit_message_text(
-                text=TEXTS[lang]['payment_confirmed'],
+                text=TEXTS[lang]["payment_confirmed"],
             )
-            # جمع البيانات من المستخدم
-            data = context.user_data
+
             now = datetime.now()
-            duration_value = int(data["duration_value"])
-            duration_type = data["duration_type"]
-            end_time = now + (
+            duration_value = int(context.user_data["duration_value"])
+            duration_type = context.user_data["duration_type"]
+
+            from_date = now
+            to_date = now + (
                 timedelta(hours=duration_value)
                 if duration_type == "hours"
                 else timedelta(days=duration_value)
             )
-            from_date = now
-            to_date = end_time
-            league_id, team_id, country = extract_ids(data["preferences"])
-            # جلب الأحداث
-            fixtures = get_fixtures(league_id, team_id, country, from_date, to_date)
+            
+            league_id, team_id = extract_ids(context.user_data["preferences"])
+
+            fixtures = get_fixtures(league_id, team_id, from_date, to_date)
             fixtures_summary = summarize_fixtures_with_odds_stats(fixtures, max_count=8)
-            # تجهيز البرومبت وإرساله إلى GPT
-            prompt = build_gpt_prompt(data, fixtures_summary)
-            reply = gpt_analyze_bet_slips(prompt)
+
+            prompt = build_gpt_prompt(context.user_data, fixtures_summary)
+            reply = await gpt_analyze_bet_slips(prompt)
             await update.callback_query.edit_message_text(
                 text=reply,
                 disable_web_page_preview=True,
+                parse_mode=ParseMode.MARKDOWN
             )
         else:
-            await update.callback_query.edit_message_text("❌ Voucher cancelled.")
+            await update.callback_query.edit_message_text(
+                text=TEXTS[lang]["voucher_canceled"],
+                reply_markup=build_user_keyboard(lang=lang),
+            )
 
 
 buy_voucher_handler = ConversationHandler(
@@ -253,7 +265,12 @@ buy_voucher_handler = ConversationHandler(
                 callback=get_odds,
             )
         ],
-        PREFERENCES: [],
+        PREFERENCES: [
+            MessageHandler(
+                filters=filters.TEXT & ~filters.COMMAND,
+                callback=get_preferences,
+            )
+        ],
         CONFIRM: [
             CallbackQueryHandler(
                 handle_payment,
@@ -266,6 +283,7 @@ buy_voucher_handler = ConversationHandler(
         back_to_user_home_page_handler,
         CallbackQueryHandler(back_to_get_amount, "^back_to_get_amount$"),
         CallbackQueryHandler(back_to_get_duration_type, "^back_to_get_duration_type$"),
+        CallbackQueryHandler(back_to_get_preferences, "^back_to_get_preferences$"),
         CallbackQueryHandler(
             back_to_get_duration_value, "^back_to_get_duration_value$"
         ),
