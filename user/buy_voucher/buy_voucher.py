@@ -19,12 +19,11 @@ from common.back_to_home_page import back_to_user_home_page_handler
 from datetime import datetime, timedelta
 from user.buy_voucher.common import (
     extract_ids,
-    get_fixture_odds,
-    build_gpt_prompt,
     get_fixtures,
     summarize_fixtures_with_odds_stats,
-    gpt_analyze_bet_slips,
+    generate_multimatch_coupon,
 )
+import models
 
 AMOUNT, DURATION_TYPE, DURATION_VALUE, ODDS, PREFERENCES, CONFIRM = range(6)
 
@@ -198,39 +197,87 @@ back_to_get_preferences = get_odds
 async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
-        if update.callback_query.data == "confirm_payment":
-            await update.callback_query.edit_message_text(
-                text=TEXTS[lang]["payment_confirmed"],
-            )
-
-            now = datetime.now()
-            duration_value = int(context.user_data["duration_value"])
-            duration_type = context.user_data["duration_type"]
-
-            from_date = now
-            to_date = now + (
-                timedelta(hours=duration_value)
-                if duration_type == "hours"
-                else timedelta(days=duration_value)
-            )
-            
-            league_id, team_id = extract_ids(context.user_data["preferences"])
-
-            fixtures = get_fixtures(league_id, team_id, from_date, to_date)
-            fixtures_summary = summarize_fixtures_with_odds_stats(fixtures, max_count=8)
-
-            prompt = build_gpt_prompt(context.user_data, fixtures_summary)
-            reply = await gpt_analyze_bet_slips(prompt)
-            await update.callback_query.edit_message_text(
-                text=reply,
-                disable_web_page_preview=True,
-                parse_mode=ParseMode.MARKDOWN
-            )
-        else:
-            await update.callback_query.edit_message_text(
+        q = update.callback_query
+        await q.answer()
+        # Cancel if not confirmed
+        if q.data != "confirm_payment":
+            await q.edit_message_text(
                 text=TEXTS[lang]["voucher_canceled"],
                 reply_markup=build_user_keyboard(lang=lang),
             )
+            return ConversationHandler.END
+
+        # Show waiting message
+        await q.edit_message_text(text=TEXTS[lang]["payment_confirmed"])
+
+        # Prepare fixtures list & summary
+        league_id, team_id = extract_ids(context.user_data["preferences"])
+        now = datetime.now()
+        if context.user_data["duration_type"] == "hours":
+            to = now + timedelta(hours=context.user_data["duration_value"])
+        else:
+            to = now + timedelta(days=context.user_data["duration_value"])
+
+        fixtures = await get_fixtures(league_id, team_id, now, to)
+        fixtures_summary = summarize_fixtures_with_odds_stats(fixtures)
+
+        # Call GPT
+        coupon_json, message_md = await generate_multimatch_coupon(fixtures_summary)
+
+        # Store each tip in DB
+        for match_block in coupon_json["matches"]:
+            label = match_block["teams"]  # e.g. "Team A vs Team B"
+            fx = next(
+                f
+                for f in fixtures
+                if f["teams"]["home"]["name"] + " vs " + f["teams"]["away"]["name"]
+                == label
+            )
+            with models.session_scope() as s:
+                for tip in match_block["tips"]:
+                    # إضافة التوصيات الجديدة
+                    recommendation = models.FixtureRecommendation(
+                        user_id=update.effective_user.id,
+                        fixture_id=fx["fixture"]["id"],
+                        match_date=fx["fixture"]["date"],
+                        league_id=fx["league"]["id"],
+                        title=f"{label} → {tip['selection']}",
+                        market=tip["market"],
+                        selection=tip["selection"],
+                        threshold=tip.get("threshold"),
+                    )
+                    s.add(recommendation)
+                s.commit()
+
+        # Split and send final Markdown message if it's too long
+        max_length = 4096  # Telegram's message length limit
+        if len(message_md) <= max_length:
+            await q.edit_message_text(text=message_md, parse_mode=ParseMode.MARKDOWN)
+        else:
+            # Split the message into parts
+            parts = []
+            while message_md:
+                if len(message_md) > max_length:
+                    # Find the last newline before the limit to avoid breaking mid-line
+                    split_at = message_md.rfind("\n", 0, max_length)
+                    if split_at == -1:  # No newline found, split at max_length
+                        split_at = max_length
+                    parts.append(message_md[:split_at])
+                    message_md = message_md[split_at:].lstrip()
+                else:
+                    parts.append(message_md)
+                    message_md = ""
+
+            # Send the first part by editing the original message
+            await q.edit_message_text(text=parts[0], parse_mode=ParseMode.MARKDOWN)
+
+            # Send remaining parts as new messages
+            for part in parts[1:]:
+                await context.bot.send_message(
+                    chat_id=update.effective_chat.id,
+                    text=part,
+                    parse_mode=ParseMode.MARKDOWN,
+                )
 
 
 buy_voucher_handler = ConversationHandler(

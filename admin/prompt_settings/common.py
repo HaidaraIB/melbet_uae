@@ -45,4 +45,10 @@ def prompt_panel():
                 callback_data="edit_prompt_change_account",
             )
         ],
+        [
+            InlineKeyboardButton(
+                "برومبت القسيمة 🎫",
+                callback_data="edit_prompt_voucher",
+            )
+        ],
     ]

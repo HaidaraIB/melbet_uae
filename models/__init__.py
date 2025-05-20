@@ -10,5 +10,4 @@ from models.Setting import Setting
 from models.UserSession import UserSession
 from models.FraudLog import FraudLog
 from models.SessionTimer import SessionTimer
-from models.RecommendationHistory import RecommendationHistory
-from models.ScheduledFixtures import ScheduledFixtures
+from models.FixtureRecommendation import FixtureRecommendation

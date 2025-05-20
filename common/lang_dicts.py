@@ -39,7 +39,7 @@ TEXTS = {
         "choose_duration_type": "ما هي مدة القسيمة؟",
         "send_duration_days": "أدخل عدد الأيام بدءا من اليوم؟",
         "send_duration_hours": "أرسل عدد الساعات، يمكنك إرسال حتى 72 ساعة",
-        "send_odds": "أرسل الodds، مثال: 2.5",
+        "send_odds": "أرسل ال odds، مثال: 2.5",
         "voucher_summary": (
             "ملخص القسيمة\n"
             "- الكمية: {} AED\n"
@@ -108,8 +108,8 @@ TEXTS = {
         "voucher_canceled": "Voucher Canceled",
         "send_preferences": (
             "Please write your preferences for this voucher.\n"
-            "You can mention leagues, teams, or countries (for example: La Liga, Barcelona, Spain).\n"
-            "Or write 'choose for me' if you don’t have any preferences."
+            "You can mention leagues, teams, or countries (for example: La Liga, Barcelona).\n"
+            "Or write <code>Choose for me</code> if you don’t have any preferences."
         ),
         "payment_confirmed": "Generating smart slips for you, please wait...⏳",
     },

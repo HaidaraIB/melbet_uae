@@ -5,7 +5,12 @@ from utils.api_calls import HEADERS, BASE_URL
 from client.client_calls.common import openai
 from common.constants import TIMEZONE_NAME
 from datetime import datetime
-import random
+import json
+import aiohttp
+import asyncio
+import models
+from typing import List, Dict, Any
+
 
 LEAGUE_MAP = {
     # Spain (La Liga) - ID: 140
@@ -193,50 +198,91 @@ def extract_ids(preferences: str):
     return league_id, team_id
 
 
-def get_fixtures(
+
+async def get_fixtures(
     league_id: int,
     team_id: int,
     from_date: datetime,
     to_date: datetime,
-):
-    if not league_id:
-        for l_id in list(set(LEAGUE_MAP.values())):
-            for season in (from_date.year, from_date.year -1):
+) -> List[Dict[str, Any]]:
+    MAX_CONCURRENT_REQUESTS = 5  # Example: 5 requests at a time
+    REQUEST_DELAY = 1.0  # 1 second delay between batches
+    results = []
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+
+    async with aiohttp.ClientSession() as session:
+        if not league_id:
+            tasks = []
+            for l_id in set(LEAGUE_MAP.values()):
+                for season in (from_date.year, from_date.year - 1):
+                    url = f"{BASE_URL}/fixtures"
+                    params = {
+                        "from": from_date.strftime("%Y-%m-%d"),
+                        "to": to_date.strftime("%Y-%m-%d"),
+                        "season": season,
+                        "timezone": TIMEZONE_NAME,
+                        "league": l_id,
+                    }
+                    if team_id:
+                        params["team"] = team_id
+                    tasks.append(
+                        fetch_fixtures_with_rate_limit(session, url, params, semaphore)
+                    )
+
+            # Process tasks in batches with delay
+            for i in range(0, len(tasks), MAX_CONCURRENT_REQUESTS):
+                batch = tasks[i : i + MAX_CONCURRENT_REQUESTS]
+                responses = await asyncio.gather(*batch)
+                for data in responses:
+                    if isinstance(data, dict) and data.get("response", []):
+                        results.extend(data["response"])
+                if i + MAX_CONCURRENT_REQUESTS < len(tasks):
+                    await asyncio.sleep(REQUEST_DELAY)
+
+            return results
+        else:
+            # For single league case, we don't need rate limiting
+            for season in (from_date.year, from_date.year - 1):
                 url = f"{BASE_URL}/fixtures"
                 params = {
                     "from": from_date.strftime("%Y-%m-%d"),
                     "to": to_date.strftime("%Y-%m-%d"),
                     "season": season,
                     "timezone": TIMEZONE_NAME,
-                    "league": l_id
+                    "league": league_id,
                 }
                 if team_id:
                     params["team"] = team_id
-
-                r = requests.get(url, params=params, headers=HEADERS)
-                data = r.json()
+                data = await fetch_fixtures(session, url, params)
                 if data.get("response", []):
-                    break
-            if data.get("response", []):
-                break
-    else:
-        for season in (from_date.year, from_date.year -1):
-            url = f"{BASE_URL}/fixtures"
-            params = {
-                "from": from_date.strftime("%Y-%m-%d"),
-                "to": to_date.strftime("%Y-%m-%d"),
-                "season": season,
-                "timezone": TIMEZONE_NAME,
-                "league": league_id
-            }
-            if team_id:
-                params["team"] = team_id
+                    return data["response"]
+            return []
 
-            r = requests.get(url, params=params, headers=HEADERS)
-            data = r.json()
-            if data.get("response", []):
-                break
-    return data.get("response", [])
+
+async def fetch_fixtures_with_rate_limit(
+    session: aiohttp.ClientSession,
+    url: str,
+    params: Dict[str, Any],
+    semaphore: asyncio.Semaphore,
+) -> Dict[str, Any]:
+    async with semaphore:
+        return await fetch_fixtures(session, url, params)
+
+
+async def fetch_fixtures(
+    session: aiohttp.ClientSession,
+    url: str,
+    params: Dict[str, Any],
+) -> Dict[str, Any]:
+    async with session.get(url, params=params, headers=HEADERS) as response:
+        if response.status == 429:
+            # Handle rate limit error
+            retry_after = int(response.headers.get("Retry-After", 5))
+            print(f"Rate limited. Waiting {retry_after} seconds...")
+            await asyncio.sleep(retry_after)
+            return await fetch_fixtures(session, url, params)
+        response.raise_for_status()
+        return await response.json()
 
 
 def get_fixture_odds(fixture_id: int):
@@ -289,28 +335,39 @@ def summarize_fixtures_with_odds_stats(fixtures: dict, max_count=6):
     return summary
 
 
-def build_gpt_prompt(user_data: dict, fixtures_summary):
-    return (
-        "User voucher request:\n"
-        f"- Amount: {user_data['amount']} AED\n"
-        f"- Desired Odds: {user_data['odds']}\n"
-        f"- Duration: {user_data['duration_value']} {user_data['duration_type']}\n"
-        f"- Preferences: {user_data['preferences']}\n\n"
-        "Available matches during this period (with odds and main stats):\n"
-        f"{fixtures_summary}\n\n"
-        "Task:\n"
-        f"Based on the above, create 3 bet slips for the user with a total odds around {user_data['odds']}:\n"
-        "- Low Risk: Most matches, low individual odds, higher probability of winning.\n"
-        "- Medium Risk: Fewer matches, higher odds.\n"
-        "- High Risk: One or two matches with high odds (higher risk, bigger payout).\n\n"
-        "For each slip, explain your selection logic in 2 lines.\n"
-        "Summarize the options in a simple table.\n"
-        "End your reply with a short, clear summary for the user (in Arabic)."
+async def generate_multimatch_coupon(fixtures_summary: str):
+    json_format_instructions = (
+        "Important:\n"
+        "• Return RAW JSON only in this exact format (do NOT use Arabic or alternative keys):\n"
+        "{\n"
+        '  "matches": [\n'
+        "    {\n"
+        '      "teams": "Team A vs Team B",\n'
+        '      "tips": [\n'
+        '        {"risk": "Low", "market": "...", "selection": "...", "probability": 60, "odds": 1.8, "value": "✅", "reason": "..."},\n'
+        '        {"risk": "Medium", ...},\n'
+        '        {"risk": "High", ...}\n'
+        "      ]\n"
+        "    }\n"
+        "  ],\n"
+        '  "combo": { "selections": ["...","..."], "combined_odds": 4.5, "overall_risk": "Medium", "reason": "..." }\n'
+        "}\n"
+        "Then after --- send a user-friendly Markdown summary (in English).\n"
+        "Start your answer with { and do NOT put code blocks or explanations before or after the JSON.\n\n"
+    )
+    
+    with models.session_scope() as s:
+        voucher_prompt = s.get(models.Setting, "gpt_prompt_voucher")
+        default_prompt = s.get(models.Setting, "gpt_prompt")
+        p = voucher_prompt.value if voucher_prompt else default_prompt.value
+
+    prompt = (
+        f"{p}"
+        f"{json_format_instructions}"
+        f"Match data:\n{fixtures_summary}"
     )
 
-
-async def gpt_analyze_bet_slips(prompt: str):
-    response = await openai.chat.completions.create(
+    resp = await openai.chat.completions.create(
         model=Config.GPT_MODEL,
         messages=[
             {
@@ -318,5 +375,22 @@ async def gpt_analyze_bet_slips(prompt: str):
                 "content": prompt,
             }
         ],
+        temperature=0.7,
     )
-    return response.choices[0].message.content
+    content = resp.choices[0].message.content.strip()
+    if "```json" in content:
+        json_part = content.split("```json")[1].split("```")[0].strip()
+    else:
+        json_part = content.split("---")[0].strip()
+    coupon = json.loads(json_part)
+
+    md_part = ""
+    if "---" in content:
+        md_part = content.split("---", 1)[1].strip()
+    elif "```" in content:
+        # احتمال وجود Markdown بعد الكود
+        after_json = content.split("`")[-1].strip()
+        if after_json:
+            md_part = after_json
+
+    return coupon, md_part
