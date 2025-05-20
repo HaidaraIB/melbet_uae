@@ -12,6 +12,7 @@ import models
 from typing import List, Dict, Any
 
 
+
 LEAGUE_MAP = {
     # Spain (La Liga) - ID: 140
     "la liga": 140,
@@ -198,19 +199,17 @@ def extract_ids(preferences: str):
     return league_id, team_id
 
 
-
 async def get_fixtures(
     league_id: int,
     team_id: int,
     from_date: datetime,
     to_date: datetime,
 ) -> List[Dict[str, Any]]:
-    MAX_CONCURRENT_REQUESTS = 5  # Example: 5 requests at a time
-    REQUEST_DELAY = 1.0  # 1 second delay between batches
+    MAX_CONCURRENT_REQUESTS = 10
     results = []
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
         if not league_id:
             tasks = []
             for l_id in set(LEAGUE_MAP.values()):
@@ -236,8 +235,6 @@ async def get_fixtures(
                 for data in responses:
                     if isinstance(data, dict) and data.get("response", []):
                         results.extend(data["response"])
-                if i + MAX_CONCURRENT_REQUESTS < len(tasks):
-                    await asyncio.sleep(REQUEST_DELAY)
 
             return results
         else:
@@ -285,32 +282,38 @@ async def fetch_fixtures(
         return await response.json()
 
 
-def get_fixture_odds(fixture_id: int):
+async def get_fixture_odds(fixture_id: int) -> list:
+    """Get odds for a fixture with async caching"""
     url = f"{BASE_URL}/odds"
     params = {"fixture": fixture_id}
-    r = requests.get(url, params=params, headers=HEADERS)
-    data = r.json()
-    return data.get("response", [])
+
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+        async with session.get(url, params=params, headers=HEADERS) as response:
+            data = await response.json()
+            return data.get("response", [])
 
 
-def get_fixture_stats(fixture_id: int):
+async def get_fixture_stats(fixture_id: int) -> list:
+    """Get stats for a fixture with async caching"""
     url = f"{BASE_URL}/fixtures/statistics"
     params = {"fixture": fixture_id}
-    r = requests.get(url, params=params, headers=HEADERS, timeout=20)
-    data = r.json()
-    return data.get("response", [])
+
+    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+        async with session.get(url, params=params, headers=HEADERS) as response:
+            data = await response.json()
+            return data.get("response", [])
 
 
-def summarize_fixtures_with_odds_stats(fixtures: dict, max_count=6):
+async def summarize_fixtures_with_odds_stats(fixtures: dict, max_limit: int = 10):
     summary = ""
-    for fix in fixtures[:max_count]:
+    for fix in fixtures[:max_limit]:
         fixture_id = fix["fixture"]["id"]
         teams = fix["teams"]["home"]["name"] + " vs " + fix["teams"]["away"]["name"]
         date = fix["fixture"]["date"][:16].replace("T", " ")
         league = fix["league"]["name"]
 
         # جلب odds (اختصار لأهم الأسواق)
-        odds_list = get_fixture_odds(fixture_id)
+        odds_list = await get_fixture_odds(fixture_id)
         odds_text = ""
         for odds_pack in odds_list:
             for bookmaker in odds_pack.get("bookmakers", []):
@@ -321,7 +324,7 @@ def summarize_fixtures_with_odds_stats(fixtures: dict, max_count=6):
                             odds_text += f'{val["value"]}: {val["odd"]} | '
         odds_text = odds_text.strip(" |")
         # جلب stats (مقتطفات فقط)
-        stats_list = get_fixture_stats(fixture_id)
+        stats_list = await get_fixture_stats(fixture_id)
         stats_text = ""
         for stats in stats_list:
             team = stats.get("team", {}).get("name", "")
@@ -337,7 +340,7 @@ def summarize_fixtures_with_odds_stats(fixtures: dict, max_count=6):
 
 async def generate_multimatch_coupon(fixtures_summary: str):
     json_format_instructions = (
-        "Important:\n"
+        "\n\nImportant:\n"
         "• Return RAW JSON only in this exact format (do NOT use Arabic or alternative keys):\n"
         "{\n"
         '  "matches": [\n'
@@ -355,17 +358,13 @@ async def generate_multimatch_coupon(fixtures_summary: str):
         "Then after --- send a user-friendly Markdown summary (in English).\n"
         "Start your answer with { and do NOT put code blocks or explanations before or after the JSON.\n\n"
     )
-    
+
     with models.session_scope() as s:
         voucher_prompt = s.get(models.Setting, "gpt_prompt_voucher")
         default_prompt = s.get(models.Setting, "gpt_prompt")
         p = voucher_prompt.value if voucher_prompt else default_prompt.value
 
-    prompt = (
-        f"{p}"
-        f"{json_format_instructions}"
-        f"Match data:\n{fixtures_summary}"
-    )
+    prompt = f"{p}" f"{json_format_instructions}" f"Match data:\n{fixtures_summary}"
 
     resp = await openai.chat.completions.create(
         model=Config.GPT_MODEL,
@@ -382,7 +381,7 @@ async def generate_multimatch_coupon(fixtures_summary: str):
         json_part = content.split("```json")[1].split("```")[0].strip()
     else:
         json_part = content.split("---")[0].strip()
-    coupon = json.loads(json_part)
+    coupon = json.loads(r"{}".format(json_part))
 
     md_part = ""
     if "---" in content:

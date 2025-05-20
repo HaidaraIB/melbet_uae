@@ -219,7 +219,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             to = now + timedelta(days=context.user_data["duration_value"])
 
         fixtures = await get_fixtures(league_id, team_id, now, to)
-        fixtures_summary = summarize_fixtures_with_odds_stats(fixtures)
+        fixtures_summary = await summarize_fixtures_with_odds_stats(fixtures)
 
         # Call GPT
         coupon_json, message_md = await generate_multimatch_coupon(fixtures_summary)
