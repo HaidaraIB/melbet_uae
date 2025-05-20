@@ -1,187 +1,10 @@
-import requests
 import openai
 from Config import Config
-from utils.api_calls import HEADERS, BASE_URL
 from client.client_calls.common import openai
-from common.constants import TIMEZONE_NAME
-from datetime import datetime
 import json
-import aiohttp
-import asyncio
 import models
-from typing import List, Dict, Any
-
-
-
-LEAGUE_MAP = {
-    # Spain (La Liga) - ID: 140
-    "la liga": 140,
-    "laliga": 140,
-    "الدوري الإسباني": 140,
-    "ليغا": 140,
-    "دوري الدرجة الأولى الإسباني": 140,
-    "primera división": 140,
-    "اسبانيا": 140,  # Country fallback
-    "إسبانيا": 140,
-    # England (Premier League) - ID: 39
-    "premier league": 39,
-    "البريميرليغ": 39,
-    "الدوري الإنجليزي الممتاز": 39,
-    "epl": 39,
-    "barclays premier league": 39,
-    "انجلترا": 39,  # Country fallback
-    "إنجلترا": 39,
-    # Italy (Serie A) - ID: 135
-    "serie a": 135,
-    "سيريا أ": 135,
-    "الدوري الإيطالي": 135,
-    "الدوري الإيطالي الممتاز": 135,
-    "ايطاليا": 135,  # Country fallback
-    "إيطاليا": 135,
-    # Germany (Bundesliga) - ID: 78
-    "bundesliga": 78,
-    "بوندسليغا": 78,
-    "الدوري الألماني": 78,
-    "bundesliga 1": 78,
-    "المانيا": 78,  # Country fallback
-    "ألمانيا": 78,
-    # France (Ligue 1) - ID: 61
-    "ligue 1": 61,
-    "ليغ 1": 61,
-    "الدوري الفرنسي": 61,
-    "ليغ 1 الفرنسي": 61,
-    "فرنسا": 61,  # Country fallback
-    # UEFA Competitions
-    "champions league": 2,
-    "دوري الأبطال": 2,
-    "ucl": 2,
-    "uefa champions league": 2,
-    "دوري أبطال أوروبا": 2,
-    "europa league": 3,
-    "الدوري الأوروبي": 3,
-    "uel": 3,
-    "uefa europa league": 3,
-    "الدوري الأوروبي لكرة القدم": 3,
-    "europa conference league": 848,
-    "الدوري الأوروبي المؤتمر": 848,
-    "uefa europa conference league": 848,
-    "uecl": 848,
-    "دوري المؤتمر الأوروبي": 848,
-    # Other Major Leagues
-    "mls": 253,
-    "الدوري الأمريكي": 253,
-    "major league soccer": 253,
-    "الدوري الأمريكي لكرة القدم": 253,
-    "usa": 253,  # Country fallback
-    "brasileirao": 71,
-    "الدوري البرازيلي": 71,
-    "brasileirão série a": 71,
-    "campeonato brasileiro": 71,
-    "brazil": 71,  # Country fallback
-    "البرازيل": 71,
-    "eredivisie": 88,
-    "الدوري الهولندي": 88,
-    "eredivisie holland": 88,
-    "netherlands": 88,  # Country fallback
-    "هولندا": 88,
-    "primeira liga": 94,
-    "الدوري البرتغالي": 94,
-    "liga portugal": 94,
-    "portugal": 94,  # Country fallback
-    "البرتغال": 94,
-    "super lig": 203,
-    "الدوري التركي": 203,
-    "سوبر ليغ": 203,
-    "تركيا": 203,  # Country fallback
-    "الدوري التركي الممتاز": 203,
-    "belgian pro league": 144,
-    "الدوري البلجيكي": 144,
-    "jupiler pro league": 144,
-    "بلجيكا": 144,  # Country fallback
-    "دوري بلجيكا الممتاز": 144,
-    "scottish premiership": 179,
-    "الدوري الاسكتلندي": 179,
-    "premiership scotland": 179,
-    "اسكتلندا": 179,  # Country fallback
-    "الدوري الاسكتلندي الممتاز": 179,
-    "austrian bundesliga": 218,
-    "الدوري النمساوي": 218,
-    "بوندسليغا النمسا": 218,
-    "النمسا": 218,  # Country fallback
-    "دوري النمسا الممتاز": 218,
-    # Domestic Cups
-    "copa del rey": 143,
-    "كأس الملك": 143,
-    "كأس إسبانيا": 143,
-    "copa de españa": 143,
-    "fa cup": 45,
-    "كأس الاتحاد الإنجليزي": 45,
-    "كأس إنجلترا": 45,
-    "كأس الاتحاد": 45,
-    "dfb pokal": 81,
-    "كأس ألمانيا": 81,
-    "كأس الاتحاد الألماني": 81,
-    "coppa italia": 137,
-    "كأس إيطاليا": 137,
-    "كأس ايطاليا": 137,
-    "coupe de france": 66,
-    "كأس فرنسا": 66,
-    "كأس الاتحاد الفرنسي": 66,
-    # South American Competitions
-    "copa libertadores": 13,
-    "كأس ليبرتادوريس": 13,
-    "كأس المحررين": 13,
-    "copa sudamericana": 15,
-    "كأس سود أمريكانا": 15,
-    "كأس أمريكا الجنوبية": 15,
-}
-
-TEAM_MAP = {
-    # La Liga
-    "barcelona": 529,
-    "برشلونة": 529,
-    "fc barcelona": 529,
-    "real madrid": 541,
-    "ريال مدريد": 541,
-    "atletico madrid": 530,
-    "أتلتيكو مدريد": 530,
-    "valencia": 532,
-    "فالنسيا": 532,
-    "sevilla": 536,
-    "اشبيلية": 536,
-    # Premier League
-    "liverpool": 40,
-    "ليفربول": 40,
-    "manchester united": 33,
-    "مانشستر يونايتد": 33,
-    "manchester city": 50,
-    "مانشستر سيتي": 50,
-    "arsenal": 42,
-    "آرسنال": 42,
-    "chelsea": 49,
-    "تشيلسي": 49,
-    "tottenham": 47,
-    "توتنهام": 47,
-    # Serie A
-    "juventus": 496,
-    "يوفنتوس": 496,
-    "inter milan": 505,
-    "إنتر ميلان": 505,
-    "ac milan": 489,
-    "إيه سي ميلان": 489,
-    "roma": 497,
-    "روما": 497,
-    "napoli": 492,
-    "نابولي": 492,
-    # Bundesliga
-    "bayern munich": 157,
-    "بايرن ميونخ": 157,
-    "dortmund": 165,
-    "دورتموند": 165,
-    "rb leipzig": 173,
-    "آر بي لايبزيغ": 173,
-}
-
+from user.buy_voucher.constants import *
+from user.buy_voucher.api_calls import *
 
 def extract_ids(preferences: str):
     text = preferences.lower()
@@ -199,143 +22,132 @@ def extract_ids(preferences: str):
     return league_id, team_id
 
 
-async def get_fixtures(
-    league_id: int,
-    team_id: int,
-    from_date: datetime,
-    to_date: datetime,
-) -> List[Dict[str, Any]]:
-    MAX_CONCURRENT_REQUESTS = 10
-    results = []
-    semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
-
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-        if not league_id:
-            tasks = []
-            for l_id in set(LEAGUE_MAP.values()):
-                for season in (from_date.year, from_date.year - 1):
-                    url = f"{BASE_URL}/fixtures"
-                    params = {
-                        "from": from_date.strftime("%Y-%m-%d"),
-                        "to": to_date.strftime("%Y-%m-%d"),
-                        "season": season,
-                        "timezone": TIMEZONE_NAME,
-                        "league": l_id,
-                    }
-                    if team_id:
-                        params["team"] = team_id
-                    tasks.append(
-                        fetch_fixtures_with_rate_limit(session, url, params, semaphore)
-                    )
-
-            # Process tasks in batches with delay
-            for i in range(0, len(tasks), MAX_CONCURRENT_REQUESTS):
-                batch = tasks[i : i + MAX_CONCURRENT_REQUESTS]
-                responses = await asyncio.gather(*batch)
-                for data in responses:
-                    if isinstance(data, dict) and data.get("response", []):
-                        results.extend(data["response"])
-
-            return results
-        else:
-            # For single league case, we don't need rate limiting
-            for season in (from_date.year, from_date.year - 1):
-                url = f"{BASE_URL}/fixtures"
-                params = {
-                    "from": from_date.strftime("%Y-%m-%d"),
-                    "to": to_date.strftime("%Y-%m-%d"),
-                    "season": season,
-                    "timezone": TIMEZONE_NAME,
-                    "league": league_id,
-                }
-                if team_id:
-                    params["team"] = team_id
-                data = await fetch_fixtures(session, url, params)
-                if data.get("response", []):
-                    return data["response"]
-            return []
-
-
-async def fetch_fixtures_with_rate_limit(
-    session: aiohttp.ClientSession,
-    url: str,
-    params: Dict[str, Any],
-    semaphore: asyncio.Semaphore,
-) -> Dict[str, Any]:
-    async with semaphore:
-        return await fetch_fixtures(session, url, params)
-
-
-async def fetch_fixtures(
-    session: aiohttp.ClientSession,
-    url: str,
-    params: Dict[str, Any],
-) -> Dict[str, Any]:
-    async with session.get(url, params=params, headers=HEADERS) as response:
-        if response.status == 429:
-            # Handle rate limit error
-            retry_after = int(response.headers.get("Retry-After", 5))
-            print(f"Rate limited. Waiting {retry_after} seconds...")
-            await asyncio.sleep(retry_after)
-            return await fetch_fixtures(session, url, params)
-        response.raise_for_status()
-        return await response.json()
-
-
-async def get_fixture_odds(fixture_id: int) -> list:
-    """Get odds for a fixture with async caching"""
-    url = f"{BASE_URL}/odds"
-    params = {"fixture": fixture_id}
-
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-        async with session.get(url, params=params, headers=HEADERS) as response:
-            data = await response.json()
-            return data.get("response", [])
-
-
-async def get_fixture_stats(fixture_id: int) -> list:
-    """Get stats for a fixture with async caching"""
-    url = f"{BASE_URL}/fixtures/statistics"
-    params = {"fixture": fixture_id}
-
-    async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-        async with session.get(url, params=params, headers=HEADERS) as response:
-            data = await response.json()
-            return data.get("response", [])
-
-
 async def summarize_fixtures_with_odds_stats(fixtures: dict, max_limit: int = 10):
     summary = ""
+
     for fix in fixtures[:max_limit]:
         fixture_id = fix["fixture"]["id"]
-        teams = fix["teams"]["home"]["name"] + " vs " + fix["teams"]["away"]["name"]
+        home = fix["teams"]["home"]
+        away = fix["teams"]["away"]
+        home_name = home["name"]
+        away_name = away["name"]
+        match = f"{home_name} vs {away_name}"
         date = fix["fixture"]["date"][:16].replace("T", " ")
         league = fix["league"]["name"]
 
-        # جلب odds (اختصار لأهم الأسواق)
+        summary += f"\n=== {match} | {league} | {date} ===\n"
+
+        # ============ STANDINGS ============
+        try:
+            standings = await get_standings(
+                fix["league"]["id"], fix["league"]["season"]
+            )
+            home_stand = next(
+                team for team in standings if team["team"]["id"] == home["id"]
+            )
+            away_stand = next(
+                team for team in standings if team["team"]["id"] == away["id"]
+            )
+
+            summary += "Standings:\n"
+            summary += f"- {home_name}: Rank {home_stand['rank']} | {home_stand['points']} pts | {home_stand['all']['win']}W-{home_stand['all']['draw']}D-{home_stand['all']['lose']}L\n"
+            summary += f"- {away_name}: Rank {away_stand['rank']} | {away_stand['points']} pts | {away_stand['all']['win']}W-{away_stand['all']['draw']}D-{away_stand['all']['lose']}L\n"
+
+            if abs(home_stand["points"] - away_stand["points"]) >= 3:
+                pressure_team = (
+                    home_name
+                    if home_stand["points"] < away_stand["points"]
+                    else away_name
+                )
+                summary += (
+                    f"Motivation: {pressure_team} appears under more pressure to win.\n"
+                )
+        except:
+            summary += "Standings: Not available.\n"
+
+        # ============ ODDS ============
         odds_list = await get_fixture_odds(fixture_id)
-        odds_text = ""
+        summary += "\nOdds:\n"
+        markets_needed = {
+            "Match Winner": "1X2",
+            "Over/Under": "Over/Under",
+            "Both Teams To Score": "BTTS",
+            "Draw No Bet": "Draw No Bet",
+            "Half Time / Full Time": "HT/FT",
+        }
+        markets_printed = set()
+
         for odds_pack in odds_list:
             for bookmaker in odds_pack.get("bookmakers", []):
                 for market in bookmaker.get("bets", []):
-                    if market["name"] in ["Match Winner", "1X2"]:
+                    name = market.get("name")
+                    if name in markets_needed and name not in markets_printed:
+                        markets_printed.add(name)
                         values = market.get("values", [])
-                        for val in values:
-                            odds_text += f'{val["value"]}: {val["odd"]} | '
-        odds_text = odds_text.strip(" |")
-        # جلب stats (مقتطفات فقط)
-        stats_list = await get_fixture_stats(fixture_id)
-        stats_text = ""
-        for stats in stats_list:
-            team = stats.get("team", {}).get("name", "")
-            stats_pairs = stats.get("statistics", [])[:2]  # خذ أول اثنين فقط اختصاراً
-            for s in stats_pairs:
-                stats_text += f"{team} {s['type']}: {s['value']} | "
+                        formatted = " | ".join(
+                            f"{v['value']}: {v['odd']}" for v in values
+                        )
+                        summary += f"- {markets_needed[name]}: {formatted}\n"
 
-        summary += f"\n{teams} | {league} | {date}\nOdds: {odds_text}\nStats: {stats_text.strip(' |')}\n"
-    if not summary:
-        summary = "No matches found for your preferences in the selected period.\n"
-    return summary
+        if not markets_printed:
+            summary += "- Odds not available\n"
+
+        # ============ TEAM STATS ============
+        def extract_team_stats(data, team_label):
+            stats = f"{team_label} Stats:\n"
+            stats += f"- Avg Goals Scored: {data['goals']['for']['average']['total']}\n"
+            stats += f"- Avg Goals Conceded: {data['goals']['against']['average']['total']}\n"
+            stats += f"- Clean Sheets: {data['clean_sheet']['total']}\n"
+            stats += f"- Failed to Score: {data['failed_to_score']['total']}\n"
+            stats += f"- BTTS Rate: {data['both_teams_to_score']['percentage']}%\n"
+            stats += f"- Over 2.5 Matches: {data['fixtures']['over_25']}\n"
+            return stats
+
+        try:
+            stats_home = await get_team_stats(
+                home["id"], fix["league"]["id"], fix["league"]["season"]
+            )
+            stats_away = await get_team_stats(
+                away["id"], fix["league"]["id"], fix["league"]["season"]
+            )
+            summary += "\n" + extract_team_stats(stats_home, home_name) + "\n"
+            summary += extract_team_stats(stats_away, away_name) + "\n"
+        except:
+            summary += "\nStats: Not available.\n"
+
+        # ============ H2H ============
+        try:
+            h2h = await get_h2h(home["id"], away["id"])
+            summary += "Last 5 Head-to-Head:\n"
+            for m in h2h[:5]:
+                h = m["teams"]["home"]["name"]
+                a = m["teams"]["away"]["name"]
+                gh = m["goals"]["home"]
+                ga = m["goals"]["away"]
+                summary += f"- {h} {gh} - {ga} {a}\n"
+        except:
+            summary += "Head-to-Head: Not available.\n"
+
+        # ============ LAST RESULTS ============
+        def format_last_results(results, team_label):
+            line = f"{team_label} Last 5 Matches: "
+            for m in results[:5]:
+                g = m.get("goals", {})
+                score = f"{g.get('for', '?')}-{g.get('against', '?')}"
+                line += score + " | "
+            return line.strip(" | ") + "\n"
+
+        try:
+            last_home = await get_last_results(home["id"])
+            last_away = await get_last_results(away["id"])
+            summary += format_last_results(last_home, home_name)
+            summary += format_last_results(last_away, away_name)
+        except:
+            summary += "Recent Form: Not available.\n"
+
+        summary += "\n" + "=" * 50 + "\n"
+
+    return summary if summary else "No matches found."
 
 
 async def generate_multimatch_coupon(fixtures_summary: str):

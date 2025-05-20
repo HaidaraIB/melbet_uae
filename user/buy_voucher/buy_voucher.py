@@ -252,7 +252,10 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Split and send final Markdown message if it's too long
         max_length = 4096  # Telegram's message length limit
         if len(message_md) <= max_length:
-            await q.edit_message_text(text=message_md, parse_mode=ParseMode.MARKDOWN)
+            try:
+                await q.edit_message_text(text=message_md, parse_mode=ParseMode.MARKDOWN)
+            except Exception as e:
+                await q.edit_message_text(text=f"Error: {e}", parse_mode=ParseMode.MARKDOWN)
         else:
             # Split the message into parts
             parts = []

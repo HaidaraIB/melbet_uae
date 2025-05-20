@@ -276,12 +276,7 @@ def get_fixture_events(fixture_id: int) -> list:
     url = f"{BASE_URL}/fixtures/events"
     querystring = {"fixture": fixture_id}
 
-    try:
-        response = requests.get(url, headers=HEADERS, params=querystring)
-        return response.json()["response"]
-    except Exception as e:
-        log.error(f"Error fetching events: {e}")
-        return []
+    return _get_request(url=url, params=querystring)
 
 
 async def get_daily_fixtures() -> list[dict]:
