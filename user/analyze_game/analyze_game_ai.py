@@ -10,7 +10,7 @@ from telegram.constants import ParseMode
 import json
 from client.client_calls.common import openai
 from Config import Config
-from utils.api_calls import (
+from user.analyze_game.api_calls import (
     search_team_id_by_name,
     get_h2h,
     get_team_injuries,
@@ -69,8 +69,12 @@ async def handle_match_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 ),
             )
             return
-        teams1 = search_team_id_by_name(name=parsed_json["team1"].replace("-", " "))
-        teams2 = search_team_id_by_name(name=parsed_json["team2"].replace("-", " "))
+        teams1 = await search_team_id_by_name(
+            name=parsed_json["team1"].replace("-", " ")
+        )
+        teams2 = await search_team_id_by_name(
+            name=parsed_json["team2"].replace("-", " ")
+        )
 
         if not teams1 or not teams2:
             await update.message.reply_text(text=TEXTS[lang]["either_teams_wrong"])
@@ -78,8 +82,10 @@ async def handle_match_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         for team1 in teams1:
             for team2 in teams2:
-                matches = get_h2h(h2h=f"{team1['team']['id']}-{team2['team']['id']}")
-                if matches:
+                matches = await get_h2h(
+                    h2h=f"{team1['team']['id']}-{team2['team']['id']}"
+                )
+                if matches['new']:
                     keyboard = [
                         [
                             InlineKeyboardButton(
@@ -95,25 +101,27 @@ async def handle_match_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
                             team1["team"]["name"],
                             team2["team"]["name"],
                             format_datetime(
-                                datetime.fromisoformat(matches['new'][0]["fixture"]["date"])
+                                datetime.fromisoformat(
+                                    matches["new"][0]["fixture"]["date"]
+                                )
                             ),
-                            matches['new'][0]["league"]["name"],
-                            matches['new'][0]["fixture"]["venue"]["name"],
+                            matches["new"][0]["league"]["name"],
+                            matches["new"][0]["fixture"]["venue"]["name"],
                             f"{matches['new'][0]['teams']['home']['name']} vs {matches['new'][0]['teams']['away']['name']}",
                         ),
                         reply_markup=InlineKeyboardMarkup(keyboard),
                     )
                     context.user_data["match_info"] = {
                         "teams": f"{team1['team']['name']} vs {team2['team']['name']}",
-                        "date": matches['new'][0]["fixture"]["date"],
-                        "league": matches['new'][0]["league"],
-                        "venue": matches['new'][0]["fixture"]["venue"]["name"],
+                        "date": matches["new"][0]["fixture"]["date"],
+                        "league": matches["new"][0]["league"],
+                        "venue": matches["new"][0]["fixture"]["venue"]["name"],
                         "team1_name": team1["team"]["name"],
                         "team2_name": team2["team"]["name"],
                         "team1_id": team1["team"]["id"],
                         "team2_id": team2["team"]["id"],
-                        "h2h": summarize_matches(matches['finished']),
-                        "fixture_id": matches['new'][0]["fixture"]["id"],
+                        "h2h": summarize_matches(matches["finished"]),
+                        "fixture_id": matches["new"][0]["fixture"]["id"],
                     }
                     return PAY
         await wait_msg.edit_text(
@@ -150,33 +158,33 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=TEXTS[lang]["plz_wait"],
         )
 
-        team1_last = get_last_matches(
+        team1_last = await get_last_matches(
             team_id=context.user_data["match_info"]["team1_id"]
         )
-        team2_last = get_last_matches(
+        team2_last = await get_last_matches(
             team_id=context.user_data["match_info"]["team2_id"]
         )
 
-        team1_rank = get_team_standing(
+        team1_rank = await get_team_standing(
             team_id=context.user_data["match_info"]["team1_id"],
             league_id=context.user_data["match_info"]["league"]["id"],
             season=context.user_data["match_info"]["league"]["season"],
         )
-        team2_rank = get_team_standing(
+        team2_rank = await get_team_standing(
             team_id=context.user_data["match_info"]["team2_id"],
             league_id=context.user_data["match_info"]["league"]["id"],
             season=context.user_data["match_info"]["league"]["season"],
         )
-        team1_injuries = get_team_injuries(
+        team1_injuries = await get_team_injuries(
             team_id=context.user_data["match_info"]["team1_id"],
             season=context.user_data["match_info"]["league"]["season"],
         )
-        team2_injuries = get_team_injuries(
+        team2_injuries = await get_team_injuries(
             team_id=context.user_data["match_info"]["team2_id"],
             season=context.user_data["match_info"]["league"]["season"],
         )
 
-        odds = get_fixture_odds(
+        odds = await get_fixture_odds(
             fixture_id=context.user_data["match_info"]["fixture_id"]
         )
 

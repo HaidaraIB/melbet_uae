@@ -6,6 +6,7 @@ import models
 from user.buy_voucher.constants import *
 from user.buy_voucher.api_calls import *
 
+
 def extract_ids(preferences: str):
     text = preferences.lower()
     league_id = None
@@ -22,130 +23,199 @@ def extract_ids(preferences: str):
     return league_id, team_id
 
 
-async def summarize_fixtures_with_odds_stats(fixtures: dict, max_limit: int = 10):
+async def get_last_matches_stats(team_id: int, last_matches: list) -> list:
+    IMPORTANT_STATS = [
+        "Total Corners",
+        "Yellow Cards",
+        "Red Cards",
+        "Offsides",
+        "Fouls",
+        "Shots on Target",
+        "Ball Possession",
+    ]
+    detailed_stats = []
+
+    async def fetch_single_match_stats(match):
+        fixture_id = match["fixture"]["id"]
+        try:
+            stats = await get_fixture_stats(fixture_id)
+            team_stats = next((s for s in stats if s["team"]["id"] == team_id), None)
+            if not team_stats:
+                return None
+            filtered_stats = {
+                s["type"]: s["value"]
+                for s in team_stats["statistics"]
+                if s["type"] in IMPORTANT_STATS
+            }
+            return {
+                "fixture_id": fixture_id,
+                "vs": f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
+                "date": match["fixture"]["date"],
+                "stats": filtered_stats,
+            }
+        except Exception as e:
+            print(f"Failed to fetch stats for fixture {fixture_id}: {e}")
+            return None
+
+    # اجمع النتائج باستخدام asyncio.gather لتسريع الأداء
+    tasks = [fetch_single_match_stats(m) for m in last_matches[:5]]
+    results = await asyncio.gather(*tasks)
+
+    # تجاهل القيم الفارغة
+    detailed_stats = [r for r in results if r]
+
+    return detailed_stats
+
+
+async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5) -> str:
     summary = ""
 
     for fix in fixtures[:max_limit]:
         fixture_id = fix["fixture"]["id"]
         home = fix["teams"]["home"]
         away = fix["teams"]["away"]
-        home_name = home["name"]
-        away_name = away["name"]
-        match = f"{home_name} vs {away_name}"
+        league = fix["league"]
         date = fix["fixture"]["date"][:16].replace("T", " ")
-        league = fix["league"]["name"]
+        summary += (
+            f"\n=== {home['name']} vs {away['name']} | {league['name']} | {date} ===\n"
+        )
 
-        summary += f"\n=== {match} | {league} | {date} ===\n"
-
-        # ============ STANDINGS ============
+        # STANDINGS
         try:
-            standings = await get_standings(
-                fix["league"]["id"], fix["league"]["season"]
-            )
-            home_stand = next(
-                team for team in standings if team["team"]["id"] == home["id"]
-            )
-            away_stand = next(
-                team for team in standings if team["team"]["id"] == away["id"]
-            )
-
+            standings = await get_standings(league["id"], league["season"])
+            home_stand = next(t for t in standings if t["team"]["id"] == home["id"])
+            away_stand = next(t for t in standings if t["team"]["id"] == away["id"])
             summary += "Standings:\n"
-            summary += f"- {home_name}: Rank {home_stand['rank']} | {home_stand['points']} pts | {home_stand['all']['win']}W-{home_stand['all']['draw']}D-{home_stand['all']['lose']}L\n"
-            summary += f"- {away_name}: Rank {away_stand['rank']} | {away_stand['points']} pts | {away_stand['all']['win']}W-{away_stand['all']['draw']}D-{away_stand['all']['lose']}L\n"
-
-            if abs(home_stand["points"] - away_stand["points"]) >= 3:
-                pressure_team = (
-                    home_name
-                    if home_stand["points"] < away_stand["points"]
-                    else away_name
-                )
-                summary += (
-                    f"Motivation: {pressure_team} appears under more pressure to win.\n"
-                )
+            summary += f"- {home['name']}: Rank {home_stand['rank']} | {home_stand['points']} pts\n"
+            summary += f"- {away['name']}: Rank {away_stand['rank']} | {away_stand['points']} pts\n"
         except:
-            summary += "Standings: Not available.\n"
+            summary += "Standings: Not available\n"
 
-        # ============ ODDS ============
-        odds_list = await get_fixture_odds(fixture_id)
+        # ODDS
+        odds_data = await get_fixture_odds(fixture_id)
         summary += "\nOdds:\n"
         markets_needed = {
             "Match Winner": "1X2",
-            "Over/Under": "Over/Under",
+            "Over/Under": "Goals",
+            "Total Corners": "Corners",
+            "Total Cards": "Cards",
+            "Draw No Bet": "DNB",
             "Both Teams To Score": "BTTS",
-            "Draw No Bet": "Draw No Bet",
-            "Half Time / Full Time": "HT/FT",
         }
-        markets_printed = set()
-
-        for odds_pack in odds_list:
-            for bookmaker in odds_pack.get("bookmakers", []):
-                for market in bookmaker.get("bets", []):
+        printed = set()
+        for provider in odds_data:
+            for book in provider.get("bookmakers", []):
+                for market in book.get("bets", []):
                     name = market.get("name")
-                    if name in markets_needed and name not in markets_printed:
-                        markets_printed.add(name)
-                        values = market.get("values", [])
-                        formatted = " | ".join(
-                            f"{v['value']}: {v['odd']}" for v in values
+                    if name in markets_needed and name not in printed:
+                        printed.add(name)
+                        values = " | ".join(
+                            f"{v['value']}: {v['odd']}" for v in market["values"]
                         )
-                        summary += f"- {markets_needed[name]}: {formatted}\n"
-
-        if not markets_printed:
+                        summary += f"- {markets_needed[name]}: {values}\n"
+        if not printed:
             summary += "- Odds not available\n"
 
-        # ============ TEAM STATS ============
-        def extract_team_stats(data, team_label):
-            stats = f"{team_label} Stats:\n"
-            stats += f"- Avg Goals Scored: {data['goals']['for']['average']['total']}\n"
-            stats += f"- Avg Goals Conceded: {data['goals']['against']['average']['total']}\n"
-            stats += f"- Clean Sheets: {data['clean_sheet']['total']}\n"
-            stats += f"- Failed to Score: {data['failed_to_score']['total']}\n"
-            stats += f"- BTTS Rate: {data['both_teams_to_score']['percentage']}%\n"
-            stats += f"- Over 2.5 Matches: {data['fixtures']['over_25']}\n"
-            return stats
-
+        # TEAM STATS
         try:
             stats_home = await get_team_stats(
-                home["id"], fix["league"]["id"], fix["league"]["season"]
+                home["id"], league["id"], league["season"]
             )
             stats_away = await get_team_stats(
-                away["id"], fix["league"]["id"], fix["league"]["season"]
+                away["id"], league["id"], league["season"]
             )
-            summary += "\n" + extract_team_stats(stats_home, home_name) + "\n"
-            summary += extract_team_stats(stats_away, away_name) + "\n"
-        except:
-            summary += "\nStats: Not available.\n"
 
-        # ============ H2H ============
+            def team_stats_block(stats, label):
+                return (
+                    f"{label} Stats:\n"
+                    f"- Goals For: {stats['goals']['for']['average']['total']}\n"
+                    f"- Goals Against: {stats['goals']['against']['average']['total']}\n"
+                    f"- Clean Sheets: {stats['clean_sheet']['total']}\n"
+                    f"- Failed to Score: {stats['failed_to_score']['total']}\n"
+                    f"- BTTS %: {stats['both_teams_to_score']['percentage'] if stats.get("both_teams_to_score", None) else None}\n"
+                )
+
+            summary += (
+                "\n"
+                + team_stats_block(stats_home, home["name"])
+                + team_stats_block(stats_away, away["name"])
+            )
+        except:
+            summary += "\nStats: Not available\n"
+
+        # FIXTURE STATS
+        try:
+            fixture_stats = await get_fixture_stats(fixture_id)
+            summary += "Match Stats:\n"
+            for team_stats in fixture_stats:
+                team_name = team_stats["team"]["name"]
+                stats_lines = [
+                    f"  • {s['type']}: {s['value']}"
+                    for s in team_stats.get("statistics", [])[:5]
+                ]
+                summary += f"- {team_name}:\n" + "\n".join(stats_lines) + "\n"
+        except:
+            summary += "Match Stats: Not available\n"
+
+        # H2H
         try:
             h2h = await get_h2h(home["id"], away["id"])
             summary += "Last 5 Head-to-Head:\n"
-            for m in h2h[:5]:
-                h = m["teams"]["home"]["name"]
-                a = m["teams"]["away"]["name"]
-                gh = m["goals"]["home"]
-                ga = m["goals"]["away"]
-                summary += f"- {h} {gh} - {ga} {a}\n"
+            for h in h2h[:5]:
+                h_name = h["teams"]["home"]["name"]
+                a_name = h["teams"]["away"]["name"]
+                gh = h["goals"]["home"]
+                ga = h["goals"]["away"]
+                summary += f"- {h_name} {gh} - {ga} {a_name}\n"
         except:
-            summary += "Head-to-Head: Not available.\n"
+            summary += "H2H: Not available\n"
 
-        # ============ LAST RESULTS ============
-        def format_last_results(results, team_label):
-            line = f"{team_label} Last 5 Matches: "
-            for m in results[:5]:
-                g = m.get("goals", {})
-                score = f"{g.get('for', '?')}-{g.get('against', '?')}"
-                line += score + " | "
-            return line.strip(" | ") + "\n"
-
+        # FORM
         try:
+
+            def form_block(matches, team_id: int, label: str) -> str:
+                results = []
+                for m in matches[:5]:
+                    is_home = m["teams"]["home"]["id"] == team_id
+                    goals_for = m["goals"]["home"] if is_home else m["goals"]["away"]
+                    goals_against = (
+                        m["goals"]["away"] if is_home else m["goals"]["home"]
+                    )
+                    venue = "H" if is_home else "A"  # H = Home, A = Away
+                    outcome = (
+                        "W"
+                        if goals_for > goals_against
+                        else "D" if goals_for == goals_against else "L"
+                    )
+                    results.append(f"{venue} {goals_for}-{goals_against} ({outcome})")
+                return f"{label} Last 5: " + " | ".join(results) + "\n"
+
             last_home = await get_last_results(home["id"])
             last_away = await get_last_results(away["id"])
-            summary += format_last_results(last_home, home_name)
-            summary += format_last_results(last_away, away_name)
-        except:
-            summary += "Recent Form: Not available.\n"
 
-        summary += "\n" + "=" * 50 + "\n"
+            summary += form_block(last_home, home["id"], home["name"])
+            summary += form_block(last_away, away["id"], away["name"])
+
+            def format_last_match_stats(label: str, matches: list) -> str:
+                if not matches:
+                    return f"{label} Last 5 Match Stats: Not available\n"
+
+                text = f"{label} Last 5 Match Stats:\n"
+                for m in matches:
+                    text += f"- {m['vs']} ({m['date'][:10]}):\n"
+                    for stat_type, val in m["stats"].items():
+                        text += f"  • {stat_type}: {val}\n"
+                return text
+
+            last_home_stats = await get_last_matches_stats(home["id"], last_home)
+            last_away_stats = await get_last_matches_stats(away["id"], last_away)
+
+            summary += format_last_match_stats(home["name"], last_home_stats)
+            summary += format_last_match_stats(away["name"], last_away_stats)
+        except:
+            summary += "Recent form: Not available\n"
+
+        summary += "=" * 60 + "\n"
 
     return summary if summary else "No matches found."
 

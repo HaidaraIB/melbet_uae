@@ -43,7 +43,8 @@ async def get_fixtures(
                 for data in responses:
                     if isinstance(data, dict) and data.get("response", []):
                         results.extend(data["response"])
-
+                if len(results) >= 10:
+                    return results
             return results
         else:
             # For single league case, we don't need rate limiting
@@ -91,58 +92,68 @@ async def fetch_fixtures(
 
 
 async def get_fixture_odds(fixture_id: int) -> list:
-    url = f"{BASE_URL}/odds"
-    params = {"fixture": fixture_id}
-
     async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params, headers=HEADERS) as response:
+        async with session.get(
+            f"{BASE_URL}/odds", params={"fixture": fixture_id}, headers=HEADERS
+        ) as response:
             data = await response.json()
             return data.get("response", [])
 
 
 async def get_fixture_stats(fixture_id: int) -> list:
-    url = f"{BASE_URL}/fixtures/statistics"
-    params = {"fixture": fixture_id}
-
     async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params, headers=HEADERS) as response:
+        async with session.get(
+            f"{BASE_URL}/fixtures/statistics",
+            params={"fixture": fixture_id},
+            headers=HEADERS,
+        ) as response:
             data = await response.json()
             return data.get("response", [])
 
 
-async def get_team_stats(team_id: int, league_id: int, season: int):
-    url = f"{BASE_URL}/teams/statistics"
-    params = {"league": league_id, "team": team_id, "season": season}
-
+async def get_team_stats(team_id: int, league_id: int, season: int) -> dict:
     async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params, headers=HEADERS) as response:
+        async with session.get(
+            f"{BASE_URL}/teams/statistics",
+            params={"league": league_id, "team": team_id, "season": season},
+            headers=HEADERS,
+        ) as response:
+            data = await response.json()
+            return data.get("response", {})
+
+
+async def get_standings(league_id: int, season: int) -> list:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            f"{BASE_URL}/standings",
+            params={"league": league_id, "season": season},
+            headers=HEADERS,
+        ) as response:
+            data = await response.json()
+            return (
+                data["response"][0]["league"]["standings"][0]
+                if data.get("response")
+                else []
+            )
+
+
+async def get_h2h(home_id: int, away_id: int) -> list:
+    async with aiohttp.ClientSession() as session:
+        async with session.get(
+            f"{BASE_URL}/fixtures/headtohead",
+            params={"h2h": f"{home_id}-{away_id}"},
+            headers=HEADERS,
+        ) as response:
             data = await response.json()
             return data.get("response", [])
 
 
-async def get_standings(league_id: int, season: int):
-    url = f"{BASE_URL}/standings"
-    params = {"season": season}
+async def get_last_results(team_id: int, limit: int = 5) -> list:
     async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params, headers=HEADERS) as response:
-            data = await response.json()
-            if data.get("response", []):
-                return data["response"][0]["league"]["standings"][0]
-
-
-async def get_h2h(home_id: int, away_id: int):
-    url = f"{BASE_URL}/fixtures/headtohead"
-    params = {"h2h": f"{home_id}-{away_id}"}
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params, headers=HEADERS) as response:
-            data = await response.json()
-            return data.get("response", [])
-
-
-async def get_last_results(team_id: int, limit: int = 5):
-    url = f"{BASE_URL}/fixtures"
-    params = {"team": team_id, "last": limit}
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url, params=params, headers=HEADERS) as response:
+        async with session.get(
+            f"{BASE_URL}/fixtures",
+            params={"team": team_id, "last": limit},
+            headers=HEADERS,
+        ) as response:
             data = await response.json()
             return data.get("response", [])

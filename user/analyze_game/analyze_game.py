@@ -11,7 +11,8 @@ from common.common import get_lang
 from common.keyboards import build_back_to_home_page_button, build_back_button
 from common.back_to_home_page import back_to_user_home_page_handler
 from start import start_command
-from utils.api_calls import get_team, get_h2h, _send_post_match_stats
+from utils.api_calls import _send_post_match_stats
+from user.analyze_game.api_calls import get_h2h, get_team
 
 
 HOME_TEAM, AWAY_TEAM, DATE = range(3)
