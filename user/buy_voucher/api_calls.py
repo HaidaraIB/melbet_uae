@@ -9,9 +9,9 @@ from user.buy_voucher.constants import LEAGUE_MAP
 
 async def get_fixtures(
     league_id: int,
-    team_id: int,
     from_date: datetime,
     to_date: datetime,
+    team_id: int = None,
 ) -> List[Dict[str, Any]]:
     MAX_CONCURRENT_REQUESTS = 10
     results = []

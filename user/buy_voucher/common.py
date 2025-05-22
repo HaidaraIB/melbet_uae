@@ -160,9 +160,9 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
                 + team_stats_block(stats_away, away["name"])
             )
         except Exception as e:
-            stats_error = "\nStats: Not available\n"
+            stats_error = "Stats: Not available"
             log.error(f"{stats_error}: {e}")
-            fix_summary += stats_error
+            fix_summary += f"\n{stats_error}\n"
 
         # FIXTURE STATS
         try:
@@ -176,9 +176,9 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
                 ]
                 fix_summary += f"- {team_name}:\n" + "\n".join(stats_lines) + "\n"
         except Exception as e:
-            match_stats_error = "Match Stats: Not available\n"
+            match_stats_error = "Match Stats: Not available"
             log.error(f"{match_stats_error}: {e}")
-            fix_summary += match_stats_error
+            fix_summary += f"{match_stats_error}\n"
 
         # H2H
         try:
@@ -191,9 +191,9 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
                 ga = h["goals"]["away"]
                 fix_summary += f"- {h_name} {gh} - {ga} {a_name}\n"
         except Exception as e:
-            h2h_error = "H2H: Not available\n"
+            h2h_error = "H2H: Not available"
             log.error(f"{h2h_error}: {e}")
-            fix_summary += h2h_error
+            fix_summary += f"{h2h_error}\n"
 
         # FORM
         try:
@@ -238,9 +238,10 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
             fix_summary += format_last_match_stats(home["name"], last_home_stats)
             fix_summary += format_last_match_stats(away["name"], last_away_stats)
         except Exception as e:
-            recent_form_error = "Recent form: Not available\n"
+            recent_form_error = "Recent form: Not available"
             log.error(f"{recent_form_error}: {e}")
-            fix_summary += recent_form_error
+            fix_summary += f"{recent_form_error}\n"
+
         if is_match_data_complete(fix_summary):
             summary += fix_summary + "=" * 60 + "\n"
 

@@ -25,7 +25,15 @@ from user.buy_voucher.common import (
 )
 import models
 
-AMOUNT, DURATION_TYPE, DURATION_VALUE, ODDS, PREFERENCES, CONFIRM = range(6)
+(
+    AMOUNT,
+    DURATION_TYPE,
+    DURATION_VALUE,
+    ODDS,
+    PREFERENCES,
+    LEAGUE_PREF,
+    CONFIRM,
+) = range(7)
 
 
 async def buy_voucher(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -136,7 +144,19 @@ back_to_get_duration_value = get_duration_type
 async def get_odds(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
-        back_buttons = [
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    text=BUTTONS[lang]["choose_pref_for_me"],
+                    callback_data="choose_pref_for_me",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text=BUTTONS[lang]["choose_pref_league"],
+                    callback_data="choose_pref_league",
+                ),
+            ],
             build_back_button(data="back_to_get_odds", lang=lang),
             build_back_to_home_page_button(lang=lang, is_admin=False)[0],
         ]
@@ -145,13 +165,13 @@ async def get_odds(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data["odds"] = odds
 
             await update.message.reply_text(
-                text=TEXTS[lang]["send_preferences"],
-                reply_markup=InlineKeyboardMarkup(back_buttons),
+                text=TEXTS[lang]["choose_preferences"],
+                reply_markup=InlineKeyboardMarkup(keyboard),
             )
         else:
             await update.callback_query.edit_message_text(
-                text=TEXTS[lang]["send_preferences"],
-                reply_markup=InlineKeyboardMarkup(back_buttons),
+                text=TEXTS[lang]["choose_preferences"],
+                reply_markup=InlineKeyboardMarkup(keyboard),
             )
         return PREFERENCES
 
@@ -159,11 +179,24 @@ async def get_odds(update: Update, context: ContextTypes.DEFAULT_TYPE):
 back_to_get_odds = get_duration_value
 
 
-async def get_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def choose_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
-        context.user_data["preferences"] = update.message.text.strip()
-        price = round(float(context.user_data["odds"]) * 5, 2)
+        back_buttons = [
+            build_back_button(data="back_to_get_preferences", lang=lang),
+            build_back_to_home_page_button(lang=lang, is_admin=False)[0],
+        ]
+        if not update.callback_query.data.startswith("back"):
+            pref = update.callback_query.data.replace("choose_pref_", "")
+            context.user_data["preferences"] = pref
+        else:
+            pref = context.user_data["preferences"]
+        if pref == "league":
+            await update.callback_query.edit_message_text(
+                text=TEXTS[lang]["send_league_pref"],
+                reply_markup=InlineKeyboardMarkup(back_buttons),
+            )
+            return LEAGUE_PREF
         keyboard = [
             [
                 InlineKeyboardButton(
@@ -175,10 +208,10 @@ async def get_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     callback_data="cancel_voucher",
                 ),
             ],
-            build_back_button(data="back_to_get_preferences", lang=lang),
-            build_back_to_home_page_button(lang=lang, is_admin=False)[0],
+            *back_buttons,
         ]
-        await update.message.reply_text(
+        price = round(float(context.user_data["odds"]) * 5, 2)
+        await update.callback_query.edit_message_text(
             text=TEXTS[lang]["voucher_summary"].format(
                 context.user_data["amount"],
                 f"{context.user_data['duration_value']} {context.user_data['duration_type']}",
@@ -192,6 +225,55 @@ async def get_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 back_to_get_preferences = get_odds
+
+
+async def get_league_pref(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == Chat.PRIVATE:
+        lang = get_lang(update.effective_user.id)
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    text=BUTTONS[lang]["confirm_payment"],
+                    callback_data="confirm_payment",
+                ),
+                InlineKeyboardButton(
+                    text=BUTTONS[lang]["cancel_voucher"],
+                    callback_data="cancel_voucher",
+                ),
+            ],
+            build_back_button(data="back_to_get_league_pref", lang=lang),
+            build_back_to_home_page_button(lang=lang, is_admin=False)[0],
+        ]
+        price = round(float(context.user_data["odds"]) * 5, 2)
+        if update.message:
+            league_pref = update.message.text
+            context.user_data["league_pref"] = league_pref
+            await update.message.reply_text(
+                text=TEXTS[lang]["voucher_summary"].format(
+                    context.user_data["amount"],
+                    f"{context.user_data['duration_value']} {context.user_data['duration_type']}",
+                    context.user_data["odds"],
+                    f"League({league_pref})",
+                    price,
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+            )
+        else:
+            league_pref = context.user_data["league_pref"]
+            await update.callback_query.edit_message_text(
+                text=TEXTS[lang]["voucher_summary"].format(
+                    context.user_data["amount"],
+                    f"{context.user_data['duration_value']} {context.user_data['duration_type']}",
+                    context.user_data["odds"],
+                    league_pref,
+                    price,
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+            )
+        return CONFIRM
+
+
+back_to_get_league_pref = choose_preferences
 
 
 async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -211,18 +293,28 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.edit_message_text(text=TEXTS[lang]["payment_confirmed"])
 
         # Prepare fixtures list & summary
-        league_id, team_id = extract_ids(context.user_data["preferences"])
+        pref = context.user_data["preferences"]
+        league_id, _ = extract_ids(
+            context.user_data["league_pref"] if pref == "league" else pref
+        )
         now = datetime.now()
         if context.user_data["duration_type"] == "hours":
             to = now + timedelta(hours=context.user_data["duration_value"])
         else:
             to = now + timedelta(days=context.user_data["duration_value"])
 
-        fixtures = await get_fixtures(league_id, team_id, now, to)
+        fixtures = await get_fixtures(league_id=league_id, from_date=now, to_date=to)
         fixtures_summary = await summarize_fixtures_with_odds_stats(fixtures)
 
         # Call GPT
         coupon_json, message_md = await generate_multimatch_coupon(fixtures_summary)
+
+        if not message_md:
+            await q.edit_message_text(
+                text=TEXTS[lang]["gpt_buy_voucher_reply_empty"],
+                reply_markup=build_user_keyboard(lang=lang),
+            )
+            return ConversationHandler.END
 
         # Store each tip in DB
         for match_block in coupon_json["matches"]:
@@ -253,9 +345,13 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         max_length = 4096  # Telegram's message length limit
         if len(message_md) <= max_length:
             try:
-                await q.edit_message_text(text=message_md, parse_mode=ParseMode.MARKDOWN)
+                await q.edit_message_text(
+                    text=message_md, parse_mode=ParseMode.MARKDOWN
+                )
             except Exception as e:
-                await q.edit_message_text(text=f"Error: {e}", parse_mode=ParseMode.MARKDOWN)
+                await q.edit_message_text(
+                    text=f"Error: {e}", parse_mode=ParseMode.MARKDOWN
+                )
         else:
             # Split the message into parts
             parts = []
@@ -315,10 +411,11 @@ buy_voucher_handler = ConversationHandler(
                 callback=get_odds,
             )
         ],
-        PREFERENCES: [
+        PREFERENCES: [CallbackQueryHandler(choose_preferences, "^choose_pref")],
+        LEAGUE_PREF: [
             MessageHandler(
                 filters=filters.TEXT & ~filters.COMMAND,
-                callback=get_preferences,
+                callback=get_league_pref,
             )
         ],
         CONFIRM: [
@@ -337,6 +434,7 @@ buy_voucher_handler = ConversationHandler(
         CallbackQueryHandler(
             back_to_get_duration_value, "^back_to_get_duration_value$"
         ),
+        CallbackQueryHandler(back_to_get_league_pref, "^back_to_get_league_pref$"),
     ],
     name="buy_voucher_conv",
     persistent=True,

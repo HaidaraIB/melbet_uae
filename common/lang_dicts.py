@@ -50,12 +50,10 @@ TEXTS = {
             "هل تريد المتابعة للدفع؟"
         ),
         "voucher_canceled": "تم إلغاء القسيمة",
-        "send_preferences": (
-            "الرجاء كتابة تفضيلاتك من أجل هذه القسيمة.\n"
-            "يمكنك ذكر دوريات، فرق (مثال: La Liga, Barcelona).\n"
-            "أو اكتب <code>Choose for me</code> إذا لم يكن لديك أي تفضيلات."
-        ),
+        "choose_preferences": "اختر تفضيلاتك من أجل هذه القسيمة",
         "payment_confirmed": "نقوم بتوليد تحليل ذكي، الرجاء الانتظار...⏳",
+        "send_league_pref": "أرسل اسم البطولة",
+        "gpt_buy_voucher_reply_empty": "لم يتم العثور على نتائج، الرجاء إعادة المحاولة مرة أخرى",
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -106,12 +104,10 @@ TEXTS = {
             "Continue to Payment?"
         ),
         "voucher_canceled": "Voucher Canceled",
-        "send_preferences": (
-            "Please write your preferences for this voucher.\n"
-            "You can mention leagues, teams, or countries (for example: La Liga, Barcelona).\n"
-            "Or write <code>Choose for me</code> if you don’t have any preferences."
-        ),
+        "choose_preferences": "Choose your preferences for this voucher.",
         "payment_confirmed": "Generating smart slips for you, please wait...⏳",
+        "send_league_pref": "Send the League name",
+        "gpt_buy_voucher_reply_empty": "No results found, please try again",
     },
 }
 
@@ -130,6 +126,9 @@ BUTTONS = {
         "duration_hours": "ساعات",
         "confirm_payment": "المتابعة والدفع ✅",
         "cancel_voucher": "إلغاء ❌",
+        "choose_pref_for_me": "اختر لي",
+        "choose_pref_league": "من بطولة محددة",
+
     },
     Language.ENGLISH: {
         "check_joined": "Verify ✅",
@@ -145,5 +144,7 @@ BUTTONS = {
         "duration_hours": "Hours",
         "confirm_payment": "Continue to Payment ✅",
         "cancel_voucher": "Cancel ❌",
+        "choose_pref_for_me": "Choose For Me",
+        "choose_pref_league": "Specific League",
     },
 }
