@@ -5,7 +5,9 @@ import json
 import models
 from user.buy_voucher.constants import *
 from user.buy_voucher.api_calls import *
+import logging
 
+log = logging.getLogger(__name__)
 
 def extract_ids(preferences: str):
     text = preferences.lower()
@@ -54,7 +56,7 @@ async def get_last_matches_stats(team_id: int, last_matches: list) -> list:
                 "stats": filtered_stats,
             }
         except Exception as e:
-            print(f"Failed to fetch stats for fixture {fixture_id}: {e}")
+            log.error(f"Failed to fetch stats for fixture {fixture_id}: {e}")
             return None
 
     # اجمع النتائج باستخدام asyncio.gather لتسريع الأداء
@@ -67,16 +69,31 @@ async def get_last_matches_stats(team_id: int, last_matches: list) -> list:
     return detailed_stats
 
 
+def is_match_data_complete(match: str) -> bool:
+    """
+    يتحقق من أن كل مباراة تحتوي على البيانات الأساسية اللازمة
+    لتوليد توقعات تحليلية دقيقة.
+    """
+    has_standings = "Rank" in match or "points" in match
+    has_team_stats = "Goals For" in match or "Clean Sheets" in match
+    has_match_stats = (
+        "Fouls" in match or "Total Corners" in match or "Yellow Cards" in match
+    )
+    has_form = "Last 5" in match
+    return has_standings and has_team_stats and has_match_stats and has_form
+
+
 async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5) -> str:
     summary = ""
 
     for fix in fixtures[:max_limit]:
+        fix_summary = ""
         fixture_id = fix["fixture"]["id"]
         home = fix["teams"]["home"]
         away = fix["teams"]["away"]
         league = fix["league"]
         date = fix["fixture"]["date"][:16].replace("T", " ")
-        summary += (
+        fix_summary += (
             f"\n=== {home['name']} vs {away['name']} | {league['name']} | {date} ===\n"
         )
 
@@ -85,15 +102,17 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
             standings = await get_standings(league["id"], league["season"])
             home_stand = next(t for t in standings if t["team"]["id"] == home["id"])
             away_stand = next(t for t in standings if t["team"]["id"] == away["id"])
-            summary += "Standings:\n"
-            summary += f"- {home['name']}: Rank {home_stand['rank']} | {home_stand['points']} pts\n"
-            summary += f"- {away['name']}: Rank {away_stand['rank']} | {away_stand['points']} pts\n"
-        except:
-            summary += "Standings: Not available\n"
+            fix_summary += "Standings:\n"
+            fix_summary += f"- {home['name']}: Rank {home_stand['rank']} | {home_stand['points']} pts\n"
+            fix_summary += f"- {away['name']}: Rank {away_stand['rank']} | {away_stand['points']} pts\n"
+        except Exception as e:
+            standings_error = "Standings: Not available\n"
+            log.error(f"{standings_error}: {e}")
+            fix_summary += standings_error
 
         # ODDS
         odds_data = await get_fixture_odds(fixture_id)
-        summary += "\nOdds:\n"
+        fix_summary += "\nOdds:\n"
         markets_needed = {
             "Match Winner": "1X2",
             "Over/Under": "Goals",
@@ -112,9 +131,9 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
                         values = " | ".join(
                             f"{v['value']}: {v['odd']}" for v in market["values"]
                         )
-                        summary += f"- {markets_needed[name]}: {values}\n"
+                        fix_summary += f"- {markets_needed[name]}: {values}\n"
         if not printed:
-            summary += "- Odds not available\n"
+            fix_summary += "- Odds not available\n"
 
         # TEAM STATS
         try:
@@ -135,40 +154,46 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
                     f"- BTTS %: {stats['both_teams_to_score']['percentage'] if stats.get("both_teams_to_score", None) else None}\n"
                 )
 
-            summary += (
+            fix_summary += (
                 "\n"
                 + team_stats_block(stats_home, home["name"])
                 + team_stats_block(stats_away, away["name"])
             )
-        except:
-            summary += "\nStats: Not available\n"
+        except Exception as e:
+            stats_error = "\nStats: Not available\n"
+            log.error(f"{stats_error}: {e}")
+            fix_summary += stats_error
 
         # FIXTURE STATS
         try:
             fixture_stats = await get_fixture_stats(fixture_id)
-            summary += "Match Stats:\n"
+            fix_summary += "Match Stats:\n"
             for team_stats in fixture_stats:
                 team_name = team_stats["team"]["name"]
                 stats_lines = [
                     f"  • {s['type']}: {s['value']}"
                     for s in team_stats.get("statistics", [])[:5]
                 ]
-                summary += f"- {team_name}:\n" + "\n".join(stats_lines) + "\n"
-        except:
-            summary += "Match Stats: Not available\n"
+                fix_summary += f"- {team_name}:\n" + "\n".join(stats_lines) + "\n"
+        except Exception as e:
+            match_stats_error = "Match Stats: Not available\n"
+            log.error(f"{match_stats_error}: {e}")
+            fix_summary += match_stats_error
 
         # H2H
         try:
             h2h = await get_h2h(home["id"], away["id"])
-            summary += "Last 5 Head-to-Head:\n"
+            fix_summary += "Last 5 Head-to-Head:\n"
             for h in h2h[:5]:
                 h_name = h["teams"]["home"]["name"]
                 a_name = h["teams"]["away"]["name"]
                 gh = h["goals"]["home"]
                 ga = h["goals"]["away"]
-                summary += f"- {h_name} {gh} - {ga} {a_name}\n"
-        except:
-            summary += "H2H: Not available\n"
+                fix_summary += f"- {h_name} {gh} - {ga} {a_name}\n"
+        except Exception as e:
+            h2h_error = "H2H: Not available\n"
+            log.error(f"{h2h_error}: {e}")
+            fix_summary += h2h_error
 
         # FORM
         try:
@@ -193,8 +218,8 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
             last_home = await get_last_results(home["id"])
             last_away = await get_last_results(away["id"])
 
-            summary += form_block(last_home, home["id"], home["name"])
-            summary += form_block(last_away, away["id"], away["name"])
+            fix_summary += form_block(last_home, home["id"], home["name"])
+            fix_summary += form_block(last_away, away["id"], away["name"])
 
             def format_last_match_stats(label: str, matches: list) -> str:
                 if not matches:
@@ -210,12 +235,14 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
             last_home_stats = await get_last_matches_stats(home["id"], last_home)
             last_away_stats = await get_last_matches_stats(away["id"], last_away)
 
-            summary += format_last_match_stats(home["name"], last_home_stats)
-            summary += format_last_match_stats(away["name"], last_away_stats)
-        except:
-            summary += "Recent form: Not available\n"
-
-        summary += "=" * 60 + "\n"
+            fix_summary += format_last_match_stats(home["name"], last_home_stats)
+            fix_summary += format_last_match_stats(away["name"], last_away_stats)
+        except Exception as e:
+            recent_form_error = "Recent form: Not available\n"
+            log.error(f"{recent_form_error}: {e}")
+            fix_summary += recent_form_error
+        if is_match_data_complete(fix_summary):
+            summary += fix_summary + "=" * 60 + "\n"
 
     return summary if summary else "No matches found."
 
