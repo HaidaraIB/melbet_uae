@@ -11,6 +11,8 @@ from utils.functions import (
 import logging
 import asyncio
 import models
+import pathlib
+import os
 
 log = logging.getLogger(__name__)
 
@@ -435,6 +437,15 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
             players_away=extract_players(away_lineup_data),
         )
 
+        # img_prompt = f"A dynamic sports-themed illustration showing two soccer teams lined up facing each other. The left side shows the home team with formation {home_lineup_data['formation']}, coached by {home_lineup_data['coach']['name']}, and the right side shows the away team with formation {away_lineup_data['formation']}, coached by {away_lineup_data['coach']['name']}. The background features a packed stadium under night lights. Overlay tactical arrows, players in action stances, and highlight 1-2 star players from each team with a glow effect. Include bold, modern text at the bottom: “Want exclusive pre-match insights? Get your MELBET account through us now!” - keep the style cinematic and dramatic."
+        # lineup_img = await openai.images.generate(
+        #     model=Config.DALL_E_MODEL,
+        #     prompt=img_prompt,
+        #     n=1,
+        #     size="1024x1024",
+        # )
+        # image_data = requests.get(lineup_img.data[0].url).content
+
         await context.bot.send_photo(
             chat_id=Config.MONITOR_GROUP_ID,
             photo=lineup_img,
@@ -455,7 +466,12 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
 
         response = await openai.chat.completions.create(
             model=Config.GPT_MODEL,
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
             max_tokens=250,
         )
 
@@ -482,12 +498,32 @@ async def _send_post_match_stats(
 
     if stats_data:
         team1, stats1, team2, stats2 = extract_stats(stats_data)
+        summary_stats = generate_summary_stats(
+            team1=team1, team2=team2, stats1=stats1, stats2=stats2
+        )
         summary = await generate_match_summary(
-            team1=team1, stats1=stats1, team2=team2, stats2=stats2
+            team1=team1, team2=team2, summary_stats=summary_stats
         )
         infographic = generate_infographic(
             team1=team1, stats1=stats1, team2=team2, stats2=stats2
         )
+        # img_prompt = (
+        #     f"A professional football match graphic showcasing the final stats of the game between {team1} and {team2}. "
+        #     f"Include visual elements like team logos, stadium lights, and digital-style overlays. "
+        #     f"Display key statistics such as Ball Possession, Total Shots, Pass Accuracy, and Shots on Goal using HUD-style graphics. "
+        #     f"{team1}: {stats1.get('Ball Possession', 'N/A')} possession, {stats1.get('Total Shots', 'N/A')} total shots, "
+        #     f"{stats1.get('Passes %', 'N/A')} pass accuracy, {stats1.get('Shots on Goal', 'N/A')} on target. "
+        #     f"{team2}: {stats2.get('Ball Possession', 'N/A')} possession, {stats2.get('Total Shots', 'N/A')} total shots, "
+        #     f"{stats2.get('Passes %', 'N/A')} pass accuracy, {stats2.get('Shots on Goal', 'N/A')} on target. "
+        #     "Include a subtle MELBET logo on a digital scoreboard or LED panel. Style should be cinematic, realistic, clean."
+        # )
+        # infographic = await openai.images.generate(
+        #     model=Config.DALL_E_MODEL,
+        #     prompt=img_prompt,
+        #     n=1,
+        #     size="1024x1024",
+        # )
+        # image_data = requests.get(infographic.data[0].url).content
         await context.bot.send_photo(
             chat_id=chat_id,
             photo=infographic,
@@ -503,15 +539,18 @@ def extract_stats(json_data: list[dict]):
     return team1, stats1, team2, stats2
 
 
-async def generate_match_summary(team1: str, team2: str, stats1: dict, stats2: dict):
+def generate_summary_stats(team1: str, team2: str, stats1: dict, stats2: dict):
     summary_stats = []
     for key in ["Ball Possession", "Total Shots", "Passes %", "Shots on Goal"]:
         val1 = stats1.get(key, "N/A")
         val2 = stats2.get(key, "N/A")
         summary_stats.append(f"- {key}: {team1} ({val1}) / {team2} ({val2})")
+    return summary_stats
 
+
+async def generate_match_summary(team1: str, team2: str, summary_stats:list):
     match_details = (
-        f"Match: {team1} vs {team2}\n" "Stats:\n" f"{chr(10).join(summary_stats)}\n\n"
+        f"Match: {team1} vs {team2}\n" "Stats:\n" f"{"\n".join(summary_stats)}\n\n"
     )
     with models.session_scope() as s:
         prompt = s.get(models.Setting, "gpt_prompt_match_summary")

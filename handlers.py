@@ -46,6 +46,7 @@ def setup_and_run():
 
     app.add_handler(analyze_game_handler)
 
+    app.add_handler(test_match_stats_handler)
     app.add_handler(test_match_lineup_handler)
     app.add_handler(test_settings_handler)
 

@@ -42,7 +42,6 @@ TEXTS = {
         "send_odds": "أرسل ال odds، مثال: 2.5",
         "voucher_summary": (
             "ملخص القسيمة\n"
-            "- الكمية: {} AED\n"
             "- المدة: {}\n"
             "- Odds: {}\n"
             "- التفضيلات: {}\n"
@@ -54,6 +53,12 @@ TEXTS = {
         "payment_confirmed": "نقوم بتوليد تحليل ذكي، الرجاء الانتظار...⏳",
         "send_league_pref": "أرسل اسم البطولة",
         "gpt_buy_voucher_reply_empty": "لم يتم العثور على نتائج، الرجاء إعادة المحاولة مرة أخرى",
+        "send_matches_pref": (
+            "أدخل المباريات التي تريدها في القسيمة بهذا الشكل:\n\n"
+            "ريال مدريد vs برشلونة\n"
+            "مانشستر سيتي vs يونايتد\n"
+            "ضع كل مباراة على سطر جديد."
+        ),
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -96,7 +101,6 @@ TEXTS = {
         "send_odds": "Enter the odds you want (e.g. 2.5):",
         "voucher_summary": (
             "Voucher Summary\n"
-            "- Amount: {} AED\n"
             "- Duration: {}\n"
             "- Odds: {}\n"
             "- Preferences: {}\n"
@@ -108,6 +112,12 @@ TEXTS = {
         "payment_confirmed": "Generating smart slips for you, please wait...⏳",
         "send_league_pref": "Send the League name",
         "gpt_buy_voucher_reply_empty": "No results found, please try again",
+        "send_matches_pref": (
+            "Send the matches you want in the voucher in this format:\n\n"
+            "Barcelona vs Real Madrid\n"
+            "Manchester City vs Manchester United\n"
+            "Put each match in a new line."
+        ),
     },
 }
 
@@ -128,7 +138,7 @@ BUTTONS = {
         "cancel_voucher": "إلغاء ❌",
         "choose_pref_for_me": "اختر لي",
         "choose_pref_league": "من بطولة محددة",
-
+        "choose_pref_matches": "من مباريات محددة",
     },
     Language.ENGLISH: {
         "check_joined": "Verify ✅",
@@ -146,5 +156,6 @@ BUTTONS = {
         "cancel_voucher": "Cancel ❌",
         "choose_pref_for_me": "Choose For Me",
         "choose_pref_league": "Specific League",
+        "choose_pref_matches": "Specific Matches",
     },
 }

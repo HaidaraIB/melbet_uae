@@ -22,6 +22,7 @@ class Config:
     DB_MAX_OVERFLOW = 10
 
     GPT_MODEL = os.getenv("GPT_MODEL")
+    DALL_E_MODEL = os.getenv("DALL_E_MODEL")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
     X_RAPIDAPI_KEY = os.getenv("X_RAPIDAPI_KEY")

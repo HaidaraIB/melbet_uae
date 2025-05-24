@@ -1,6 +1,8 @@
+from telegram import InlineKeyboardButton
 import openai
 from Config import Config
 from client.client_calls.common import openai
+from common.lang_dicts import *
 import json
 import models
 from user.buy_voucher.constants import *
@@ -8,6 +10,30 @@ from user.buy_voucher.api_calls import *
 import logging
 
 log = logging.getLogger(__name__)
+
+
+def build_preferences_keyboard(lang: str):
+    return [
+        [
+            InlineKeyboardButton(
+                text=BUTTONS[lang]["choose_pref_for_me"],
+                callback_data="choose_pref_for_me",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=BUTTONS[lang]["choose_pref_league"],
+                callback_data="choose_pref_league",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text=BUTTONS[lang]["choose_pref_matches"],
+                callback_data="choose_pref_matches",
+            )
+        ],
+    ]
+
 
 def extract_ids(preferences: str):
     text = preferences.lower()
@@ -248,7 +274,7 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
     return summary if summary else "No matches found."
 
 
-async def generate_multimatch_coupon(fixtures_summary: str):
+async def generate_multimatch_coupon(fixtures_summary: str, odds: float):
     json_format_instructions = (
         "\n\nImportant:\n"
         "• Return RAW JSON only in this exact format (do NOT use Arabic or alternative keys):\n"
@@ -274,15 +300,20 @@ async def generate_multimatch_coupon(fixtures_summary: str):
         default_prompt = s.get(models.Setting, "gpt_prompt")
         p = voucher_prompt.value if voucher_prompt else default_prompt.value
 
-    prompt = f"{p}" f"{json_format_instructions}" f"Match data:\n{fixtures_summary}"
+    prompt = f"{p}" f"{json_format_instructions}"
+    user = f"Odds:{odds}\n\n" f"Matchs data:\n{fixtures_summary}"
 
     resp = await openai.chat.completions.create(
         model=Config.GPT_MODEL,
         messages=[
             {
-                "role": "user",
+                "role": "system",
                 "content": prompt,
-            }
+            },
+            {
+                "role": "user",
+                "content": user,
+            },
         ],
         temperature=0.7,
     )
@@ -303,3 +334,34 @@ async def generate_multimatch_coupon(fixtures_summary: str):
             md_part = after_json
 
     return coupon, md_part
+
+
+async def parse_user_request(matches_text: str, desired_odds: int):
+    prompt = (
+        "لديك طلب قسيمة تراكمية من المستخدم:\n"
+        "'{matches_text}'\n\n"
+        "المطلوب:\n"
+        "1. استخرج أسماء المباريات بشكل موحد بالانجليزية: 'الفريق الأول vs الفريق الثاني'.\n"
+        "2. تأكد من منطقية تحقيق Odds {desired_odds} من عدد المباريات.\n"
+        "3. إذا كانت الأود المطلوبة عالية من عدد قليل جدًا من المباريات، نبه المستخدم واطلب منه إما إضافة مباريات أو أن تضيف أنت من مباريات منطقية.\n\n"
+        "أجب بوضوح مع قابلية تحويل الإجابة إلى json كالتالي:\n"
+        "- structured_matches: [List of matches]\n"
+        "- warning: رسالة تحذيرية (إذا احتاج)\n"
+        "- action_needed: true أو false"
+    )
+
+    response = await openai.chat.completions.create(
+        model=Config.GPT_MODEL,
+        messages=[
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
+        temperature=0,
+    )
+    content = response.choices[0].message.content
+    if "```json" in content:
+        content = content.split("```json")[1].split("```")[0].strip()
+    result = json.loads(content)
+    return result  # تُعاد كصيغة JSON منظمة (structured_matches, warning, action_needed)
