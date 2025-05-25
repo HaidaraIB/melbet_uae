@@ -64,11 +64,7 @@ async def fetch_fixtures(
 ) -> Dict[str, Any]:
     async with session.get(url, params=params, headers=HEADERS) as response:
         if response.status == 429:
-            # Handle rate limit error
-            retry_after = int(response.headers.get("Retry-After", 5))
-            log.warning(f"Rate limited. Waiting {retry_after} seconds...")
-            await asyncio.sleep(retry_after)
-            return await fetch_fixtures(session, url, params)
+            return await handle_rate_limit(fetch_fixtures, session, url, params)
         response.raise_for_status()
         return await response.json()
 
@@ -78,6 +74,8 @@ async def get_fixture_odds(fixture_id: int) -> list:
         async with session.get(
             f"{BASE_URL}/odds", params={"fixture": fixture_id}, headers=HEADERS
         ) as response:
+            if response.status == 429:
+                return await handle_rate_limit(get_fixture_odds, fixture_id)
             data = await response.json()
             return data.get("response", [])
 
@@ -89,6 +87,8 @@ async def get_fixture_stats(fixture_id: int) -> list:
             params={"fixture": fixture_id},
             headers=HEADERS,
         ) as response:
+            if response.status == 429:
+                return await handle_rate_limit(get_fixture_stats, fixture_id)
             data = await response.json()
             return data.get("response", [])
 
@@ -100,6 +100,10 @@ async def get_team_stats(team_id: int, league_id: int, season: int) -> dict:
             params={"league": league_id, "team": team_id, "season": season},
             headers=HEADERS,
         ) as response:
+            if response.status == 429:
+                return await handle_rate_limit(
+                    get_team_stats, team_id, league_id, season
+                )
             data = await response.json()
             return data.get("response", {})
 
@@ -111,6 +115,8 @@ async def get_standings(league_id: int, season: int) -> list:
             params={"league": league_id, "season": season},
             headers=HEADERS,
         ) as response:
+            if response.status == 429:
+                return await handle_rate_limit(get_standings, league_id, season)
             data = await response.json()
             return (
                 data["response"][0]["league"]["standings"][0]
@@ -126,6 +132,8 @@ async def get_h2h(home_id: int, away_id: int) -> list:
             params={"h2h": f"{home_id}-{away_id}"},
             headers=HEADERS,
         ) as response:
+            if response.status == 429:
+                return await handle_rate_limit(get_h2h, home_id, away_id)
             data = await response.json()
             return data.get("response", [])
 
@@ -137,8 +145,17 @@ async def get_last_results(team_id: int, limit: int = 5) -> list:
             params={"team": team_id, "last": limit},
             headers=HEADERS,
         ) as response:
+            if response.status == 429:
+                return await handle_rate_limit(get_last_results, team_id, limit)
             data = await response.json()
             return data.get("response", [])
+
+
+async def handle_rate_limit(func, *args):
+    # Handle rate limit error
+    log.warning(f"Rate limited. Waiting 5 seconds...")
+    await asyncio.sleep(5)
+    return await func(*args)
 
 
 # region Jobs
@@ -204,7 +221,8 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
 
                     context.job_queue.run_once(
                         callback=store_standings,
-                        when=fixture_date - timedelta(minutes=50),  # 1 hour before match
+                        when=fixture_date
+                        - timedelta(minutes=50),  # 1 hour before match
                         data={
                             "league_id": league_id,
                             "season": season,
@@ -215,7 +233,7 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
                             "replace_existing": True,
                         },
                     )
-                    
+
                     # For H2H and team stats, we can try to get them immediately
                     home_id = fixture["teams"]["home"]["id"]
                     away_id = fixture["teams"]["away"]["id"]
