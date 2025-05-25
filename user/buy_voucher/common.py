@@ -1,12 +1,11 @@
 from telegram import InlineKeyboardButton
-import openai
 from Config import Config
 from client.client_calls.common import openai
+from sqlalchemy.orm import Session
 from common.lang_dicts import *
+from user.buy_voucher.constants import *
 import json
 import models
-from user.buy_voucher.constants import *
-from user.buy_voucher.api_calls import *
 import logging
 
 log = logging.getLogger(__name__)
@@ -63,43 +62,47 @@ async def get_last_matches_stats(team_id: int, last_matches: list) -> list:
     ]
     detailed_stats = []
 
-    async def fetch_single_match_stats(match):
+    def fetch_single_match_stats(match):
         fixture_id = match["fixture"]["id"]
-        try:
-            stats = await get_fixture_stats(fixture_id)
-            team_stats = next((s for s in stats if s["team"]["id"] == team_id), None)
-            if not team_stats:
+        with models.session_scope() as session:
+            try:
+                # Try to get stats from cache
+                cached_stats = (
+                    session.query(models.CachedStats)
+                    .filter_by(fixture_id=fixture_id)
+                    .first()
+                )
+                if not cached_stats:
+                    return None
+
+                stats = cached_stats.data
+                team_stats = next(
+                    (s for s in stats if s["team"]["id"] == team_id), None
+                )
+                if not team_stats:
+                    return None
+
+                filtered_stats = {
+                    s["type"]: s["value"]
+                    for s in team_stats["statistics"]
+                    if s["type"] in IMPORTANT_STATS
+                }
+                return {
+                    "fixture_id": fixture_id,
+                    "vs": f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
+                    "date": match["fixture"]["date"],
+                    "stats": filtered_stats,
+                }
+            except Exception as e:
+                log.error(f"Failed to fetch stats for fixture {fixture_id}: {e}")
                 return None
-            filtered_stats = {
-                s["type"]: s["value"]
-                for s in team_stats["statistics"]
-                if s["type"] in IMPORTANT_STATS
-            }
-            return {
-                "fixture_id": fixture_id,
-                "vs": f"{match['teams']['home']['name']} vs {match['teams']['away']['name']}",
-                "date": match["fixture"]["date"],
-                "stats": filtered_stats,
-            }
-        except Exception as e:
-            log.error(f"Failed to fetch stats for fixture {fixture_id}: {e}")
-            return None
 
-    # اجمع النتائج باستخدام asyncio.gather لتسريع الأداء
-    tasks = [fetch_single_match_stats(m) for m in last_matches[:5]]
-    results = await asyncio.gather(*tasks)
-
-    # تجاهل القيم الفارغة
+    results = [fetch_single_match_stats(m) for m in last_matches[:5]]
     detailed_stats = [r for r in results if r]
-
     return detailed_stats
 
 
 def is_match_data_complete(match: str) -> bool:
-    """
-    يتحقق من أن كل مباراة تحتوي على البيانات الأساسية اللازمة
-    لتوليد توقعات تحليلية دقيقة.
-    """
     has_standings = "Rank" in match or "points" in match
     has_team_stats = "Goals For" in match or "Clean Sheets" in match
     has_match_stats = (
@@ -109,10 +112,9 @@ def is_match_data_complete(match: str) -> bool:
     return has_standings and has_team_stats and has_match_stats and has_form
 
 
-async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5) -> str:
+def summarize_fixtures_with_odds_stats(fixtures: list, session: Session) -> str:
     summary = ""
-
-    for fix in fixtures[:max_limit]:
+    for fix in fixtures:
         fix_summary = ""
         fixture_id = fix["fixture"]["id"]
         home = fix["teams"]["home"]
@@ -123,112 +125,181 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
             f"\n=== {home['name']} vs {away['name']} | {league['name']} | {date} ===\n"
         )
 
-        # STANDINGS
+        # STANDINGS - From cache
         try:
-            standings = await get_standings(league["id"], league["season"])
-            home_stand = next(t for t in standings if t["team"]["id"] == home["id"])
-            away_stand = next(t for t in standings if t["team"]["id"] == away["id"])
-            fix_summary += "Standings:\n"
-            fix_summary += f"- {home['name']}: Rank {home_stand['rank']} | {home_stand['points']} pts\n"
-            fix_summary += f"- {away['name']}: Rank {away_stand['rank']} | {away_stand['points']} pts\n"
+            cached_standings = (
+                session.query(models.CachedStandings)
+                .filter_by(league_id=league["id"], season=league["season"])
+                .first()
+            )
+
+            if cached_standings:
+                standings = cached_standings.data
+                home_stand = next(t for t in standings if t["team"]["id"] == home["id"])
+                away_stand = next(t for t in standings if t["team"]["id"] == away["id"])
+                fix_summary += "Standings:\n"
+                fix_summary += f"- {home['name']}: Rank {home_stand['rank']} | {home_stand['points']} pts\n"
+                fix_summary += f"- {away['name']}: Rank {away_stand['rank']} | {away_stand['points']} pts\n"
+            else:
+                fix_summary += "Standings: Not available\n"
         except Exception as e:
-            standings_error = "Standings: Not available\n"
+            standings_error = "Standings: Error loading\n"
             log.error(f"{standings_error}: {e}")
             fix_summary += standings_error
 
-        # ODDS
-        odds_data = await get_fixture_odds(fixture_id)
-        fix_summary += "\nOdds:\n"
-        markets_needed = {
-            "Match Winner": "1X2",
-            "Over/Under": "Goals",
-            "Total Corners": "Corners",
-            "Total Cards": "Cards",
-            "Draw No Bet": "DNB",
-            "Both Teams To Score": "BTTS",
-        }
-        printed = set()
-        for provider in odds_data:
-            for book in provider.get("bookmakers", []):
-                for market in book.get("bets", []):
-                    name = market.get("name")
-                    if name in markets_needed and name not in printed:
-                        printed.add(name)
-                        values = " | ".join(
-                            f"{v['value']}: {v['odd']}" for v in market["values"]
-                        )
-                        fix_summary += f"- {markets_needed[name]}: {values}\n"
-        if not printed:
-            fix_summary += "- Odds not available\n"
-
-        # TEAM STATS
+        # ODDS - From cache
         try:
-            stats_home = await get_team_stats(
-                home["id"], league["id"], league["season"]
+            cached_odds = (
+                session.query(models.CachedOdds)
+                .filter_by(fixture_id=fixture_id)
+                .first()
             )
-            stats_away = await get_team_stats(
-                away["id"], league["id"], league["season"]
+            fix_summary += "\nOdds:\n"
+
+            if cached_odds:
+                odds_data = cached_odds.data
+                markets_needed = {
+                    "Match Winner": "Match Winner",
+                    "Goals Over/Under": "Goals",
+                    "Corners Over Under": "Corners Over Under",
+                    "Corners 1x2": "Corners 1x2",
+                    "Home Team Total Cards": "Home Cards",
+                    "Away Team Total Cards": "Away Cards",
+                    "Both Teams Score": "Both Teams To Score",
+                }
+                printed = set()
+                for provider in odds_data:
+                    for book in provider.get("bookmakers", []):
+                        for market in book.get("bets", []):
+                            name = market.get("name")
+                            if name in markets_needed and name not in printed:
+                                printed.add(name)
+                                values = " | ".join(
+                                    f"{v['value']}: {v['odd']}"
+                                    for v in market["values"]
+                                )
+                                fix_summary += f"- {markets_needed[name]}: {values}\n"
+                if not printed:
+                    fix_summary += "- Odds available but no matching markets found\n"
+            else:
+                fix_summary += "- Odds not available\n"
+        except Exception as e:
+            log.error(f"Error loading odds: {e}")
+            fix_summary += "- Error loading odds\n"
+
+        # TEAM STATS - From cache
+        try:
+            home_stats = (
+                session.query(models.CachedTeamStats)
+                .filter_by(
+                    team_id=home["id"],
+                    league_id=league["id"],
+                    season=league["season"],
+                )
+                .first()
+            )
+
+            away_stats = (
+                session.query(models.CachedTeamStats)
+                .filter_by(
+                    team_id=away["id"],
+                    league_id=league["id"],
+                    season=league["season"],
+                )
+                .first()
             )
 
             def team_stats_block(stats, label):
+                if not stats:
+                    return f"{label} Stats: Not available\n"
                 return (
                     f"{label} Stats:\n"
-                    f"- Goals For: {stats['goals']['for']['average']['total']}\n"
-                    f"- Goals Against: {stats['goals']['against']['average']['total']}\n"
-                    f"- Clean Sheets: {stats['clean_sheet']['total']}\n"
-                    f"- Failed to Score: {stats['failed_to_score']['total']}\n"
-                    f"- BTTS %: {stats['both_teams_to_score']['percentage'] if stats.get("both_teams_to_score", None) else None}\n"
+                    f"- Goals For: {stats.data['goals']['for']['average']['total']}\n"
+                    f"- Goals Against: {stats.data['goals']['against']['average']['total']}\n"
+                    f"- Clean Sheets: {stats.data['clean_sheet']['total']}\n"
+                    f"- Failed to Score: {stats.data['failed_to_score']['total']}\n"
+                    f"- BTTS %: {stats.data['both_teams_to_score']['percentage'] if stats.data.get('both_teams_to_score', None) else None}\n"
                 )
 
             fix_summary += (
                 "\n"
-                + team_stats_block(stats_home, home["name"])
-                + team_stats_block(stats_away, away["name"])
+                + team_stats_block(home_stats, home["name"])
+                + team_stats_block(away_stats, away["name"])
             )
         except Exception as e:
-            stats_error = "Stats: Not available"
+            stats_error = "Stats: Error loading"
             log.error(f"{stats_error}: {e}")
             fix_summary += f"\n{stats_error}\n"
 
-        # FIXTURE STATS
+        # FIXTURE STATS - From cache
         try:
-            fixture_stats = await get_fixture_stats(fixture_id)
-            fix_summary += "Match Stats:\n"
-            for team_stats in fixture_stats:
-                team_name = team_stats["team"]["name"]
-                stats_lines = [
-                    f"  • {s['type']}: {s['value']}"
-                    for s in team_stats.get("statistics", [])[:5]
-                ]
-                fix_summary += f"- {team_name}:\n" + "\n".join(stats_lines) + "\n"
+            cached_stats = (
+                session.query(models.CachedStats)
+                .filter_by(fixture_id=fixture_id)
+                .first()
+            )
+            if cached_stats:
+                fixture_stats = cached_stats.data
+                fix_summary += "Match Stats:\n"
+                for team_stats in fixture_stats:
+                    team_name = team_stats["team"]["name"]
+                    stats_lines = [
+                        f"  • {s['type']}: {s['value']}"
+                        for s in team_stats.get("statistics", [])[:5]
+                    ]
+                    fix_summary += f"- {team_name}:\n" + "\n".join(stats_lines) + "\n"
+            else:
+                fix_summary += "Match Stats: Not available\n"
         except Exception as e:
-            match_stats_error = "Match Stats: Not available"
+            match_stats_error = "Match Stats: Error loading"
             log.error(f"{match_stats_error}: {e}")
             fix_summary += f"{match_stats_error}\n"
 
-        # H2H
+        # H2H - From cache
         try:
-            h2h = await get_h2h(home["id"], away["id"])
-            fix_summary += "Last 5 Head-to-Head:\n"
-            for h in h2h[:5]:
-                h_name = h["teams"]["home"]["name"]
-                a_name = h["teams"]["away"]["name"]
-                gh = h["goals"]["home"]
-                ga = h["goals"]["away"]
-                fix_summary += f"- {h_name} {gh} - {ga} {a_name}\n"
+            cached_h2h = (
+                session.query(models.CachedH2H)
+                .filter_by(home_id=home["id"], away_id=away["id"])
+                .order_by(models.CachedH2H.last_updated.desc())
+                .first()
+            )
+
+            if cached_h2h:
+                h2h = cached_h2h.data
+                fix_summary += "Last 5 Head-to-Head:\n"
+                for h in h2h[:5]:
+                    h_name = h["teams"]["home"]["name"]
+                    a_name = h["teams"]["away"]["name"]
+                    gh = h["goals"]["home"]
+                    ga = h["goals"]["away"]
+                    fix_summary += f"- {h_name} {gh} - {ga} {a_name}\n"
+            else:
+                fix_summary += "H2H: Not available\n"
         except Exception as e:
-            h2h_error = "H2H: Not available"
+            h2h_error = "H2H: Error loading"
             log.error(f"{h2h_error}: {e}")
             fix_summary += f"{h2h_error}\n"
 
-        # FORM
+        # FORM - From cached team results
         try:
 
-            def form_block(matches, team_id: int, label: str) -> str:
+            def form_block(team_id: int, label: str) -> str:
+                # Get cached results for the team
+                cached_results = (
+                    session.query(models.CachedTeamResults)
+                    .filter_by(team_id=team_id)
+                    .first()
+                )
+
+                if not cached_results or not cached_results.data:
+                    return f"{label} Last 5: Not available\n"
+
                 results = []
-                for m in matches[:5]:
+                for m in cached_results.data[:5]:  # Get last 5 matches
                     is_home = m["teams"]["home"]["id"] == team_id
-                    goals_for = m["goals"]["home"] if is_home else m["goals"]["away"]
+                    goals_for = (
+                        m["goals"]["home"] if is_home else m["goals"]["away"]
+                    )
                     goals_against = (
                         m["goals"]["away"] if is_home else m["goals"]["home"]
                     )
@@ -241,30 +312,66 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
                     results.append(f"{venue} {goals_for}-{goals_against} ({outcome})")
                 return f"{label} Last 5: " + " | ".join(results) + "\n"
 
-            last_home = await get_last_results(home["id"])
-            last_away = await get_last_results(away["id"])
+            # Get form for both teams
+            fix_summary += form_block(home["id"], home["name"])
+            fix_summary += form_block(away["id"], away["name"])
 
-            fix_summary += form_block(last_home, home["id"], home["name"])
-            fix_summary += form_block(last_away, away["id"], away["name"])
+            def format_last_match_stats(label: str, team_id: int) -> str:
+                # Get cached results for the team
+                cached_results = (
+                    session.query(models.CachedTeamResults)
+                    .filter_by(team_id=team_id)
+                    .first()
+                )
 
-            def format_last_match_stats(label: str, matches: list) -> str:
-                if not matches:
+                if not cached_results or not cached_results.data:
                     return f"{label} Last 5 Match Stats: Not available\n"
 
                 text = f"{label} Last 5 Match Stats:\n"
-                for m in matches:
-                    text += f"- {m['vs']} ({m['date'][:10]}):\n"
-                    for stat_type, val in m["stats"].items():
-                        text += f"  • {stat_type}: {val}\n"
-                return text
+                for match in cached_results.data[:5]:  # Get last 5 matches
+                    # Get stats for this match if available
+                    match_stats = (
+                        session.query(models.CachedStats)
+                        .filter_by(fixture_id=match["fixture"]["id"])
+                        .first()
+                    )
 
-            last_home_stats = await get_last_matches_stats(home["id"], last_home)
-            last_away_stats = await get_last_matches_stats(away["id"], last_away)
+                    if not match_stats:
+                        continue
 
-            fix_summary += format_last_match_stats(home["name"], last_home_stats)
-            fix_summary += format_last_match_stats(away["name"], last_away_stats)
+                    # Find this team's stats in the match
+                    team_stats = next(
+                        (ts for ts in match_stats.data if ts["team"]["id"] == team_id),
+                        None,
+                    )
+
+                    if not team_stats:
+                        continue
+
+                    # Format the stats
+                    opponent = (
+                        match["teams"]["away"]["name"]
+                        if match["teams"]["home"]["id"] == team_id
+                        else match["teams"]["home"]["name"]
+                    )
+                    date = match["fixture"]["date"][:10]
+
+                    text += f"- vs {opponent} ({date}):\n"
+                    for stat in team_stats.get("statistics", []):
+                        text += f"  • {stat['type']}: {stat['value']}\n"
+
+                return (
+                    text
+                    if text.count("\n") > 1
+                    else f"{label} Last 5 Match Stats: No detailed stats available\n"
+                )
+
+            # Get detailed stats for both teams
+            fix_summary += format_last_match_stats(home["name"], home["id"])
+            fix_summary += format_last_match_stats(away["name"], away["id"])
+
         except Exception as e:
-            recent_form_error = "Recent form: Not available"
+            recent_form_error = "Recent form: Error loading"
             log.error(f"{recent_form_error}: {e}")
             fix_summary += f"{recent_form_error}\n"
 
@@ -275,9 +382,7 @@ async def summarize_fixtures_with_odds_stats(fixtures: list, max_limit: int = 5)
 
 
 async def generate_multimatch_coupon(fixtures_summary: str, odds: float):
-    json_format_instructions = (
-        "\n\nImportant:\n"
-        "• Return RAW JSON only in this exact format (do NOT use Arabic or alternative keys):\n"
+    json_format = (
         "{\n"
         '  "matches": [\n'
         "    {\n"
@@ -291,28 +396,29 @@ async def generate_multimatch_coupon(fixtures_summary: str, odds: float):
         "  ],\n"
         '  "combo": { "selections": ["...","..."], "combined_odds": 4.5, "overall_risk": "Medium", "reason": "..." }\n'
         "}\n"
-        "Then after --- send a user-friendly Markdown summary (in English).\n"
-        "Start your answer with { and do NOT put code blocks or explanations before or after the JSON.\n\n"
     )
 
-    with models.session_scope() as s:
-        voucher_prompt = s.get(models.Setting, "gpt_prompt_voucher")
-        default_prompt = s.get(models.Setting, "gpt_prompt")
-        p = voucher_prompt.value if voucher_prompt else default_prompt.value
-
-    prompt = f"{p}" f"{json_format_instructions}"
-    user = f"Odds:{odds}\n\n" f"Matchs data:\n{fixtures_summary}"
+    prompt = (
+        "You are a football betting analyst.\n\n"
+        f"Based ONLY on the statistical summaries below, generate three combo bets (accumulators), each containing one selection from EVERY listed match, to reach approximately {odds} total odds.\n\n"
+        "For each combo:\n"
+        "- Low Risk: Use the safest data-supported selections. If you cannot reach the requested odds with only low-risk choices, carefully increase risk (explain why).\n"
+        "- Medium Risk: Moderately ambitious, but still justified by the stats.\n"
+        "- High Risk: High-odds choices, always with logic from the stats.\n\n"
+        "DO NOT use any matches, markets, or information outside what is provided.\n\n"
+        "Matches:\n"
+        f"{fixtures_summary}\n\n"
+        "Return RAW JSON only in this format (no code blocks, no extra text):\n"
+        f"{json_format}\n\n"
+        "Then after --- send a user-friendly English markdown summary with explanations for each pick based on the stats."
+    )
 
     resp = await openai.chat.completions.create(
         model=Config.GPT_MODEL,
         messages=[
             {
-                "role": "system",
-                "content": prompt,
-            },
-            {
                 "role": "user",
-                "content": user,
+                "content": prompt,
             },
         ],
         temperature=0.7,
@@ -339,10 +445,10 @@ async def generate_multimatch_coupon(fixtures_summary: str, odds: float):
 async def parse_user_request(matches_text: str, desired_odds: int):
     prompt = (
         "لديك طلب قسيمة تراكمية من المستخدم:\n"
-        "'{matches_text}'\n\n"
+        f"'{matches_text}'\n\n"
         "المطلوب:\n"
         "1. استخرج أسماء المباريات بشكل موحد بالانجليزية: 'الفريق الأول vs الفريق الثاني'.\n"
-        "2. تأكد من منطقية تحقيق Odds {desired_odds} من عدد المباريات.\n"
+        f"2. تأكد من منطقية تحقيق Odds {desired_odds} من عدد المباريات.\n"
         "3. إذا كانت الأود المطلوبة عالية من عدد قليل جدًا من المباريات، نبه المستخدم واطلب منه إما إضافة مباريات أو أن تضيف أنت من مباريات منطقية.\n\n"
         "أجب بوضوح مع قابلية تحويل الإجابة إلى json كالتالي:\n"
         "- structured_matches: [List of matches]\n"

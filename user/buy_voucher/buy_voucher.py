@@ -19,7 +19,6 @@ from common.back_to_home_page import back_to_user_home_page_handler
 from datetime import datetime, timedelta
 from user.buy_voucher.common import (
     extract_ids,
-    get_fixtures,
     summarize_fixtures_with_odds_stats,
     generate_multimatch_coupon,
     build_preferences_keyboard,
@@ -115,8 +114,9 @@ async def get_duration_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
             build_back_to_home_page_button(lang=lang, is_admin=False)[0],
         ]
         value = int(update.message.text.strip())
+        duration_type = context.user_data["duration_type"]
         if update.message:
-            if context.user_data["duration_type"] == "hours" and not (1 <= value <= 72):
+            if duration_type == "hours" and not (1 <= value <= 72):
                 back_buttons = [
                     build_back_button(data="back_to_get_duration_type", lang=lang),
                     build_back_to_home_page_button(lang=lang, is_admin=False)[0],
@@ -125,7 +125,17 @@ async def get_duration_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
                     text=TEXTS[lang]["send_duration_hours"],
                     reply_markup=InlineKeyboardMarkup(back_buttons),
                 )
-                return DURATION_VALUE
+                return
+            elif duration_type == "days" and not (1 <= value <= 10):
+                back_buttons = [
+                    build_back_button(data="back_to_get_duration_type", lang=lang),
+                    build_back_to_home_page_button(lang=lang, is_admin=False)[0],
+                ]
+                await update.message.reply_text(
+                    text=TEXTS[lang]["send_duration_days"],
+                    reply_markup=InlineKeyboardMarkup(back_buttons),
+                )
+                return
 
             context.user_data["duration_value"] = value
             await update.message.reply_text(
@@ -283,55 +293,67 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             to = now + timedelta(days=context.user_data["duration_value"])
 
         pref = context.user_data["preferences"]
-        if pref == "league":
-            league_id, _ = extract_ids(context.user_data["league_pref"])
-            fixtures = await get_fixtures(
-                league_id=league_id, from_date=now, to_date=to
+        with models.session_scope() as session:
+            if pref == "league":
+                league_id, _ = extract_ids(context.user_data["league_pref"])
+                cached_fixtures = session.query(models.CachedFixture).filter(
+                    models.CachedFixture.league_id == league_id,
+                    models.CachedFixture.fixture_date >= now,
+                    models.CachedFixture.fixture_date <= to,
+                ).all()
+                fixtures = [f.data for f in cached_fixtures]  # Extract the JSON data
+            elif pref == "matches":
+                cached_fixtures = session.query(models.CachedFixture).filter(
+                    models.CachedFixture.fixture_date >= now,
+                    models.CachedFixture.fixture_date <= to,
+                ).all()
+                all_fixtures = [f.data for f in cached_fixtures]  # Extract the JSON data
+                fixtures = []
+                for user_match in context.user_data["matches_pref"]:
+                    for fixture in all_fixtures:
+                        fixture_strs = [
+                            f"{fixture['teams']['home']['name']} vs {fixture['teams']['away']['name']}".lower(),
+                            f"{fixture['teams']['away']['name']} vs {fixture['teams']['home']['name']}".lower(),
+                        ]
+                        if user_match.lower() in fixture_strs:
+                            fixtures.append(fixture)
+                            break
+                if not fixtures:
+                    await q.edit_message_text(
+                        text=TEXTS[lang]["gpt_buy_voucher_reply_empty"],
+                        reply_markup=build_user_keyboard(lang=lang),
+                    )
+                    return ConversationHandler.END
+            else:
+                cached_fixtures = session.query(models.CachedFixture).filter(
+                    models.CachedFixture.fixture_date >= now,
+                    models.CachedFixture.fixture_date <= to,
+                ).all()
+                fixtures = [f.data for f in cached_fixtures]  # Extract the JSON data
+
+            fixtures_summary = summarize_fixtures_with_odds_stats(fixtures=fixtures, session=session)
+
+            # Call GPT
+            coupon_json, message_md = await generate_multimatch_coupon(
+                fixtures_summary=fixtures_summary, odds=context.user_data["odds"]
             )
-        elif pref == "matches":
-            fixtures = []
-            all_fixtures = await get_fixtures(from_date=now, to_date=to)
-            for user_match in context.user_data["matches_pref"]:
-                for fixture in all_fixtures:
-                    fixture_strs = [
-                        f"{fixture['teams']['home']['name']} vs {fixture['teams']['away']['name']}".lower(),
-                        f"{fixture['teams']['away']['name']} vs {fixture['teams']['home']['name']}".lower(),
-                    ]
-                    if user_match.lower() in fixture_strs:
-                        fixtures.append(fixture)
-                        break
-            if not fixtures:
+
+            if not message_md:
                 await q.edit_message_text(
                     text=TEXTS[lang]["gpt_buy_voucher_reply_empty"],
                     reply_markup=build_user_keyboard(lang=lang),
                 )
                 return ConversationHandler.END
-        else:
-            fixtures = await get_fixtures(from_date=now, to_date=to)
-        fixtures_summary = await summarize_fixtures_with_odds_stats(fixtures)
 
-        # Call GPT
-        coupon_json, message_md = await generate_multimatch_coupon(
-            fixtures_summary=fixtures_summary, odds=context.user_data["odds"]
-        )
-
-        if not message_md:
-            await q.edit_message_text(
-                text=TEXTS[lang]["gpt_buy_voucher_reply_empty"],
-                reply_markup=build_user_keyboard(lang=lang),
-            )
-            return ConversationHandler.END
-
-        # Store each tip in DB
-        for match_block in coupon_json["matches"]:
-            label = match_block["teams"]  # e.g. "Team A vs Team B"
-            fx = next(
-                f
-                for f in fixtures
-                if f["teams"]["home"]["name"] + " vs " + f["teams"]["away"]["name"]
-                == label
-            )
-            with models.session_scope() as s:
+            # Store each tip in DB
+            for match_block in coupon_json["matches"]:
+                label = match_block["teams"]  # e.g. "Team A vs Team B"
+                fx = next(
+                    f
+                    for f in fixtures
+                    if f["teams"]["home"]["name"] + " vs " + f["teams"]["away"]["name"]
+                    == label
+                )
                 for tip in match_block["tips"]:
                     # إضافة التوصيات الجديدة
                     recommendation = models.FixtureRecommendation(
@@ -344,8 +366,8 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         selection=tip["selection"],
                         threshold=tip.get("threshold"),
                     )
-                    s.add(recommendation)
-                s.commit()
+                    session.add(recommendation)
+                session.commit()
 
         # Split and send final Markdown message if it's too long
         max_length = 4096  # Telegram's message length limit

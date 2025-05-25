@@ -115,6 +115,36 @@ def setup_and_run():
             "replace_existing": True,
         },
     )
+
+    app.job_queue.run_daily(
+        callback=update_team_results,
+        time=time(
+            hour=3,
+            minute=0,
+            tzinfo=TIMEZONE,
+        ),
+        job_kwargs={
+            "id": "daily_team_results_update",
+            "replace_existing": True,
+        },
+    )
+    app.job_queue.run_daily(
+        callback=cache_monthly_fixtures,
+        time=time(
+            hour=0,
+            minute=0,
+            tzinfo=TIMEZONE,
+        ),
+        job_kwargs={
+            "id": "cache_monthly_fixtures",
+            "replace_existing": True,
+        },
+    )
+
+    # app.job_queue.run_once(
+    #     callback=cache_monthly_fixtures,
+    #     when=20,
+    # )
     # app.job_queue.run_once(
     #     callback=schedule_daily_fixtures,
     #     when=20,

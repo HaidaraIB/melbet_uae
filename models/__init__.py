@@ -11,3 +11,12 @@ from models.UserSession import UserSession
 from models.FraudLog import FraudLog
 from models.SessionTimer import SessionTimer
 from models.FixtureRecommendation import FixtureRecommendation
+from models.FixtureCache import (
+    CachedFixture,
+    CachedH2H,
+    CachedOdds,
+    CachedStandings,
+    CachedStats,
+    CachedTeamStats,
+    CachedTeamResults,
+)

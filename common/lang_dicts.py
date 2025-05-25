@@ -37,7 +37,7 @@ TEXTS = {
         "game_smart_analysis": "تحليل ذكي للمباراة:\n\n{}",
         "send_voucher_odd_number": "كم تريد odd القسيمة؟",
         "choose_duration_type": "ما هي مدة القسيمة؟",
-        "send_duration_days": "أدخل عدد الأيام بدءا من اليوم؟",
+        "send_duration_days": "أدخل عدد الأيام بدءا من اليوم، يمكنك إرسال حتى 10 أيام",
         "send_duration_hours": "أرسل عدد الساعات، يمكنك إرسال حتى 72 ساعة",
         "send_odds": "أرسل ال odds، مثال: 2.5",
         "voucher_summary": (
@@ -56,7 +56,7 @@ TEXTS = {
         "send_matches_pref": (
             "أدخل المباريات التي تريدها في القسيمة بهذا الشكل:\n\n"
             "ريال مدريد vs برشلونة\n"
-            "مانشستر سيتي vs يونايتد\n"
+            "مانشستر سيتي vs يونايتد\n\n"
             "ضع كل مباراة على سطر جديد."
         ),
     },
@@ -96,7 +96,7 @@ TEXTS = {
         "game_smart_analysis": "Smart Analysis for the game:\n\n{}",
         "send_voucher_odd_number": "How much is the voucher's odd number you want?",
         "choose_duration_type": "What is the voucher duration?",
-        "send_duration_days": "Enter number of days. Time starts from now.\n\nHow many days?",
+        "send_duration_days": "Enter number of days up to 10 days. Time starts from now.\n\nHow many days?",
         "send_duration_hours": "You can enter up to 72 hours. Time starts from now.\n\nEnter number of hours:",
         "send_odds": "Enter the odds you want (e.g. 2.5):",
         "voucher_summary": (
@@ -115,7 +115,7 @@ TEXTS = {
         "send_matches_pref": (
             "Send the matches you want in the voucher in this format:\n\n"
             "Barcelona vs Real Madrid\n"
-            "Manchester City vs Manchester United\n"
+            "Manchester City vs Manchester United\n\n"
             "Put each match in a new line."
         ),
     },
