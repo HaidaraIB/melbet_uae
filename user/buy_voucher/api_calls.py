@@ -320,6 +320,7 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
                         )
 
                 session.commit()
+                await asyncio.sleep(5)
 
         except Exception as e:
             session.rollback()
