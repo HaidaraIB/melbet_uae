@@ -166,3 +166,13 @@ TEAM_MAP = {
     "rb leipzig": 173,
     "آر بي لايبزيغ": 173,
 }
+
+MARKETS_NEEDED = {
+    "Match Winner": "Match Winner",
+    "Goals Over/Under": "Goals",
+    "Corners Over Under": "Corners Over Under",
+    "Corners 1x2": "Corners 1x2",
+    "Home Team Total Cards": "Home Cards",
+    "Away Team Total Cards": "Away Cards",
+    "Both Teams Score": "Both Teams To Score",
+}

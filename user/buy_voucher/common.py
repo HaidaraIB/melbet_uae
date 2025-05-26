@@ -103,13 +103,14 @@ async def get_last_matches_stats(team_id: int, last_matches: list) -> list:
 
 
 def is_match_data_complete(match: str) -> bool:
-    has_standings = "Rank" in match or "points" in match
+    # has_standings = "Rank" in match or "points" in match
     has_team_stats = "Goals For" in match or "Clean Sheets" in match
-    has_match_stats = (
-        "Fouls" in match or "Total Corners" in match or "Yellow Cards" in match
-    )
+    # has_match_stats = (
+    #     "Fouls" in match or "Total Corners" in match or "Yellow Cards" in match
+    # )
     has_form = "Last 5" in match
-    return has_standings and has_team_stats and has_match_stats and has_form
+    has_odds = any(v in match for v in MARKETS_NEEDED.values())
+    return has_team_stats and has_form and has_odds
 
 
 def summarize_fixtures_with_odds_stats(fixtures: list, session: Session) -> str:
@@ -158,27 +159,18 @@ def summarize_fixtures_with_odds_stats(fixtures: list, session: Session) -> str:
 
             if cached_odds:
                 odds_data = cached_odds.data
-                markets_needed = {
-                    "Match Winner": "Match Winner",
-                    "Goals Over/Under": "Goals",
-                    "Corners Over Under": "Corners Over Under",
-                    "Corners 1x2": "Corners 1x2",
-                    "Home Team Total Cards": "Home Cards",
-                    "Away Team Total Cards": "Away Cards",
-                    "Both Teams Score": "Both Teams To Score",
-                }
                 printed = set()
                 for provider in odds_data:
                     for book in provider.get("bookmakers", []):
                         for market in book.get("bets", []):
                             name = market.get("name")
-                            if name in markets_needed and name not in printed:
+                            if name in MARKETS_NEEDED and name not in printed:
                                 printed.add(name)
                                 values = " | ".join(
                                     f"{v['value']}: {v['odd']}"
                                     for v in market["values"]
                                 )
-                                fix_summary += f"- {markets_needed[name]}: {values}\n"
+                                fix_summary += f"- {MARKETS_NEEDED[name]}: {values}\n"
                 if not printed:
                     fix_summary += "- Odds available but no matching markets found\n"
             else:
@@ -297,9 +289,7 @@ def summarize_fixtures_with_odds_stats(fixtures: list, session: Session) -> str:
                 results = []
                 for m in cached_results.data[:5]:  # Get last 5 matches
                     is_home = m["teams"]["home"]["id"] == team_id
-                    goals_for = (
-                        m["goals"]["home"] if is_home else m["goals"]["away"]
-                    )
+                    goals_for = m["goals"]["home"] if is_home else m["goals"]["away"]
                     goals_against = (
                         m["goals"]["away"] if is_home else m["goals"]["home"]
                     )

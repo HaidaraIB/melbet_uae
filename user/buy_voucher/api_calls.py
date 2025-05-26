@@ -199,9 +199,10 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
                     session.add(new_fixture)
 
                     # Schedule jobs for data that might not be available yet
-                    context.job_queue.run_once(
+                    context.job_queue.run_repeating(
                         callback=store_fixture_odds,
-                        when=fixture_date - timedelta(hours=2),  # 2 hours before match
+                        interval=60 * 60,
+                        first=10,
                         data={"fixture_id": fixture_id},
                         job_kwargs={
                             "id": f"odds_{fixture_id}",
