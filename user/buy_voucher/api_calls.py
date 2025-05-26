@@ -1,5 +1,5 @@
 from telegram.ext import ContextTypes
-from utils.api_calls import HEADERS, BASE_URL
+from utils.api_calls import HEADERS, BASE_URL, handle_rate_limit, _get_request
 from common.constants import TIMEZONE_NAME
 from datetime import datetime, timedelta
 import aiohttp
@@ -70,92 +70,40 @@ async def fetch_fixtures(
 
 
 async def get_fixture_odds(fixture_id: int) -> list:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(
-            f"{BASE_URL}/odds", params={"fixture": fixture_id}, headers=HEADERS
-        ) as response:
-            if response.status == 429:
-                return await handle_rate_limit(get_fixture_odds, fixture_id)
-            data = await response.json()
-            return data.get("response", [])
+    url = f"{BASE_URL}/odds"
+    params = {"fixture": fixture_id}
+    return await _get_request(url, params)
 
 
 async def get_fixture_stats(fixture_id: int) -> list:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(
-            f"{BASE_URL}/fixtures/statistics",
-            params={"fixture": fixture_id},
-            headers=HEADERS,
-        ) as response:
-            if response.status == 429:
-                return await handle_rate_limit(get_fixture_stats, fixture_id)
-            data = await response.json()
-            return data.get("response", [])
+    url = f"{BASE_URL}/fixtures/statistics"
+    params = {"fixture": fixture_id}
+    return await _get_request(url, params)
 
 
 async def get_team_stats(team_id: int, league_id: int, season: int) -> dict:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(
-            f"{BASE_URL}/teams/statistics",
-            params={"league": league_id, "team": team_id, "season": season},
-            headers=HEADERS,
-        ) as response:
-            if response.status == 429:
-                return await handle_rate_limit(
-                    get_team_stats, team_id, league_id, season
-                )
-            data = await response.json()
-            return data.get("response", {})
+    url = f"{BASE_URL}/teams/statistics"
+    params = {"league": league_id, "team": team_id, "season": season}
+    return await _get_request(url, params)
 
 
 async def get_standings(league_id: int, season: int) -> list:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(
-            f"{BASE_URL}/standings",
-            params={"league": league_id, "season": season},
-            headers=HEADERS,
-        ) as response:
-            if response.status == 429:
-                return await handle_rate_limit(get_standings, league_id, season)
-            data = await response.json()
-            return (
-                data["response"][0]["league"]["standings"][0]
-                if data.get("response")
-                else []
-            )
+    url = f"{BASE_URL}/standings"
+    params = {"league": league_id, "season": season}
+    data = await _get_request(url, params)
+    return data[0]["league"]["standings"][0] if data else []
 
 
 async def get_h2h(home_id: int, away_id: int) -> list:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(
-            f"{BASE_URL}/fixtures/headtohead",
-            params={"h2h": f"{home_id}-{away_id}"},
-            headers=HEADERS,
-        ) as response:
-            if response.status == 429:
-                return await handle_rate_limit(get_h2h, home_id, away_id)
-            data = await response.json()
-            return data.get("response", [])
+    url = f"{BASE_URL}/fixtures/headtohead"
+    params = {"h2h": f"{home_id}-{away_id}"}
+    return await _get_request(url, params)
 
 
 async def get_last_results(team_id: int, limit: int = 5) -> list:
-    async with aiohttp.ClientSession() as session:
-        async with session.get(
-            f"{BASE_URL}/fixtures",
-            params={"team": team_id, "last": limit},
-            headers=HEADERS,
-        ) as response:
-            if response.status == 429:
-                return await handle_rate_limit(get_last_results, team_id, limit)
-            data = await response.json()
-            return data.get("response", [])
-
-
-async def handle_rate_limit(func, *args):
-    # Handle rate limit error
-    log.warning(f"Rate limited. Waiting 5 seconds...")
-    await asyncio.sleep(5)
-    return await func(*args)
+    url = f"{BASE_URL}/fixtures"
+    params = {"team": team_id, "last": limit}
+    return await _get_request(url, params)
 
 
 # region Jobs

@@ -1,4 +1,4 @@
-import requests
+import aiohttp
 from datetime import datetime, timedelta
 from Config import Config
 from telegram.ext import ContextTypes
@@ -138,53 +138,62 @@ IMPORTANT_LEAGUES = {
 }
 
 
-def _get_request(url, params):
+async def handle_rate_limit(func, *args):
+    # Handle rate limit error
+    log.warning(f"Rate limited. Waiting 5 seconds...")
+    await asyncio.sleep(5)
+    return await func(*args)
+
+
+async def _get_request(url, params):
     try:
-        response = requests.get(url, headers=HEADERS, params=params)
-        data = response.json()
-        return data["response"]
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params, headers=HEADERS) as response:
+                if response.status == 429:
+                    return await handle_rate_limit(_get_request, url, params)
+                data = await response.json()
+                return data.get("response", [])
 
     except Exception as e:
         log.error(f"Error fetching lineups: {e}")
         return None
 
 
-def get_fixture_lineups(fixture_id: int) -> tuple:
+async def get_fixture_lineups(fixture_id: int) -> tuple:
     """Fetch starting lineups for a fixture"""
     url = f"{BASE_URL}/fixtures/lineups"
     querystring = {"fixture": fixture_id}
 
     try:
-        response = requests.get(url, headers=HEADERS, params=querystring)
-        data = response.json()
 
-        if not data["response"]:
+        data = await _get_request(url, querystring)
+
+        if not data:
             return None, None
 
-        home = data["response"][0]
-        away = data["response"][1]
+        home = data[0]
+        away = data[1]
 
         return home, away
-
     except Exception as e:
         log.error(f"Error fetching lineups: {e}")
         return None, None
 
 
-def get_fixture_stats(fixture_id: int) -> dict:
+async def get_fixture_stats(fixture_id: int) -> dict:
     """Fetch statistics for a fixture"""
     url = f"{BASE_URL}/fixtures/statistics"
     querystring = {"fixture": fixture_id}
 
-    return _get_request(url, querystring)
+    return await _get_request(url, querystring)
 
 
-def get_fixture_events(fixture_id: int) -> list:
+async def get_fixture_events(fixture_id: int) -> list:
     """Fetch events for a fixture"""
     url = f"{BASE_URL}/fixtures/events"
     querystring = {"fixture": fixture_id}
 
-    return _get_request(url=url, params=querystring)
+    return await _get_request(url=url, params=querystring)
 
 
 async def get_daily_fixtures() -> list[dict]:
@@ -205,11 +214,10 @@ async def get_daily_fixtures() -> list[dict]:
             }
 
             try:
-                response = requests.get(url, headers=HEADERS, params=querystring)
-                data = response.json()
+                data = await _get_request(url, querystring)
 
-                if data["response"]:
-                    for fixture in data["response"]:
+                if data:
+                    for fixture in data:
                         all_fixtures.append(
                             _extract_fixture_data(fixture=fixture, league_id=league_id)
                         )
@@ -237,15 +245,14 @@ def _extract_fixture_data(fixture: dict, league_id: int):
     }
 
 
-def get_fixture_status(fixture_id: int) -> str:
+async def get_fixture_status(fixture_id: int) -> str:
     """Check if fixture has ended"""
     url = f"{BASE_URL}/fixtures"
     querystring = {"id": fixture_id}
 
     try:
-        response = requests.get(url, headers=HEADERS, params=querystring)
-        data = response.json()
-        return data["response"][0]["fixture"]["status"]["short"]  # FT, NS, 1H, HT, etc.
+        data = await _get_request(url, querystring)
+        return data[0]["fixture"]["status"]["short"]  # FT, NS, 1H, HT, etc.
     except Exception as e:
         log.error(f"Error checking fixture status: {e}")
         return "UNKNOWN"
@@ -267,7 +274,7 @@ async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Proceed with normal event monitoring if match is still ongoing
-    events = get_fixture_events(match["fixture_id"])
+    events = await get_fixture_events(match["fixture_id"])
 
     if not events:
         return
@@ -304,7 +311,7 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
     # Schedule updates for each match with lost time handling
     now = datetime.now(TIMEZONE)
     for fixture in fixtures:
-        status = get_fixture_status(fixture["fixture_id"])
+        status = await get_fixture_status(fixture["fixture_id"])
 
         match_data = {
             **fixture,
@@ -385,7 +392,7 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
     # Send confirmation with status information
     match_list = []
     for fixture in fixtures:
-        status = get_fixture_status(fixture["fixture_id"])
+        status = await get_fixture_status(fixture["fixture_id"])
         status_emoji = {
             "NS": "⏳",
             "1H": "⚽ 1H",
@@ -415,7 +422,7 @@ async def send_pre_match_lineup(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
-    home_lineup_data, away_lineup_data = get_fixture_lineups(match["fixture_id"])
+    home_lineup_data, away_lineup_data = await get_fixture_lineups(match["fixture_id"])
 
     if home_lineup_data and away_lineup_data:
 
@@ -494,7 +501,7 @@ async def _send_post_match_stats(
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int = Config.MONITOR_GROUP_ID,
 ):
-    stats_data = get_fixture_stats(fixture_id)
+    stats_data = await get_fixture_stats(fixture_id)
 
     if stats_data:
         team1, stats1, team2, stats2 = extract_stats(stats_data)
@@ -548,7 +555,7 @@ def generate_summary_stats(team1: str, team2: str, stats1: dict, stats2: dict):
     return summary_stats
 
 
-async def generate_match_summary(team1: str, team2: str, summary_stats:list):
+async def generate_match_summary(team1: str, team2: str, summary_stats: list):
     match_details = (
         f"Match: {team1} vs {team2}\n" "Stats:\n" f"{"\n".join(summary_stats)}\n\n"
     )

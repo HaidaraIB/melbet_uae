@@ -131,7 +131,7 @@ def setup_and_run():
     app.job_queue.run_daily(
         callback=cache_monthly_fixtures,
         time=time(
-            hour=0,
+            hour=1,
             minute=0,
             tzinfo=TIMEZONE,
         ),
@@ -141,10 +141,10 @@ def setup_and_run():
         },
     )
 
-    # app.job_queue.run_once(
-    #     callback=cache_monthly_fixtures,
-    #     when=20,
-    # )
+    app.job_queue.run_once(
+        callback=cache_monthly_fixtures,
+        when=20,
+    )
     # app.job_queue.run_once(
     #     callback=schedule_daily_fixtures,
     #     when=20,
