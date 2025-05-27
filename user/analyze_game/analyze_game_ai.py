@@ -8,6 +8,7 @@ from telegram.ext import (
 )
 from telegram.constants import ParseMode
 import json
+import models
 from client.client_calls.common import openai
 from Config import Config
 from user.analyze_game.api_calls import (
@@ -25,12 +26,14 @@ from common.keyboards import build_back_to_home_page_button, build_back_button
 from common.back_to_home_page import back_to_user_home_page_handler
 from start import start_command
 from datetime import datetime
+import sqlalchemy as sa
 import logging
 from user.analyze_game.common import (
     summarize_injuries,
     summarize_matches,
     summarize_odds,
     generate_gpt_analysis,
+    build_matches_keyboard,
 )
 
 log = logging.getLogger(__name__)
@@ -41,14 +44,94 @@ GAME_INFO, PAY = range(2)
 async def analyze_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
-
+        with models.session_scope() as s:
+            fixtures = s.query(models.CachedFixture).filter(
+                sa.func.date(models.CachedFixture.fixture_date) == datetime.now().date()
+            ).all()
+            keyboard = build_matches_keyboard(matches=fixtures, lang=lang)
+            keyboard.append(
+                build_back_to_home_page_button(lang=lang, is_admin=False)[0]
+            )
         await update.callback_query.edit_message_text(
             text=TEXTS[lang]["request_game_info"],
-            reply_markup=InlineKeyboardMarkup(
-                build_back_to_home_page_button(lang=lang, is_admin=False)
-            ),
+            reply_markup=InlineKeyboardMarkup(keyboard),
         )
         return GAME_INFO
+
+
+async def change_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == Chat.PRIVATE:
+        lang = get_lang(update.effective_user.id)
+        page = int(update.callback_query.data.split("_")[-1])
+        with models.session_scope() as s:
+            fixtures = s.query(models.CachedFixture).filter(
+                sa.func.date(models.CachedFixture.fixture_date) == datetime.now().date()
+            ).all()
+            keyboard = build_matches_keyboard(matches=fixtures, page=page, lang=lang)
+            keyboard.append(
+                build_back_to_home_page_button(lang=lang, is_admin=False)[0]
+            )
+        await update.callback_query.edit_message_text(
+            text=TEXTS[lang]["request_game_info"],
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+        return GAME_INFO
+
+
+async def choose_from_todays_matches(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+):
+    if update.effective_chat.type == Chat.PRIVATE:
+        lang = get_lang(update.effective_user.id)
+        if not update.callback_query.data.startswith("back"):
+            fixture_id = int(update.callback_query.data.split("_")[-1])
+            context.user_data["analyze_game_fixture_id"] = fixture_id
+        else:
+            fixture_id = context.user_data["analyze_game_fixture_id"]
+        await update.callback_query.edit_message_text(
+            text=TEXTS[lang]["plz_wait"],
+        )
+        with models.session_scope() as s:
+            fixture = (
+                s.query(models.CachedFixture).filter_by(fixture_id=fixture_id).first()
+            )
+            matches = await get_h2h(
+                h2h=f"{fixture.data['teams']['home']["id"]}-{fixture.data['teams']['away']["id"]}"
+            )
+            keyboard = [
+                [
+                    InlineKeyboardButton(
+                        text=BUTTONS[lang]["pay"],
+                        callback_data="pay",
+                    )
+                ],
+                build_back_button(data="back_to_handle_match_input", lang=lang),
+                build_back_to_home_page_button(lang=lang, is_admin=False)[0],
+            ]
+            await update.callback_query.edit_message_text(
+                text=TEXTS[lang]["analyze_game_ai_result"].format(
+                    fixture.data["teams"]["home"]["name"],
+                    fixture.data["teams"]["away"]["name"],
+                    format_datetime(datetime.fromisoformat(str(fixture.fixture_date))),
+                    fixture.data["league"]["name"],
+                    fixture.data["fixture"]["venue"]["name"],
+                    f"{fixture.data['teams']['home']['name']} vs {fixture.data['teams']['away']['name']}",
+                ),
+                reply_markup=InlineKeyboardMarkup(keyboard),
+            )
+            context.user_data["match_info"] = {
+                "teams": f"{fixture.data['teams']['home']['name']} vs {fixture.data['teams']['away']['name']}",
+                "date": fixture.fixture_date,
+                "league": fixture.data["league"],
+                "venue": fixture.data['fixture']["venue"]["name"],
+                "team1_name": fixture.data["teams"]["home"]["name"],
+                "team2_name": fixture.data["teams"]["away"]["name"],
+                "team1_id": fixture.data["teams"]["home"]["id"],
+                "team2_id": fixture.data["teams"]["away"]["id"],
+                "h2h": summarize_matches(matches["finished"]),
+                "fixture_id": fixture.fixture_id,
+            }
+            return PAY
 
 
 async def handle_match_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -85,7 +168,7 @@ async def handle_match_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 matches = await get_h2h(
                     h2h=f"{team1['team']['id']}-{team2['team']['id']}"
                 )
-                if matches['new']:
+                if matches["new"]:
                     keyboard = [
                         [
                             InlineKeyboardButton(
@@ -224,7 +307,15 @@ analyze_game_handler = ConversationHandler(
             MessageHandler(
                 filters=filters.TEXT & ~filters.COMMAND,
                 callback=handle_match_input,
-            )
+            ),
+            CallbackQueryHandler(
+                choose_from_todays_matches,
+                "^analyze_match_",
+            ),
+            CallbackQueryHandler(
+                change_page,
+                "^analyze_match_page_",
+            ),
         ],
         PAY: [
             CallbackQueryHandler(

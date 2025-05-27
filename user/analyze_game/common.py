@@ -1,5 +1,9 @@
 from Config import Config
 from client.client_calls.common import openai
+from user.buy_voucher.constants import MARKETS_NEEDED
+from telegram import InlineKeyboardButton
+import models
+from common.lang_dicts import *
 
 
 def summarize_matches(matches):
@@ -22,10 +26,13 @@ def summarize_injuries(injuries):
 
 def summarize_odds(odds):
     summaries = []
+    printed = set()
     for book in odds[:1]:
         for bet in book.get("bookmakers", []):
             for market in bet.get("bets", []):
-                if market["name"] == "Match Winner":
+                name = market.get("name", "")
+                if name in MARKETS_NEEDED and name not in printed:
+                    printed.add(name)
                     outcomes = [
                         f"{o['value']}: {o['odd']}" for o in market.get("values", [])
                     ]
@@ -79,3 +86,42 @@ async def generate_gpt_analysis(match_info: dict):
         temperature=0.7,
     )
     return response.choices[0].message.content.strip()
+
+
+def build_matches_keyboard(
+    matches: list[models.CachedFixture], lang, page=0, per_page=5
+):
+    start = page * per_page
+    end = start + per_page
+    sliced = matches[start:end]
+
+    keyboard = []
+    for match in sliced:
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=f"{match.data['teams']['home']['name']} vs {match.data['teams']['away']['name']}",
+                    callback_data=f"analyze_match_{match.fixture_id}",
+                )
+            ]
+        )
+
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text=BUTTONS[lang]["prev"],
+                callback_data=f"analyze_match_page_{page-1}",
+            )
+        )
+    if end < len(matches):
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text=BUTTONS[lang]["next"],
+                callback_data=f"analyze_match_page_{page+1}",
+            )
+        )
+
+    if nav_buttons:
+        keyboard.append(nav_buttons)
+    return keyboard

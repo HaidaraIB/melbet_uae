@@ -21,7 +21,10 @@ TEXTS = {
         "wrong_home_team": "اسم الفريق الأول خاطئ ❗️",
         "wrong_away_team": "اسم الفريق الثاني خاطئ ❗️",
         "no_h2h": "لا يوجد مباراة بين {} و {} في تاريخ {} ❗️",
-        "request_game_info": "أرسل بيانات المباراة",
+        "request_game_info": (
+            "أرسل بيانات المباراة\n"
+            "يمكنك أيضاً اختيار مباراة من مباريات اليوم من القائمة أدناه"
+        ),
         "either_teams_wrong": "تعذر العثور على أحد الفريقين.",
         "analyze_game_ai_result": (
             "أقرب مواجهة بين <b>{}</b> و <b>{}</b>:\n\n"
@@ -80,7 +83,10 @@ TEXTS = {
         "wrong_home_team": "Wrong First team name ❗️",
         "wrong_away_team": "Wrong Second team name ❗️",
         "no_h2h": "There's no game between {} and {} in {} ❗️",
-        "request_game_info": "Send the Game info",
+        "request_game_info": (
+            "Send the Game info\n\n"
+            "You can also Choose a game of todays games from the list below."
+        ),
         "either_teams_wrong": "Can't find one of the teams.",
         "analyze_game_ai_result": (
             "The closest match between <b>{}</b> and <b>{}</b>:\n\n"
@@ -139,6 +145,8 @@ BUTTONS = {
         "choose_pref_for_me": "اختر لي",
         "choose_pref_league": "من بطولة محددة",
         "choose_pref_matches": "من مباريات محددة",
+        "prev": "⬅️ السابق",
+        "next": "التالي ➡️",
     },
     Language.ENGLISH: {
         "check_joined": "Verify ✅",
@@ -157,5 +165,7 @@ BUTTONS = {
         "choose_pref_for_me": "Choose For Me",
         "choose_pref_league": "Specific League",
         "choose_pref_matches": "Specific Matches",
+        "prev": "⬅️ Previous",
+        "next": "Next ➡️",
     },
 }

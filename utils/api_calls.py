@@ -266,7 +266,7 @@ async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
     match = context.job.data
 
     # First check if match has ended
-    status = get_fixture_status(match["fixture_id"])
+    status = await get_fixture_status(match["fixture_id"])
     if status == "FT":
         # Match finished, post stats and remove monitoring job
         await _send_post_match_stats(fixture_id=match["fixture_id"], context=context)
