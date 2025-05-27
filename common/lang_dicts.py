@@ -66,7 +66,7 @@ TEXTS = {
         "get_capital_management_plan": "كم تريد أن تضاعف رأس المال؟ (مثال: 3 أو 5 أو 10...)",
         "get_capital_management_days": "خلال كم يوم تريد تحقيق هذا الهدف؟ (مثال: 7، 14، 30)",
         "capital_management_order_summary": (
-            "طلبك: مضاعفة رأس المال x {} خلال {} يوم.\n\n" "السعر: {} دولار 💲"
+            "طلبك: مضاعفة رأس المال x{} خلال {} يوم.\n\n" "السعر: {} دولار 💲"
         ),
     },
     Language.ENGLISH: {
@@ -134,7 +134,7 @@ TEXTS = {
         "get_capital_management_plan": "How much you want to multiply your capital? (e.g: 3 or 5 or 10...)",
         "get_capital_management_days": "In how many days you want to achieve your goal? (e.g: 7, 14, 30)",
         "capital_management_order_summary": (
-            "Your Goal is to grow your capital by x {} in {} Days.\n\n"
+            "Your Goal is to grow your capital by x{} in {} Days.\n\n"
             "Price: {} Dollar 💲"
         ),
     },
@@ -150,7 +150,7 @@ BUTTONS = {
         "back_to_home_page": "العودة إلى القائمة الرئيسية 🔙",
         "buy_voucher": "شراء قسيمة 🎟",
         "analyze_game": "تحليل مباراة ⚽️",
-        "pay": "الدفع 💳",
+        "pay": "💳 الدفع",
         "duration_days": "أيام",
         "duration_hours": "ساعات",
         "confirm_payment": "المتابعة والدفع ✅",
@@ -171,7 +171,7 @@ BUTTONS = {
         "back_to_home_page": "Back to home page 🔙",
         "buy_voucher": "Buy Voucher 🎟",
         "analyze_game": "Analyze Game ⚽️",
-        "pay": "Pay 💳",
+        "pay": "💳 Pay",
         "duration_days": "Days",
         "duration_hours": "Hours",
         "confirm_payment": "Continue to Payment ✅",

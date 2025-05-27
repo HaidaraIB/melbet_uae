@@ -14,7 +14,7 @@ from user.our_plans.common import build_plans_keyboard, PLANS
 import models
 from start import start_command
 
-PLAN, MULTIPLIER, DAYS = range(3)
+PLAN, MULTIPLIER, DAYS, PAY = range(4)
 
 
 async def our_plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -51,7 +51,7 @@ async def choose_plan(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard = [
                 [
                     InlineKeyboardButton(
-                        text=f"{BUTTONS[lang]["pay"]} {PLANS[lang][plan_code]['price']}$",
+                        text=f"{BUTTONS[lang]["pay"]} {PLANS[lang][plan_code]['price']}",
                         callback_data=f"pay_plan_{plan_code}",
                     )
                 ],
@@ -61,6 +61,7 @@ async def choose_plan(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=PLANS[lang][plan_code]["details"],
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
+            return PAY
 
 
 back_to_choose_plan = our_plans
@@ -112,7 +113,7 @@ async def get_days(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = [
             [
                 InlineKeyboardButton(
-                    text=TEXTS[lang]["pay"],
+                    text=f"{BUTTONS[lang]["pay"]} {price}$",
                     callback_data=f"pay_capital_{multiplier}_{days}",
                 )
             ],
@@ -124,6 +125,17 @@ async def get_days(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 multiplier, days, price
             ),
             reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+        return PAY
+
+back_to_get_days = get_multiplier
+
+async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == Chat.PRIVATE:
+        lang = get_lang(update.effective_user.id)
+        await update.callback_query.answer(
+            text=update.callback_query.data,
+            show_alert=True,
         )
 
 
@@ -152,11 +164,18 @@ our_plans_handler = ConversationHandler(
                 callback=get_days,
             ),
         ],
+        PAY: [
+            CallbackQueryHandler(
+                pay,
+                "^pay_((capital)|(plan))",
+            )
+        ],
     },
     fallbacks=[
         start_command,
         back_to_user_home_page_handler,
         CallbackQueryHandler(back_to_choose_plan, "^back_to_choose_plan$"),
         CallbackQueryHandler(back_to_get_multiplier, "^back_to_get_multiplier$"),
+        CallbackQueryHandler(back_to_get_days, "^back_to_get_days$"),
     ],
 )
