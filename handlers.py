@@ -16,6 +16,7 @@ from user.user_calls import *
 from user.user_settings import *
 from user.analyze_game import *
 from user.buy_voucher import *
+from user.our_plans import *
 
 from admin.admin_calls import *
 from admin.admin_settings import *
@@ -41,6 +42,8 @@ def setup_and_run():
     init_db()
 
     app = MyApp.build_app()
+
+    app.add_handler(our_plans_handler)
 
     app.add_handler(buy_voucher_handler)
 

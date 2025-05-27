@@ -23,6 +23,12 @@ def build_user_keyboard(lang: Language):
         ],
         [
             InlineKeyboardButton(
+                text=BUTTONS[lang]["our_plans"],
+                callback_data="our_plans",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
                 text=BUTTONS[lang]["settings"],
                 callback_data="user_settings",
             ),

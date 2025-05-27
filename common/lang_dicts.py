@@ -62,6 +62,12 @@ TEXTS = {
             "مانشستر سيتي vs يونايتد\n\n"
             "ضع كل مباراة على سطر جديد."
         ),
+        "choose_plan": "اختر خطة من القائمة أدناه",
+        "get_capital_management_plan": "كم تريد أن تضاعف رأس المال؟ (مثال: 3 أو 5 أو 10...)",
+        "get_capital_management_days": "خلال كم يوم تريد تحقيق هذا الهدف؟ (مثال: 7، 14، 30)",
+        "capital_management_order_summary": (
+            "طلبك: مضاعفة رأس المال x {} خلال {} يوم.\n\n" "السعر: {} دولار 💲"
+        ),
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -124,6 +130,13 @@ TEXTS = {
             "Manchester City vs Manchester United\n\n"
             "Put each match in a new line."
         ),
+        "choose_plan": "Choose a plan from our plans below",
+        "get_capital_management_plan": "How much you want to multiply your capital? (e.g: 3 or 5 or 10...)",
+        "get_capital_management_days": "In how many days you want to achieve your goal? (e.g: 7, 14, 30)",
+        "capital_management_order_summary": (
+            "Your Goal is to grow your capital by x {} in {} Days.\n\n"
+            "Price: {} Dollar 💲"
+        ),
     },
 }
 
@@ -147,6 +160,7 @@ BUTTONS = {
         "choose_pref_matches": "من مباريات محددة",
         "prev": "⬅️ السابق",
         "next": "التالي ➡️",
+        "our_plans": "خططنا 🗂",
     },
     Language.ENGLISH: {
         "check_joined": "Verify ✅",
@@ -167,5 +181,6 @@ BUTTONS = {
         "choose_pref_matches": "Specific Matches",
         "prev": "⬅️ Previous",
         "next": "Next ➡️",
+        "our_plans": "Our Plans 🗂",
     },
 }
