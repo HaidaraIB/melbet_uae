@@ -49,7 +49,11 @@ def build_admin_keyboard():
             InlineKeyboardButton(
                 text="إعدادات البرومبت 💬",
                 callback_data="prompt_settings",
-            )
+            ),
+            InlineKeyboardButton(
+                text="إعدادات الخطط 🗂",
+                callback_data="plans_settings",
+            ),
         ],
         [
             InlineKeyboardButton(

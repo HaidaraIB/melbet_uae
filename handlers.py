@@ -24,6 +24,7 @@ from admin.broadcast import *
 from admin.ban import *
 from admin.prompt_settings import *
 from admin.test_settings import *
+from admin.plans_settings import *
 
 from client.client_calls import *
 
@@ -48,6 +49,8 @@ def setup_and_run():
     app.add_handler(buy_voucher_handler)
 
     app.add_handler(analyze_game_handler)
+
+    app.add_handler(plans_settings_handler)
 
     app.add_handler(test_match_stats_handler)
     app.add_handler(test_match_lineup_handler)

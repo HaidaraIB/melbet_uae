@@ -23,6 +23,7 @@ from user.buy_voucher.common import (
     generate_multimatch_coupon,
     build_preferences_keyboard,
     parse_user_request,
+    build_get_voucher_confirmation_keyboard,
 )
 import models
 
@@ -64,7 +65,16 @@ async def get_odds(update: Update, context: ContextTypes.DEFAULT_TYPE):
             build_back_to_home_page_button(lang=lang, is_admin=False)[0],
         ]
         if update.message:
-            context.user_data["odds"] = update.message.text.strip()
+            odds = float(update.message.text.strip())
+            if odds <= 0:
+                await update.message.reply_text(
+                    text=TEXTS[lang]["send_voucher_odd_number"],
+                    reply_markup=InlineKeyboardMarkup(
+                        build_back_to_home_page_button(lang=lang, is_admin=False)
+                    ),
+                )
+                return
+            context.user_data["odds"] = odds
             await update.message.reply_text(
                 text=TEXTS[lang]["choose_duration_type"],
                 reply_markup=InlineKeyboardMarkup(keyboard),
@@ -113,9 +123,9 @@ async def get_duration_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
             build_back_button(data="back_to_get_duration_value", lang=lang),
             build_back_to_home_page_button(lang=lang, is_admin=False)[0],
         ]
-        value = int(update.message.text.strip())
         duration_type = context.user_data["duration_type"]
         if update.message:
+            value = int(update.message.text.strip())
             if duration_type == "hours" and not (1 <= value <= 72):
                 back_buttons = [
                     build_back_button(data="back_to_get_duration_type", lang=lang),
@@ -149,12 +159,14 @@ async def get_duration_value(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
         return PREFERENCES
 
+
 back_to_get_duration_value = get_duration_type
 
 
 async def choose_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
+        odds = context.user_data["odds"]
         back_buttons = [
             build_back_button(data="back_to_get_preferences", lang=lang),
             build_back_to_home_page_button(lang=lang, is_admin=False)[0],
@@ -175,25 +187,17 @@ async def choose_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 reply_markup=InlineKeyboardMarkup(back_buttons),
             )
             return PREF
-
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    text=BUTTONS[lang]["confirm_payment"],
-                    callback_data="confirm_payment",
-                ),
-                InlineKeyboardButton(
-                    text=BUTTONS[lang]["cancel_voucher"],
-                    callback_data="cancel_voucher",
-                ),
-            ],
-            *back_buttons,
-        ]
-        price = round(float(context.user_data["odds"]) * 5, 2)
+        context.user_data["current_sub_id"] = None
+        keyboard = build_get_voucher_confirmation_keyboard(
+            user_id=update.effective_user.id, lang=lang, odds=odds
+        )
+        keyboard.append(back_buttons[0])
+        keyboard.append(back_buttons[1])
+        price = round(odds * 5, 2)
         await update.callback_query.edit_message_text(
             text=TEXTS[lang]["voucher_summary"].format(
-                context.user_data["odds"],
                 f"{context.user_data['duration_value']} {context.user_data['duration_type']}",
+                odds,
                 "Choose for me",
                 price,
             ),
@@ -208,22 +212,19 @@ back_to_get_preferences = get_duration_value
 async def get_pref(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
+        odds = context.user_data["odds"]
         pref = context.user_data["preferences"]
-        keyboard = [
-            [
-                InlineKeyboardButton(
-                    text=BUTTONS[lang]["confirm_payment"],
-                    callback_data="confirm_payment",
-                ),
-                InlineKeyboardButton(
-                    text=BUTTONS[lang]["cancel_voucher"],
-                    callback_data="cancel_voucher",
-                ),
-            ],
+        back_buttons = [
             build_back_button(data="back_to_get_league_pref", lang=lang),
             build_back_to_home_page_button(lang=lang, is_admin=False)[0],
         ]
-        price = round(float(context.user_data["odds"]) * 5, 2)
+        context.user_data["current_sub_id"] = None
+        keyboard = build_get_voucher_confirmation_keyboard(
+            user_id=update.effective_user.id, lang=lang, odds=odds
+        )
+        keyboard.append(back_buttons[0])
+        keyboard.append(back_buttons[1])
+        price = round(float(odds) * 5, 2)
         if update.message:
             if pref == "league":
                 league_pref = update.message.text
@@ -231,7 +232,7 @@ async def get_pref(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif pref == "matches":
                 matches_text = update.message.text.strip()
                 gpt_response = await parse_user_request(
-                    matches_text=matches_text, desired_odds=context.user_data["odds"]
+                    matches_text=matches_text, desired_odds=odds
                 )
                 matches_list = gpt_response["structured_matches"]
                 if not matches_list:
@@ -242,8 +243,8 @@ async def get_pref(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 context.user_data["matches_pref"] = matches_list
             await update.message.reply_text(
                 text=TEXTS[lang]["voucher_summary"].format(
-                    context.user_data["odds"],
                     f"{context.user_data['duration_value']} {context.user_data['duration_type']}",
+                    odds,
                     (
                         f"League({league_pref})"
                         if pref == "league"
@@ -257,8 +258,8 @@ async def get_pref(update: Update, context: ContextTypes.DEFAULT_TYPE):
             league_pref = context.user_data["league_pref"]
             await update.callback_query.edit_message_text(
                 text=TEXTS[lang]["voucher_summary"].format(
-                    context.user_data["odds"],
                     f"{context.user_data['duration_value']} {context.user_data['duration_type']}",
+                    odds,
                     league_pref,
                     price,
                 ),
@@ -276,12 +277,19 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         q = update.callback_query
         await q.answer()
         # Cancel if not confirmed
-        if q.data != "confirm_payment":
+        if q.data == "cancel_voucher":
             await q.edit_message_text(
                 text=TEXTS[lang]["voucher_canceled"],
                 reply_markup=build_user_keyboard(lang=lang),
             )
             return ConversationHandler.END
+
+        elif q.data.startswith("use_sub"):
+            with models.session_scope() as s:
+                sub_id = int(q.data.replace("use_sub_", ""))
+                sub = s.get(models.Subscription, sub_id)
+                sub.remaining_vouchers -= 1
+                s.commit()
 
         # Show waiting message
         await q.edit_message_text(text=TEXTS[lang]["payment_confirmed"])
@@ -296,18 +304,28 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with models.session_scope() as session:
             if pref == "league":
                 league_id, _ = extract_ids(context.user_data["league_pref"])
-                cached_fixtures = session.query(models.CachedFixture).filter(
-                    models.CachedFixture.league_id == league_id,
-                    models.CachedFixture.fixture_date >= now,
-                    models.CachedFixture.fixture_date <= to,
-                ).all()
+                cached_fixtures = (
+                    session.query(models.CachedFixture)
+                    .filter(
+                        models.CachedFixture.league_id == league_id,
+                        models.CachedFixture.fixture_date >= now,
+                        models.CachedFixture.fixture_date <= to,
+                    )
+                    .all()
+                )
                 fixtures = [f.data for f in cached_fixtures]  # Extract the JSON data
             elif pref == "matches":
-                cached_fixtures = session.query(models.CachedFixture).filter(
-                    models.CachedFixture.fixture_date >= now,
-                    models.CachedFixture.fixture_date <= to,
-                ).all()
-                all_fixtures = [f.data for f in cached_fixtures]  # Extract the JSON data
+                cached_fixtures = (
+                    session.query(models.CachedFixture)
+                    .filter(
+                        models.CachedFixture.fixture_date >= now,
+                        models.CachedFixture.fixture_date <= to,
+                    )
+                    .all()
+                )
+                all_fixtures = [
+                    f.data for f in cached_fixtures
+                ]  # Extract the JSON data
                 fixtures = []
                 for user_match in context.user_data["matches_pref"]:
                     for fixture in all_fixtures:
@@ -325,13 +343,19 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
                     return ConversationHandler.END
             else:
-                cached_fixtures = session.query(models.CachedFixture).filter(
-                    models.CachedFixture.fixture_date >= now,
-                    models.CachedFixture.fixture_date <= to,
-                ).all()
+                cached_fixtures = (
+                    session.query(models.CachedFixture)
+                    .filter(
+                        models.CachedFixture.fixture_date >= now,
+                        models.CachedFixture.fixture_date <= to,
+                    )
+                    .all()
+                )
                 fixtures = [f.data for f in cached_fixtures]  # Extract the JSON data
 
-            fixtures_summary = summarize_fixtures_with_odds_stats(fixtures=fixtures, session=session)
+            fixtures_summary = summarize_fixtures_with_odds_stats(
+                fixtures=fixtures, session=session
+            )
 
             # Call GPT
             coupon_json, message_md = await generate_multimatch_coupon(
@@ -448,7 +472,7 @@ buy_voucher_handler = ConversationHandler(
         CONFIRM: [
             CallbackQueryHandler(
                 handle_payment,
-                "^(confirm_payment|cancel_voucher)$",
+                "^(confirm_payment|cancel_voucher|use_sub)",
             )
         ],
     },

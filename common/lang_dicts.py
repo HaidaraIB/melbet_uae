@@ -68,6 +68,26 @@ TEXTS = {
         "capital_management_order_summary": (
             "طلبك: مضاعفة رأس المال x{} خلال {} يوم.\n\n" "السعر: {} دولار 💲"
         ),
+        "pay_plan_msg": (
+            "✅ {}\n\n"
+            "{}\n\n"
+            "المبلغ المطلوب: {}$\n"
+            "الحد الأعلى للأودز لكل قسيمة: {}\n"
+            "المدة: {} يوم\n"
+            "عدد القسائم: {}\n\n"
+            "يرجى إتمام الدفع عبر الرابط التالي: <a href='https://example.com/pay?amount={}'>دفع</a>\n"
+        ),
+        "pay_capital_msg": (
+            "✅ طلب إدارة رأس المال\n\n"
+            "المضاعفة المطلوبة: x{}\n"
+            "المدة: {} يوم\n"
+            "المبلغ المطلوب: {}$\n\n"
+            "يرجى إتمام الدفع عبر الرابط التالي: <a href='https://example.com/pay?amount={}'>دفع</a>\n"
+        ),
+        "payment_success": "تم الدفع بنجاح ✅",
+        "payment_failed": "فشل الدفع، أعد المحاولة ❗️",
+        "subscription_expired": "تم إلغاء تفعيل اشتراكك. إذا أردت إعادة التفعيل يمكنك الاشتراك من جديد ❗️",
+        "already_subscribed": "أنت مشترك بالفعل ❗️",
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -137,6 +157,26 @@ TEXTS = {
             "Your Goal is to grow your capital by x{} in {} Days.\n\n"
             "Price: {} Dollar 💲"
         ),
+        "pay_plan_msg": (
+            "✅ {}\n\n"
+            "{}\n\n"
+            "Amount: {}$\n"
+            "Max Odds per voucher: {}\n"
+            "Duration: {} days\n"
+            "Vouchers: {}\n\n"
+            "Please complete the payment through the following link: <a href='https://example.com/pay?amount={}'>دفع</a>\n"
+        ),
+        "pay_capital_msg": (
+            "✅ Manage Capital Order\n\n"
+            "Multiplier: x{}\n"
+            "Duration: {} Days\n"
+            "Amount: {}$\n\n"
+            "Please complete the payment through the following link: <a href='https://example.com/pay?amount={}'>دفع</a>\n"
+        ),
+        "payment_success": "Payment Success ✅",
+        "payment_failed": "Payment Failed, Try again ❗️",
+        "subscription_expired": "Your Subscription has expired, you can activate your subscription by subscribing again ❗️",
+        "already_subscribed": "You already have a subscription ❗️",
     },
 }
 
@@ -161,6 +201,8 @@ BUTTONS = {
         "prev": "⬅️ السابق",
         "next": "التالي ➡️",
         "our_plans": "خططنا 🗂",
+        "payment_done": "تم الدفع ✅",
+        "use_sub": "استخدام الاشتراك",
     },
     Language.ENGLISH: {
         "check_joined": "Verify ✅",
@@ -182,5 +224,7 @@ BUTTONS = {
         "prev": "⬅️ Previous",
         "next": "Next ➡️",
         "our_plans": "Our Plans 🗂",
+        "payment_done": "Payment Done ✅",
+        "use_sub": "Use Subscription",
     },
 }

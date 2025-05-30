@@ -1,0 +1,1 @@
+from admin.plans_settings.plans_settings import plans_settings_handler

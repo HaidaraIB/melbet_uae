@@ -1,5 +1,5 @@
 from models.DB import init_db, session_scope, with_retry
-from models.User import User
+from models.User import User, Subscription
 from models.Language import Language
 from models.Blacklist import Blacklist
 from models.MelbetAccount import MelbetAccount
@@ -20,3 +20,4 @@ from models.FixtureCache import (
     CachedTeamStats,
     CachedTeamResults,
 )
+from models.Plan import Plan

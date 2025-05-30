@@ -155,16 +155,18 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
                         job_kwargs={
                             "id": f"odds_{fixture_id}",
                             "replace_existing": True,
+                            "misfire_grace_time": None,
                         },
                     )
 
                     context.job_queue.run_once(
                         callback=store_fixture_stats,
-                        when=fixture_date + timedelta(hours=1),  # 1 hour after match
+                        when=fixture_date + timedelta(hours=2),  # 1 hour after match
                         data={"fixture_id": fixture_id},
                         job_kwargs={
                             "id": f"stats_{fixture_id}",
                             "replace_existing": True,
+                            "misfire_grace_time": None,
                         },
                     )
 
