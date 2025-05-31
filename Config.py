@@ -26,4 +26,8 @@ class Config:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
     X_RAPIDAPI_KEY = os.getenv("X_RAPIDAPI_KEY")
-    X_RAPIDAPI_HOST = os.getenv("X_RAPIDAPI_HOST")
+
+    X_RAPIDAPI_FB_HOST = os.getenv("X_RAPIDAPI_FB_HOST")
+    X_RAPIDAPI_BB_HOST = os.getenv("X_RAPIDAPI_BB_HOST")
+    X_RAPIDAPI_AFB_HOST = os.getenv("X_RAPIDAPI_AFB_HOST")
+    X_RAPIDAPI_H_HOST = os.getenv("X_RAPIDAPI_H_HOST")

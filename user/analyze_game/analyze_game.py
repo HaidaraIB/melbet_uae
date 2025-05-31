@@ -10,9 +10,9 @@ from common.lang_dicts import *
 from common.common import get_lang
 from common.keyboards import build_back_to_home_page_button, build_back_button
 from common.back_to_home_page import back_to_user_home_page_handler
+from common.constants import TIMEZONE_NAME
 from start import start_command
-from utils.api_calls import _send_post_match_stats
-from user.analyze_game.api_calls import get_h2h, get_team
+from utils.api_calls import _send_post_match_stats, _get_request, BASE_URL
 
 
 HOME_TEAM, AWAY_TEAM, DATE = range(3)
@@ -149,3 +149,54 @@ analyze_game_handler = ConversationHandler(
     name="analyze_game_conv",
     persistent=True,
 )
+
+
+async def get_h2h(h2h: str):
+    url = f"{BASE_URL}/fixtures/headtohead"
+    querystring = {
+        "h2h": h2h,
+        "timezone": TIMEZONE_NAME,
+    }
+
+    data = await _get_request(url, querystring)
+
+    returned_fixtures = {
+        "new": [],
+        "finished": [],
+    }
+
+    if not data:
+        return returned_fixtures
+
+    next_fixtures = [fix for fix in data if fix["fixture"]["status"]["short"] == "NS"]
+    finished_fixtures = [
+        fix for fix in data if fix["fixture"]["status"]["short"] == "FT"
+    ]
+    for fixture in next_fixtures:
+        returned_fixtures["new"].append(
+            {
+                "teams": fixture["teams"],
+                "goals": fixture["goals"],
+                "fixture": fixture["fixture"],
+                "league": fixture["league"],
+            }
+        )
+    for fixture in finished_fixtures:
+        returned_fixtures["finished"].append(
+            {
+                "teams": fixture["teams"],
+                "goals": fixture["goals"],
+                "fixture": fixture["fixture"],
+                "league": fixture["league"],
+            }
+        )
+        if len(returned_fixtures["finished"]) == 5:
+            break
+    return returned_fixtures
+
+
+async def get_team(name: str):
+    url = f"{BASE_URL}/teams"
+    querystring = {"search": name}
+
+    return await _get_request(url, querystring)

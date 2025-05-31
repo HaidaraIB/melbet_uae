@@ -7,134 +7,19 @@ from client.client_calls.common import openai
 from utils.functions import (
     generate_infographic,
     draw_double_lineup_image,
+    filter_fixtures,
 )
 import logging
 import asyncio
 import models
-import pathlib
-import os
 
 log = logging.getLogger(__name__)
 
 
-BASE_URL = f"https://{Config.X_RAPIDAPI_HOST}/v3"
+BASE_URL = f"https://{Config.X_RAPIDAPI_FB_HOST}/v3"
 HEADERS = {
     "X-RapidAPI-Key": Config.X_RAPIDAPI_KEY,
-    "X-RapidAPI-Host": Config.X_RAPIDAPI_HOST,
-}
-
-
-IMPORTANT_LEAGUES = {
-    # Top 5 European Leagues
-    "premier_league": {
-        "name": "Premier League",
-        "country": "England",
-        "id": 39,
-    },
-    "la_liga": {
-        "name": "La Liga",
-        "country": "Spain",
-        "id": 140,
-    },
-    "bundesliga": {
-        "name": "Bundesliga",
-        "country": "Germany",
-        "id": 78,
-    },
-    "serie_a": {
-        "name": "Serie A",
-        "country": "Italy",
-        "id": 135,
-    },
-    "ligue_1": {
-        "name": "Ligue 1",
-        "country": "France",
-        "id": 61,
-    },
-    # European Competitions
-    "champions_league": {
-        "name": "UEFA Champions League",
-        "country": "Europe",
-        "id": 2,
-    },
-    "europa_league": {
-        "name": "UEFA Europa League",
-        "country": "Europe",
-        "id": 3,
-    },
-    "europa_conference": {
-        "name": "UEFA Europa Conference League",
-        "country": "Europe",
-        "id": 848,
-    },
-    # Other Major Leagues
-    "mls": {
-        "name": "Major League Soccer",
-        "country": "USA",
-        "id": 253,
-    },
-    "brasileirao": {
-        "name": "Brasileirão Série A",
-        "country": "Brazil",
-        "id": 71,
-    },
-    "eredivisie": {
-        "name": "Eredivisie",
-        "country": "Netherlands",
-        "id": 88,
-    },
-    "primeira_liga": {
-        "name": "Primeira Liga",
-        "country": "Portugal",
-        "id": 94,
-    },
-    "saudi_pro": {
-        "name": "Saudi Pro League",
-        "country": "Saudi Arabia",
-        "id": 307,
-    },
-    # South American Competitions
-    "libertadores": {
-        "name": "Copa Libertadores",
-        "country": "South America",
-        "id": 13,
-    },
-    "sudamericana": {
-        "name": "Copa Sudamericana",
-        "country": "South America",
-        "id": 15,
-    },
-    # Domestic Cups
-    "fa_cup": {
-        "name": "FA Cup",
-        "country": "England",
-        "id": 45,
-    },
-    "efl_cup": {
-        "name": "EFL Cup (Carabao Cup)",
-        "country": "England",
-        "id": 46,
-    },
-    "dfb_pokal": {
-        "name": "DFB-Pokal",
-        "country": "Germany",
-        "id": 81,
-    },
-    "copa_del_rey": {
-        "name": "Copa del Rey",
-        "country": "Spain",
-        "id": 143,
-    },
-    "coppa_italia": {
-        "name": "Coppa Italia",
-        "country": "Italy",
-        "id": 137,
-    },
-    "coupe_de_france": {
-        "name": "Coupe de France",
-        "country": "France",
-        "id": 66,
-    },
+    "X-RapidAPI-Host": Config.X_RAPIDAPI_FB_HOST,
 }
 
 
@@ -145,17 +30,17 @@ async def handle_rate_limit(func, *args):
     return await func(*args)
 
 
-async def _get_request(url, params):
+async def _get_request(url, params, headers=HEADERS):
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, params=params, headers=HEADERS) as response:
+            async with session.get(url, params=params, headers=headers) as response:
                 if response.status == 429:
                     return await handle_rate_limit(_get_request, url, params)
                 data = await response.json()
                 return data.get("response", [])
 
     except Exception as e:
-        log.error(f"Error fetching lineups: {e}")
+        log.error(f"Error in _get_request: {e}")
         return None
 
 
@@ -203,32 +88,24 @@ async def get_daily_fixtures() -> list[dict]:
     seasons = now.year - 1, now.year
     all_fixtures = []
 
-    for league_id in [league["id"] for league in IMPORTANT_LEAGUES.values()]:
-        url = f"{BASE_URL}/fixtures"
-        for season in seasons:
-            querystring = {
-                "league": league_id,
-                "date": today,
-                "timezone": TIMEZONE_NAME,
-                "season": season,
-            }
+    url = f"{BASE_URL}/fixtures"
+    querystring = {
+        "date": today,
+        "timezone": TIMEZONE_NAME,
+    }
 
-            try:
-                data = await _get_request(url, querystring)
-
-                if data:
-                    for fixture in data:
-                        all_fixtures.append(
-                            _extract_fixture_data(fixture=fixture, league_id=league_id)
-                        )
-                await asyncio.sleep(5)
-            except Exception as e:
-                log.error(f"Error fetching fixtures for league {league_id}: {e}")
+    try:
+        fixtures = filter_fixtures(await _get_request(url, querystring))
+        for fixture in fixtures:
+            all_fixtures.append(_extract_fixture_data(fixture=fixture))
+        await asyncio.sleep(5)
+    except Exception as e:
+        log.error(f"Error fetching fixtures: {e}")
 
     return all_fixtures
 
 
-def _extract_fixture_data(fixture: dict, league_id: int):
+def _extract_fixture_data(fixture: dict):
     return {
         "fixture_id": fixture["fixture"]["id"],
         "home_team": fixture["teams"]["home"]["name"],
@@ -236,12 +113,8 @@ def _extract_fixture_data(fixture: dict, league_id: int):
         "start_time": datetime.fromtimestamp(
             fixture["fixture"]["timestamp"], tz=TIMEZONE
         ),
-        "league_id": league_id,
-        "league_name": next(
-            league["name"]
-            for league in IMPORTANT_LEAGUES.values()
-            if league["id"] == league_id
-        ),
+        "league_id": fixture["league"]["id"],
+        "league_name": fixture["league"]["name"],
     }
 
 

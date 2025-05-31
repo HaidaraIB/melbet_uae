@@ -489,25 +489,28 @@ def build_get_voucher_confirmation_keyboard(
             .all()
         )
         current_sub = subscriptions[0]
-        previous_sub = subscriptions[1]
         if user.plan_code and user.plan_code != "capital_management":
             if current_sub.status == "active":
-                previous_plan: models.Plan = previous_sub.plan
                 current_plan: models.Plan = current_sub.plan
                 sub_id = None
                 # first check if previous_sub can fullfill this voucher
-                if (
-                    (
-                        previous_plan.code == "plus"
-                        and previous_sub.remaining_vouchers
-                        >= int(0.2 * previous_plan.vouchers)
-                    )
-                    or (
-                        previous_plan.code == "pro"
-                        and previous_sub.remaining_vouchers > 0
-                    )
-                ) and odds <= previous_plan.max_odds:
-                    sub_id = previous_sub.id
+                if len(subscriptions) > 1:
+                    previous_sub = subscriptions[1]
+                    previous_plan: models.Plan = previous_sub.plan
+                    if (
+                        (
+                            previous_plan.code == "plus"
+                            and previous_sub.remaining_vouchers
+                            >= int(0.2 * previous_plan.vouchers)
+                        )
+                        or (
+                            previous_plan.code == "pro"
+                            and previous_sub.remaining_vouchers > 0
+                        )
+                    ) and odds <= previous_plan.max_odds:
+                        sub_id = previous_sub.id
+                    elif current_sub.remaining_vouchers > 0 and odds <= current_plan.max_odds:
+                        sub_id = current_sub.id
                 elif current_sub.remaining_vouchers > 0 and odds <= current_plan.max_odds:
                     sub_id = current_sub.id
                 if sub_id is not None:

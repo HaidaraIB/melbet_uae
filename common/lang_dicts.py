@@ -27,7 +27,7 @@ TEXTS = {
         ),
         "either_teams_wrong": "تعذر العثور على أحد الفريقين.",
         "analyze_game_ai_result": (
-            "أقرب مواجهة بين <b>{}</b> و <b>{}</b>:\n\n"
+            "تفاصيل مباراة:\n\n"
             "• التاريخ:\n<b>{}</b>\n"
             "• البطولة: <b>{}</b>\n"
             "• الملعب: <b>{}</b>\n"
@@ -37,7 +37,9 @@ TEXTS = {
         "no_upcoming_games": "لا توجد مواجهة قادمة بين الفريقين.",
         "plz_wait": "الرجاء الانتظار ⏳",
         "soon": "قريباً 🔜",
-        "game_smart_analysis": "تحليل ذكي للمباراة:\n\n{}",
+        "game_smart_analysis": (
+            "تحليل ذكي للمباراة:\n\n" "{}\n\n" "للمتابعة اضغط /start"
+        ),
         "send_voucher_odd_number": "كم تريد odd القسيمة؟",
         "choose_duration_type": "ما هي مدة القسيمة؟",
         "send_duration_days": "أدخل عدد الأيام بدءا من اليوم، يمكنك إرسال حتى 10 أيام",
@@ -88,6 +90,7 @@ TEXTS = {
         "payment_failed": "فشل الدفع، أعد المحاولة ❗️",
         "subscription_expired": "تم إلغاء تفعيل اشتراكك. إذا أردت إعادة التفعيل يمكنك الاشتراك من جديد ❗️",
         "already_subscribed": "أنت مشترك بالفعل ❗️",
+        "choose_sport": "اختر رياضة من القائمة أدناه",
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -115,7 +118,7 @@ TEXTS = {
         ),
         "either_teams_wrong": "Can't find one of the teams.",
         "analyze_game_ai_result": (
-            "The closest match between <b>{}</b> and <b>{}</b>:\n\n"
+            "Match Summary:\n\n"
             "• Date: <b>{}</b>\n"
             "• League: <b>{}</b>\n"
             "• Venue: <b>{}</b>\n"
@@ -125,7 +128,9 @@ TEXTS = {
         "no_upcoming_games": "There's no upcoming games between these teams.",
         "plz_wait": "Please Wait ⏳",
         "soon": "Coming Soon 🔜",
-        "game_smart_analysis": "Smart Analysis for the game:\n\n{}",
+        "game_smart_analysis": (
+            "Smart Analysis for the game:\n\n" "{}\n\n" "Press /start to continue"
+        ),
         "send_voucher_odd_number": "How much is the voucher's odd number you want?",
         "choose_duration_type": "What is the voucher duration?",
         "send_duration_days": "Enter number of days up to 10 days. Time starts from now.\n\nHow many days?",
@@ -177,6 +182,7 @@ TEXTS = {
         "payment_failed": "Payment Failed, Try again ❗️",
         "subscription_expired": "Your Subscription has expired, you can activate your subscription by subscribing again ❗️",
         "already_subscribed": "You already have a subscription ❗️",
+        "choose_sport": "Choose a sport from the menue below",
     },
 }
 
@@ -203,6 +209,10 @@ BUTTONS = {
         "our_plans": "خططنا 🗂",
         "payment_done": "تم الدفع ✅",
         "use_sub": "استخدام الاشتراك",
+        "football": "⚽️ كرة القدم",
+        "basketball": "🏀 كرة السلة",
+        "american_football": "🏈 كرة القدم الأمريكية",
+        "hockey": "🏒 هوكي الجليد",
     },
     Language.ENGLISH: {
         "check_joined": "Verify ✅",
@@ -226,5 +236,9 @@ BUTTONS = {
         "our_plans": "Our Plans 🗂",
         "payment_done": "Payment Done ✅",
         "use_sub": "Use Subscription",
+        "football": "Football ⚽️",
+        "basketball": "Basketball 🏀",
+        "american_football": "American Football 🏈",
+        "hockey": "Hockey 🏒",
     },
 }

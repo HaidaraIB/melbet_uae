@@ -1,7 +1,7 @@
 from io import BytesIO
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Arc
-from matplotlib.axes import Axes
+from utils.constants import IMPORTANT_LEAGUES
 
 
 def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict) -> BytesIO:
@@ -295,3 +295,11 @@ def draw_double_lineup_image(
     plt.close(fig)
     buf.seek(0)
     return buf
+
+
+def filter_fixtures(fixtures: list):
+    return [
+        fix
+        for fix in fixtures
+        if fix["league_id"] in [l_id["id"] for l_id in IMPORTANT_LEAGUES.values()]
+    ]
