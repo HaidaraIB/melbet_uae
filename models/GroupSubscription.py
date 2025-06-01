@@ -12,6 +12,6 @@ class GroupSubscription(Base):
     is_active = sa.Column(sa.Boolean, default=False)
     expire_date = sa.Column(sa.DateTime(timezone=True), nullable=True)
     plan_code = sa.Column(sa.String, default="default")
-    trial_used = sa.Column(sa.Boolean, default=False)
+    status = sa.Column(sa.String, default="active")  # active / expired / canceled...
     created_at = sa.Column(sa.DateTime(timezone=True), default=datetime.now(TIMEZONE))
-    admin_id = sa.Column(sa.BigInteger, nullable=True)
+    admin_id = sa.Column(sa.BigInteger, nullable=False)

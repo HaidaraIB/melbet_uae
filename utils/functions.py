@@ -2,6 +2,7 @@ from io import BytesIO
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Arc
 from utils.constants import IMPORTANT_LEAGUES
+from groups.group_preferences.constants import BRANDS
 
 
 def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict) -> BytesIO:
@@ -303,3 +304,37 @@ def filter_fixtures(fixtures: list):
         for fix in fixtures
         if fix["league_id"] in [l_id["id"] for l_id in IMPORTANT_LEAGUES.values()]
     ]
+
+
+def build_multi_branding_prompt(brands: list[str], match_title: str, team_colors=None):
+    if not brands:
+        brands = ["888starz"]  # الافتراضي
+    if len(brands) == 1:
+        b = brands[0]
+        brand = BRANDS[b]
+        prompt = (
+            f"Premium digital poster for Telegram, promoting a high-stakes football match: {match_title}."
+            f"• {brand['logo_prompt']}"
+            f"• Use brand colors: {', '.join(brand['brand_colors'])}."
+            f"• Slogan: {brand['slogan']} (small font)."
+            f"• Highlight: {match_title}, team themes: {team_colors or '...'}."
+            f"• Modern, bold, premium style, fits 1280x720."
+        )
+    else:
+        prompt = f"Premium split-layout poster (multi-brand):"
+        part_count = len(brands)
+        for i, b in enumerate(brands, 1):
+            brand = BRANDS[b]
+            prompt += (
+                f"--- Section {i} of {part_count} ---"
+                f"• Branding: {brand['display_name']}"
+                f"• {brand['logo_prompt']}"
+                f"• Colors: {', '.join(brand['brand_colors'])}"
+                f"• Slogan: {brand['slogan']}"
+            )
+        prompt += (
+            f"• Main focus: {match_title}, teams: {team_colors or '...'}\n"
+            "• Each brand gets a visual section (vertical/horizontal split).\n"
+            "• Unified premium sports betting style. Not cluttered, fits 1280x720."
+        )
+    return prompt

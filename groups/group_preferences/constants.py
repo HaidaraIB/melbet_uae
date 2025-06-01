@@ -297,3 +297,20 @@ LEAGUES = {
         },
     },
 }
+BRANDS = {
+    "888starz": {
+        "display_name": "888STARZ",
+        "logo_prompt": "Bold and modern '888STARZ' logo with card suits ♠️♥️♦️♣️ in '888'.",
+        "brand_colors": ["#b70022", "#000000", "#ffffff"],
+        "slogan": "iGaming Mining Platform",
+        "description": "Modern iGaming style: red/black/white, logo, and slogan.",
+    },
+    "melbet": {
+        "display_name": "MELBET",
+        "logo_prompt": "Dynamic 'MELBET' logo with yellow/black palette.",
+        "brand_colors": ["#ffbe1a", "#231f20", "#ffffff"],
+        "slogan": "Your Betting Partner",
+        "description": "Energetic betting brand: yellow/black, fast vibe, and slogan.",
+    },
+    # أضف المزيد هنا...
+}

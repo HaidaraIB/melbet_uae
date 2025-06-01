@@ -19,6 +19,8 @@ class User(Base):
     plan_code = sa.Column(sa.String, sa.ForeignKey("plans.code"))
     plan = relationship("Plan", back_populates="users")
 
+    trial_used = sa.Column(sa.Boolean, default=False)
+
     # Relationships (one-to-many)
     sessions = relationship("UserSession", back_populates="user")
     messages = relationship("SessionMessage", back_populates="user")

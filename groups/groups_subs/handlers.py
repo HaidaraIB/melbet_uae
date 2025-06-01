@@ -5,6 +5,7 @@ from groups.groups_subs.functions import (
     make_group_sub_button_text,
     make_group_details_text,
     get_or_create_group_sub,
+    schedule_expiring_jobs,
 )
 from groups.groups_subs.lang_dicts import *
 from groups.group_preferences.functions import check_admin
@@ -28,16 +29,22 @@ async def activate_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     with models.session_scope() as session:
-        get_or_create_group_sub(session=session, group_id=group_id, admin_id=user_id)
-
-    await update.message.reply_text(text=TEXTS[lang]["done"])
-    try:
-        await context.bot.send_message(
-            chat_id=user_id,
-            text=TEXTS[lang]["group_activate_success"].format(group_id),
+        sub = get_or_create_group_sub(
+            session=session, group_id=group_id, admin_id=user_id
         )
-    except Exception:
-        pass
+        expiring_notification = context.job_queue.get_jobs_by_name(
+            f"notify_expiring_subs_{group_id}"
+        )
+        if not expiring_notification:
+            schedule_expiring_jobs(context=context, sub=sub)
+            try:
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=TEXTS[lang]["group_activate_success"].format(group_id),
+                )
+            except Exception:
+                pass
+    await update.message.reply_text(text=TEXTS[lang]["done"])
 
 
 async def groups_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -45,25 +52,23 @@ async def groups_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.effective_user.id
         lang = get_lang(user_id)
         with models.session_scope() as session:
-            groups = (
+            subs = (
                 session.query(models.GroupSubscription)
                 .filter_by(admin_id=user_id)
                 .all()
             )
-            if not groups:
+            if not subs:
                 await update.message.reply_text(text=TEXTS[lang]["no_groups_yet"])
                 return
 
             keyboard = [
                 [
                     InlineKeyboardButton(
-                        text=make_group_sub_button_text(
-                            lang=lang, session=session, group_id=g.group_id
-                        ),
-                        callback_data=f"show_group_sub_{g.group_id}",
+                        text=make_group_sub_button_text(lang=lang, sub=sub),
+                        callback_data=f"show_group_sub_{sub.group_id}",
                     )
                 ]
-                for g in groups
+                for sub in subs
             ]
         await update.message.reply_text(
             text=TEXTS[lang]["choose_sub"],
@@ -87,6 +92,12 @@ async def show_group_details(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 InlineKeyboardButton(
                     text=BUTTONS[lang]["deactivate_sub"],
                     callback_data=f"deactivate_group_sub_{group_id}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=BUTTONS[lang]["renew_sub"],
+                    callback_data=f"renew_group_sub_{group_id}",
                 )
             ],
         ]
@@ -147,7 +158,7 @@ async def deactivate_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-async def pay_group_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def renew_group_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         user_id = update.effective_user.id
         lang = get_lang(user_id)
@@ -172,7 +183,14 @@ async def confirm_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         query = update.callback_query
         group_id = int(query.data.split("_")[-1])
         with models.session_scope() as session:
-            renew_sub(session, group_id, months=1)
+            sub = renew_sub(session, group_id, months=1)
+            expiring_notification = context.job_queue.get_jobs_by_name(
+                f"notify_expiring_subs_{group_id}"
+            )
+            if expiring_notification:
+                for job in expiring_notification:
+                    job.schedule_removal()
+            schedule_expiring_jobs(context=context, sub=sub)
         await query.edit_message_text(text=TEXTS[lang]["group_sub_payment_confirmed"])
 
 
@@ -197,9 +215,9 @@ deactivate_sub_handler = CallbackQueryHandler(
     deactivate_sub,
     pattern=r"^deactivate_group_sub_",
 )
-pay_group_sub_handler = CallbackQueryHandler(
-    pay_group_sub,
-    pattern=r"^pay_group_sub_",
+renew_group_sub_handler = CallbackQueryHandler(
+    renew_group_sub,
+    pattern=r"^renew_group_sub_",
 )
 confirm_group_payment_handler = CallbackQueryHandler(
     confirm_payment,

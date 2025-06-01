@@ -40,6 +40,13 @@ def construct_prefs_summary(prefs: dict, lang: Language):
             ]
             text += ", ".join(league_names) or "كل الدوريات"
             text += "\n"
+        brands = prefs.get("brands", [])
+        if brands:
+            brands_txt = ", ".join(BRANDS[b]["display_name"] for b in brands)
+        else:
+            brands_txt = "لم يتم اختيار علامة"
+        brands_summary = f"العلامات التجارية المختارة: {brands_txt}"
+        text += brands_summary
         text += "\n احفظ هذه التفضيلات؟ ✅"
     elif lang == Language.ENGLISH:
         text = (
@@ -57,6 +64,13 @@ def construct_prefs_summary(prefs: dict, lang: Language):
             ]
             text += ", ".join(league_names) or "All leagues"
             text += "\n"
+        brands = prefs.get("brands", [])
+        if brands:
+            brands_txt = ", ".join(BRANDS[b]["display_name"] for b in brands)
+        else:
+            brands_txt = "No Brand selected"
+        brands_summary = f"Brands selected: {brands_txt}"
+        text += brands_summary
         text += "\n Save these preferences? ✅"
 
     return text

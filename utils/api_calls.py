@@ -2,12 +2,14 @@ import aiohttp
 from datetime import datetime, timedelta
 from Config import Config
 from telegram.ext import ContextTypes
+from telegram import InputMediaPhoto
 from common.constants import TIMEZONE, TIMEZONE_NAME
 from client.client_calls.common import openai
 from utils.functions import (
     generate_infographic,
     draw_double_lineup_image,
     filter_fixtures,
+    build_multi_branding_prompt,
 )
 import logging
 import asyncio
@@ -373,6 +375,7 @@ async def _send_post_match_stats(
     fixture_id: int,
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int = Config.MONITOR_GROUP_ID,
+    league_id: int = None,
 ):
     stats_data = await get_fixture_stats(fixture_id)
 
@@ -387,28 +390,100 @@ async def _send_post_match_stats(
         infographic = generate_infographic(
             team1=team1, stats1=stats1, team2=team2, stats2=stats2
         )
-        # img_prompt = (
-        #     f"A professional football match graphic showcasing the final stats of the game between {team1} and {team2}. "
-        #     f"Include visual elements like team logos, stadium lights, and digital-style overlays. "
-        #     f"Display key statistics such as Ball Possession, Total Shots, Pass Accuracy, and Shots on Goal using HUD-style graphics. "
-        #     f"{team1}: {stats1.get('Ball Possession', 'N/A')} possession, {stats1.get('Total Shots', 'N/A')} total shots, "
-        #     f"{stats1.get('Passes %', 'N/A')} pass accuracy, {stats1.get('Shots on Goal', 'N/A')} on target. "
-        #     f"{team2}: {stats2.get('Ball Possession', 'N/A')} possession, {stats2.get('Total Shots', 'N/A')} total shots, "
-        #     f"{stats2.get('Passes %', 'N/A')} pass accuracy, {stats2.get('Shots on Goal', 'N/A')} on target. "
-        #     "Include a subtle MELBET logo on a digital scoreboard or LED panel. Style should be cinematic, realistic, clean."
-        # )
-        # infographic = await openai.images.generate(
-        #     model=Config.DALL_E_MODEL,
-        #     prompt=img_prompt,
-        #     n=1,
-        #     size="1024x1024",
-        # )
-        # image_data = requests.get(infographic.data[0].url).content
         await context.bot.send_photo(
             chat_id=chat_id,
             photo=infographic,
             caption=summary,
         )
+        asyncio.create_task(
+            post_in_groups(
+                context=context,
+                team1=team1,
+                team2=team2,
+                league_id=league_id,
+                infographic=infographic,
+                stats=summary_stats,
+            )
+        )
+
+
+async def post_in_groups(
+    context: ContextTypes.DEFAULT_TYPE,
+    team1: str,
+    team2: str,
+    league_id: int,
+    infographic,
+    stats: str,
+):
+    with models.session_scope() as s:
+        subs = (
+            s.query(models.GroupSubscription)
+            .filter_by(is_active=True, status="active")
+            .all()
+        )
+        for sub in subs:
+            pref = (
+                s.query(models.GroupPreferences)
+                .filter_by(group_id=sub.group_id)
+                .first()
+            )
+            sport_check, league_check = False, False
+            if not pref.sports:
+                sport_check, league_check = True, True
+            else:
+                for sport, leagues in (pref.sports or {}).items():
+                    sport_check, league_check = False, False
+                    if sport == "football":
+                        sport_check = True
+                        if not leagues or league_id in leagues:
+                            league_check = True
+                            break
+            if sport_check and league_check:
+                img_prompt = build_multi_branding_prompt(
+                    brands=pref.brands,
+                    match_title=f"{team1} vs {team2}",
+                )
+                image = await openai.images.generate(
+                    model=Config.DALL_E_MODEL,
+                    prompt=img_prompt,
+                    n=1,
+                    size="1024x1024",
+                )
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(image.data[0].url) as response:
+                        image_data = await response.read()
+
+                async def generate_group_summary(
+                    team1: str, team2: str, stats: str, prefs: models.GroupPreferences
+                ):
+                    prompt = (
+                        f"Write a short match summary for {team1} vs {team2}.\n"
+                        f"Language: {prefs.language}, Dialect: {prefs.dialect}.\n"
+                        f"Stats: {stats}\n"
+                        "Style: Enthusiastic, engaging for betting group."
+                    )
+                    summary = await openai.chat.completions.create(
+                        model=Config.GPT_MODEL,
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": prompt,
+                            },
+                        ],
+                    )
+                    return summary
+
+                summary = await generate_group_summary(
+                    team1=team1, team2=team2, stats=stats, prefs=pref
+                )
+                await context.bot.send_media_group(
+                    chat_id=sub.group_id,
+                    media=[
+                        InputMediaPhoto(media=infographic),
+                        InputMediaPhoto(media=image_data),
+                    ],
+                    caption=summary,
+                )
 
 
 def extract_stats(json_data: list[dict]):

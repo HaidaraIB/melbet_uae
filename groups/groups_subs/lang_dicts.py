@@ -11,12 +11,16 @@ TEXTS = {
         "activate_sub_success": "✅ تم تفعيل الاشتراك لهذا الغروب",
         "deactivate_sub_success": "❌ تم تعطيل الاشتراك لهذا الغروب",
         "pay_msg": (
-            "للدفع أو تجديد اشتراك الغروب {}:\n"
+            "للدفع أو تجديد اشتراك الغروب <code>{}</code>:\n"
             "<a href='{}'>ادفع الآن</a>\n"
             "بعد الدفع اضغط الزر أدناه"
         ),
         "sub_expire_notification": (
-            "⏰ تنبيه: سينتهي اشتراك الغروب {} غدًا.\n"
+            "⏰ تنبيه: سينتهي اشتراك الغروب <code>{}</code> غدًا.\n"
+            "يمكنك تجديد الاشتراك عبر الضغط على الزر أدناه"
+        ),
+        "sub_expired": (
+            "لقد انتهى اشتراكك في الغروب <code>{}</code>\n"
             "يمكنك تجديد الاشتراك عبر الضغط على الزر أدناه"
         ),
         "group_sub_payment_confirmed": "✅ تم تفعيل الاشتراك لهذا الغروب لمدة شهر كامل",
@@ -34,13 +38,17 @@ TEXTS = {
         "activate_sub_success": "Subscription activated on this group ✅",
         "deactivate_sub_success": "Subscription deactivated on this group ❌",
         "pay_msg": (
-            "To pay or renew your group subscription {}:\n"
+            "To pay or renew your group subscription <code>{}</code>:\n"
             "<a href='{}'>Pay now</a>\n"
             "After payment press the button below"
         ),
         "sub_expire_notification": (
-            "⏰ Note: Your group {} subscription will expire tomorrow:\n"
+            "⏰ Note: Your group <code>{}</code> subscription will expire tomorrow:\n"
             "You can renew by pressing the button below"
+        ),
+        "sub_expired": (
+            "Your group <code>{}</code> subscription has expired\n"
+            "يمكنك تجديد الاشتراك عبر الضغط على الزر أدناه"
         ),
         "group_sub_payment_confirmed": "✅ Subscription activated on this group for 1 month",
         "use_in_groups": "Use this command in a group chat",
@@ -50,14 +58,14 @@ TEXTS = {
 
 BUTTONS = {
     Language.ARABIC: {
-        "activate_sub": "🔓 تفعيل/تجديد شهر",
-        "renew_sub": "💳 دفع/تجديد الاشتراك",
+        "renew_sub": "💳 تجديد الاشتراك",
+        "activate_sub": "🔓 تفعيل",
         "deactivate_sub": "❌ تعطيل الاشتراك",
         "confirm_payment": "✅ تم الدفع",
     },
     Language.ENGLISH: {
-        "activate_sub": "🔓 Activate/Renew Subscription",
-        "renew_sub": "💳 Pay/Renew Subscription",
+        "renew_sub": "💳 Renew Subscription",
+        "activate_sub": "🔓 Activate Subscription",
         "deactivate_sub": "❌ Deactivate Subscription",
         "confirm_payment": "✅ Confirm Payment",
     },

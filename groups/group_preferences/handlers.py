@@ -14,7 +14,7 @@ from common.common import get_lang
 import models
 from common.keyboards import build_back_button
 
-LANG, DIALECT, SPORT, LEAGUE, CONFIRM = range(5)
+LANG, DIALECT, SPORT, LEAGUE, BRAND, CONFIRM = range(6)
 
 
 async def start_group_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -44,6 +44,7 @@ async def start_group_settings(update: Update, context: ContextTypes.DEFAULT_TYP
                 "language": prefs.language,
                 "dialect": prefs.dialect,
                 "sports": prefs.sports or {},
+                "brands": prefs.brands or ["888starz"],  # <-- أضف هنا
             }
         keyboard = build_lang_kb()
         if update.message:
@@ -181,7 +182,7 @@ async def leagues_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
         lang = get_lang(update.effective_user.id)
         sport_iter = context.user_data["league_sport_iter"]
         if not sport_iter:
-            return await confirm_settings(update, context)
+            return await toggle_brand(update, context)
         try:
             sport = next(sport_iter)
             context.user_data["league_current_sport"] = sport
@@ -197,7 +198,36 @@ async def leagues_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return LEAGUE
         except StopIteration:
-            return await confirm_settings(update, context)
+            return await toggle_brand(update, context)
+
+
+async def toggle_brand(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type in [Chat.GROUP, Chat.SUPERGROUP]:
+        lang = get_lang(update.effective_user.id)
+        selected: list = context.user_data["prefs"].get("brands", [])
+        data = update.callback_query.data
+        if not data.startswith("back"):
+            if data.startswith("toggle_brand_"):
+                b = data.replace("toggle_brand_", "")
+                if b in selected:
+                    selected.remove(b)
+                else:
+                    selected.append(b)
+                context.user_data["prefs"]["brands"] = selected
+        else:
+            selected = context.user_data["prefs"]["brands"]
+
+        # إعادة بناء الكيبورد بعد كل ضغط
+        keyboard = build_brands_kb(selected=selected, lang=lang)
+        keyboard.append(build_back_button("back_to_choose_leagues"))
+        await update.callback_query.edit_message_text(
+            text=TEXTS[lang]["choose_brand"],
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+        return BRAND
+
+
+back_to_choose_leagues = sports_done
 
 
 async def confirm_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -220,14 +250,14 @@ async def confirm_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             callback_data="cancel_settings",
                         )
                     ],
-                    build_back_button(data="back_to_choose_leagues", lang=lang),
+                    build_back_button(data="back_to_toggle_brand", lang=lang),
                 ],
             ),
         )
         return CONFIRM
 
 
-back_to_choose_leagues = sports_done
+back_to_toggle_brand = toggle_brand
 
 
 async def save_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -279,13 +309,13 @@ group_settings_handler = ConversationHandler(
             CallbackQueryHandler(
                 set_language,
                 pattern=r"^set_lang_",
-            )
+            ),
         ],
         DIALECT: [
             CallbackQueryHandler(
                 set_dialect,
                 pattern=r"^set_dialect_",
-            )
+            ),
         ],
         SPORT: [
             CallbackQueryHandler(
@@ -307,6 +337,16 @@ group_settings_handler = ConversationHandler(
                 pattern=r"^leagues_done_",
             ),
         ],
+        BRAND: [
+            CallbackQueryHandler(
+                toggle_brand,
+                pattern=r"^toggle_brand_",
+            ),
+            CallbackQueryHandler(
+                confirm_settings,
+                pattern=r"^brands_done$",
+            ),
+        ],
         CONFIRM: [
             CallbackQueryHandler(
                 save_settings,
@@ -319,14 +359,12 @@ group_settings_handler = ConversationHandler(
         ],
     },
     fallbacks=[
-        CommandHandler(
-            "cancel",
-            cancel_settings,
-        ),
+        CommandHandler("cancel", cancel_settings),
         CallbackQueryHandler(back_to_choose_leagues, r"^back_to_choose_leagues$"),
         CallbackQueryHandler(back_to_choose_sports, r"^back_to_choose_sports$"),
         CallbackQueryHandler(back_to_set_dialect, r"^back_to_set_dialect$"),
         CallbackQueryHandler(back_to_set_language, r"^back_to_set_language$"),
+        CallbackQueryHandler(back_to_toggle_brand, r"^back_to_toggle_brand$"),
     ],
     name="group_settings_conv",
     persistent=True,

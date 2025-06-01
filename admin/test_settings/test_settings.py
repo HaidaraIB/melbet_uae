@@ -53,7 +53,7 @@ async def test_match_lineup(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     data = await response.json()
             fixture = data["response"]
             if fixture:
-                fixtrue_data = _extract_fixture_data(fixture=fixture[0], league_id=140)
+                fixtrue_data = _extract_fixture_data(fixture=fixture[0])
                 await _send_pre_match_lineup(match=fixtrue_data, context=context)
             await update.callback_query.answer(
                 text="تمت العملية بنجاح ✅",

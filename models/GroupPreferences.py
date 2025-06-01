@@ -11,3 +11,4 @@ class GroupPreferences(Base):
     sports = sa.Column(
         sa.JSON, default=dict
     )  # {"football": [league_id1, ...], "basketball": [...]} (فارغة = كل الرياضات/الدوريات)
+    brands = sa.Column(sa.JSON, default=list)  # <-- الآن قائمة

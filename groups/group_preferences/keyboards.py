@@ -71,3 +71,26 @@ def build_leagues_kb(sport: str, lang: Language, selected_ids=None):
         ]
     )
     return kb
+
+
+def build_brands_kb(lang: Language, selected=None):
+    keyboard = []
+    for k, brand in BRANDS.items():
+        text = f"{'✅ ' if k in selected else ''}{brand['display_name']}"
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    text=text,
+                    callback_data=f"toggle_brand_{k}",
+                )
+            ]
+        )
+    keyboard.append(
+        [
+            InlineKeyboardButton(
+                text=BUTTONS[lang]["continue"],
+                callback_data="brands_done",
+            )
+        ]
+    )
+    return keyboard

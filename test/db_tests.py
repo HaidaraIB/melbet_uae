@@ -13,12 +13,10 @@ import models
 async def main():
     load_dotenv()
     models.init_db()
-    timer = models.SessionTimer(uid=1, gid=1, end_time=4)
     with models.session_scope() as s:
-        s.query(models.SessionTimer).filter(models.SessionTimer.uid == 1, models.SessionTimer.gid == 1).delete()
-        s.commit()
-
-
+        pref = s.query(models.GroupPreferences).first()
+        print(type(pref.sports))
+        print(type(pref.brands))
 
 
 asyncio.run(main())
