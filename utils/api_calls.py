@@ -14,6 +14,7 @@ from utils.functions import (
 import logging
 import asyncio
 import models
+from io import BytesIO
 
 log = logging.getLogger(__name__)
 
@@ -480,9 +481,9 @@ async def post_in_groups(
                     chat_id=sub.group_id,
                     media=[
                         InputMediaPhoto(media=infographic),
-                        InputMediaPhoto(media=image_data),
+                        InputMediaPhoto(media=BytesIO(image_data)),
                     ],
-                    caption=summary,
+                    caption=summary.choices[0].message.content.strip(),
                 )
 
 
