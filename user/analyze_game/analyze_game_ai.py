@@ -47,7 +47,7 @@ SPORT, GAME_INFO, PAY = range(3)
 async def analyze_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
-        keyboard = build_sports_keyboard(lang=lang)
+        keyboard = build_sports_keyboard(lang=lang, prefix="analyze")
         keyboard.append(build_back_to_home_page_button(lang=lang, is_admin=False)[0])
         await update.callback_query.edit_message_text(
             text=TEXTS[lang]["choose_sport"],

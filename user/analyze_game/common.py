@@ -160,30 +160,30 @@ async def ask_gpt_about_match(teams: str, sport: str):
     return response.choices[0].message.content.replace("json", "").replace("```", "")
 
 
-def build_sports_keyboard(lang: models.Language):
+def build_sports_keyboard(lang: models.Language, prefix: str):
     return [
         [
             InlineKeyboardButton(
                 text=BUTTONS[lang]["football"],
-                callback_data="analyze_football",
+                callback_data=f"{prefix}_football",
             )
         ],
         [
             InlineKeyboardButton(
                 text=BUTTONS[lang]["basketball"],
-                callback_data="analyze_basketball",
+                callback_data=f"{prefix}_basketball",
             )
         ],
         [
             InlineKeyboardButton(
                 text=BUTTONS[lang]["american_football"],
-                callback_data="analyze_american_football",
+                callback_data=f"{prefix}_american_football",
             )
         ],
         [
             InlineKeyboardButton(
                 text=BUTTONS[lang]["hockey"],
-                callback_data="analyze_hockey",
+                callback_data=f"{prefix}_hockey",
             )
         ],
     ]

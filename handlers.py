@@ -26,6 +26,8 @@ from admin.prompt_settings import *
 from admin.test_settings import *
 from admin.plans_settings import *
 
+from groups import *
+
 from client.client_calls import *
 
 from models import init_db
@@ -43,6 +45,8 @@ def setup_and_run():
     init_db()
 
     app = MyApp.build_app()
+
+    app.add_handler(group_settings_handler)
 
     app.add_handler(our_plans_handler)
 

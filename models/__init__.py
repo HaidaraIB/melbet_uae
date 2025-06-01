@@ -21,3 +21,4 @@ from models.FixtureCache import (
     CachedTeamResults,
 )
 from models.Plan import Plan
+from models.GroupPreferences import GroupPreferences
