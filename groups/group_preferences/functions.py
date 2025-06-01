@@ -1,8 +1,8 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ChatMemberStatus
-from groups.constants import *
-from groups.lang_dicts import *
+from groups.group_preferences.constants import *
+from groups.group_preferences.lang_dicts import *
 
 
 async def check_admin(

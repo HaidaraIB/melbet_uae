@@ -14,6 +14,7 @@ from common.keyboards import (
 )
 from common.common import get_lang
 from common.lang_dicts import *
+from common.constants import TIMEZONE
 from start import start_command
 from common.back_to_home_page import back_to_user_home_page_handler
 from datetime import datetime, timedelta
@@ -294,7 +295,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Show waiting message
         await q.edit_message_text(text=TEXTS[lang]["payment_confirmed"])
 
-        now = datetime.now()
+        now = datetime.now(TIMEZONE)
         if context.user_data["duration_type"] == "hours":
             to = now + timedelta(hours=context.user_data["duration_value"])
         else:

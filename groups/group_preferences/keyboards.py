@@ -1,6 +1,6 @@
 from telegram import InlineKeyboardButton
-from groups.constants import *
-from groups.lang_dicts import *
+from groups.group_preferences.constants import *
+from groups.group_preferences.lang_dicts import *
 
 
 def build_lang_kb():

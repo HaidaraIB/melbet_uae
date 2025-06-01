@@ -1,1 +1,0 @@
-from groups.handlers import group_settings_handler

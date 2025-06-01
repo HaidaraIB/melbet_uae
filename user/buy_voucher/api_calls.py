@@ -1,13 +1,12 @@
 from telegram.ext import ContextTypes
 from utils.api_calls import HEADERS, BASE_URL, handle_rate_limit, _get_request
-from common.constants import TIMEZONE_NAME
+from common.constants import TIMEZONE_NAME, TIMEZONE
 from datetime import datetime, timedelta
 import aiohttp
 import asyncio
 import models
 from typing import List, Dict, Any
 from user.buy_voucher.constants import LEAGUE_MAP
-from common.constants import TIMEZONE
 import logging
 
 log = logging.getLogger(__name__)
@@ -204,13 +203,13 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
 
                                     if existing_results:
                                         existing_results.data = last_results
-                                        existing_results.last_updated = datetime.now()
+                                        existing_results.last_updated = datetime.now(TIMEZONE)
                                     else:
                                         session.add(
                                             models.CachedTeamResults(
                                                 team_id=team_id,
                                                 data=last_results,
-                                                last_updated=datetime.now(),
+                                                last_updated=datetime.now(TIMEZONE),
                                             )
                                         )
                                     processed_teams.add(team_id)
@@ -228,7 +227,7 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
                                     home_id=home_id,
                                     away_id=away_id,
                                     data=h2h_data,
-                                    last_updated=datetime.now(),
+                                    last_updated=datetime.now(TIMEZONE),
                                 )
                             )
                     except Exception as e:
@@ -244,7 +243,7 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
                                     league_id=league_id,
                                     season=season,
                                     data=home_stats,
-                                    last_updated=datetime.now(),
+                                    last_updated=datetime.now(TIMEZONE),
                                 )
                             )
                     except Exception as e:
@@ -262,7 +261,7 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
                                     league_id=league_id,
                                     season=season,
                                     data=away_stats,
-                                    last_updated=datetime.now(),
+                                    last_updated=datetime.now(TIMEZONE),
                                 )
                             )
                     except Exception as e:
@@ -294,13 +293,13 @@ async def store_fixture_odds(context: ContextTypes.DEFAULT_TYPE):
                     )
                     if existing:
                         existing.data = odds_data
-                        existing.last_updated = datetime.now()
+                        existing.last_updated = datetime.now(TIMEZONE)
                     else:
                         session.add(
                             models.CachedOdds(
                                 fixture_id=fixture_id,
                                 data=odds_data,
-                                last_updated=datetime.now(),
+                                last_updated=datetime.now(TIMEZONE),
                             )
                         )
                     session.commit()
@@ -327,13 +326,13 @@ async def store_fixture_stats(context: ContextTypes.DEFAULT_TYPE):
                     )
                     if existing:
                         existing.data = stats_data
-                        existing.last_updated = datetime.now()
+                        existing.last_updated = datetime.now(TIMEZONE)
                     else:
                         session.add(
                             models.CachedStats(
                                 fixture_id=fixture_id,
                                 data=stats_data,
-                                last_updated=datetime.now(),
+                                last_updated=datetime.now(TIMEZONE),
                             )
                         )
                     session.commit()
@@ -364,7 +363,7 @@ async def store_standings(context: ContextTypes.DEFAULT_TYPE):
 
                     if existing:
                         existing.data = standings_data
-                        existing.last_updated = datetime.now()
+                        existing.last_updated = datetime.now(TIMEZONE)
                     else:
                         session.add(
                             models.CachedStandings(
@@ -372,7 +371,7 @@ async def store_standings(context: ContextTypes.DEFAULT_TYPE):
                                 league_id=league_id,
                                 season=season,
                                 data=standings_data,
-                                last_updated=datetime.now(),
+                                last_updated=datetime.now(TIMEZONE),
                             )
                         )
                     session.commit()
@@ -421,13 +420,13 @@ async def update_team_results(context: ContextTypes.DEFAULT_TYPE):
                         )
                         if existing:
                             existing.data = last_results
-                            existing.last_updated = datetime.now()
+                            existing.last_updated = datetime.now(TIMEZONE)
                         else:
                             session.add(
                                 models.CachedTeamResults(
                                     team_id=team_id,
                                     data=last_results,
-                                    last_updated=datetime.now(),
+                                    last_updated=datetime.now(TIMEZONE),
                                 )
                             )
                 except Exception as e:

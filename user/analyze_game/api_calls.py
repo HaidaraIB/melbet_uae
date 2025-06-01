@@ -1,4 +1,4 @@
-from common.constants import TIMEZONE_NAME, SPORT_API
+from common.constants import TIMEZONE_NAME, SPORT_API, TIMEZONE
 from utils.api_calls import _get_request
 import logging
 from datetime import datetime
@@ -111,7 +111,7 @@ async def get_fixtures_by_sport(sport: str) -> list[dict]:
         "X-RapidAPI-Key": Config.X_RAPIDAPI_KEY,
         "X-RapidAPI-Host": spec["host"],
     }
-    params = {"date": datetime.now().strftime("%Y-%m-%d")}
+    params = {"date": datetime.now(TIMEZONE).strftime("%Y-%m-%d")}
 
     data = await _get_request(url=spec["fixtures_url"], params=params, headers=headers)
     if not data:

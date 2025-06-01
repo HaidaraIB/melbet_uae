@@ -22,3 +22,4 @@ from models.FixtureCache import (
 )
 from models.Plan import Plan
 from models.GroupPreferences import GroupPreferences
+from models.GroupSubscription import GroupSubscription

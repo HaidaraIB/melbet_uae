@@ -6,10 +6,10 @@ from telegram.ext import (
     ConversationHandler,
     CommandHandler,
 )
-from groups.functions import *
-from groups.constants import *
-from groups.keyboards import *
-from groups.lang_dicts import *
+from groups.group_preferences.functions import *
+from groups.group_preferences.constants import *
+from groups.group_preferences.keyboards import *
+from groups.group_preferences.lang_dicts import *
 from common.common import get_lang
 import models
 from common.keyboards import build_back_button
