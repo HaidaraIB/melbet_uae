@@ -486,7 +486,7 @@ async def post_in_groups(
                                 ],
                                 max_tokens=250,
                             )
-                            return summary
+                            return summary.choices[0].message.content
 
                         # Generate summary
                         summary = await generate_group_summary(
