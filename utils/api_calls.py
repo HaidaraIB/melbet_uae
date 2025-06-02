@@ -484,9 +484,9 @@ async def post_in_groups(
                                         "content": prompt,
                                     },
                                 ],
-                                max_tokens=250,
+                                max_completion_tokens=250,
                             )
-                            return summary.choices[0].message.content
+                            return summary.choices[0].message.content.strip()
 
                         # Generate summary
                         summary = await generate_group_summary(
@@ -502,7 +502,7 @@ async def post_in_groups(
                                 InputMediaPhoto(media=infographic),
                                 InputMediaPhoto(media=branding_image),
                             ],
-                            caption=summary.choices[0].message.content.strip(),
+                            caption=summary,
                         )
                     except Exception as e:
                         log.error(f"Error posting to group {sub.group_id}: {str(e)}")
@@ -559,7 +559,7 @@ async def generate_match_summary(team1: str, team2: str, summary_stats: list):
                 "content": match_details,
             },
         ],
-        max_tokens=250,
+        max_completion_tokens=250,
     )
 
     cta = (
