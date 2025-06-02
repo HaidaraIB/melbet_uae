@@ -353,7 +353,7 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
                     "content": prompt,
                 }
             ],
-            max_tokens=250,
+            max_tokens=150,
         )
 
         analysis = response.choices[0].message.content.strip()
@@ -484,7 +484,7 @@ async def post_in_groups(
                                         "content": prompt,
                                     },
                                 ],
-                                max_completion_tokens=250,
+                                max_completion_tokens=150,
                             )
                             return summary.choices[0].message.content.strip()
 
@@ -559,7 +559,7 @@ async def generate_match_summary(team1: str, team2: str, summary_stats: list):
                 "content": match_details,
             },
         ],
-        max_completion_tokens=250,
+        max_completion_tokens=150,
     )
 
     cta = (
