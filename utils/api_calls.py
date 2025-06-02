@@ -413,78 +413,104 @@ async def post_in_groups(
     team1: str,
     team2: str,
     league_id: int,
-    infographic,
+    infographic: BytesIO,
     stats: str,
 ):
-    with models.session_scope() as s:
-        subs = (
-            s.query(models.GroupSubscription)
-            .filter_by(is_active=True, status="active")
-            .all()
-        )
-        for sub in subs:
-            pref = (
-                s.query(models.GroupPreferences)
-                .filter_by(group_id=sub.group_id)
-                .first()
+    try:
+        with models.session_scope() as s:
+            subs = (
+                s.query(models.GroupSubscription)
+                .filter_by(is_active=True, status="active")
+                .all()
             )
-            sport_check, league_check = False, False
-            if not pref.sports:
-                sport_check, league_check = True, True
-            else:
-                for sport, leagues in (pref.sports or {}).items():
-                    sport_check, league_check = False, False
-                    if sport == "football":
-                        sport_check = True
-                        if not leagues or league_id in leagues:
-                            league_check = True
-                            break
-            if sport_check and league_check:
-                img_prompt = build_multi_branding_prompt(
-                    brands=pref.brands,
-                    match_title=f"{team1} vs {team2}",
-                )
-                image = await openai.images.generate(
-                    model=Config.DALL_E_MODEL,
-                    prompt=img_prompt,
-                    n=1,
-                    size="1024x1024",
-                )
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(image.data[0].url) as response:
-                        image_data = await response.read()
 
-                async def generate_group_summary(
-                    team1: str, team2: str, stats: str, prefs: models.GroupPreferences
-                ):
-                    prompt = (
-                        f"Write a short match summary for {team1} vs {team2}.\n"
-                        f"Language: {prefs.language}, Dialect: {prefs.dialect}.\n"
-                        f"Stats: {stats}\n"
-                        "Style: Enthusiastic, engaging for betting group."
-                    )
-                    summary = await openai.chat.completions.create(
-                        model=Config.GPT_MODEL,
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": prompt,
-                            },
-                        ],
-                    )
-                    return summary
+            # Make sure infographic is at position 0
+            infographic.seek(0)
 
-                summary = await generate_group_summary(
-                    team1=team1, team2=team2, stats=stats, prefs=pref
+            for sub in subs:
+                pref = (
+                    s.query(models.GroupPreferences)
+                    .filter_by(group_id=sub.group_id)
+                    .first()
                 )
-                await context.bot.send_media_group(
-                    chat_id=sub.group_id,
-                    media=[
-                        InputMediaPhoto(media=infographic),
-                        InputMediaPhoto(media=BytesIO(image_data)),
-                    ],
-                    caption=summary.choices[0].message.content.strip(),
-                )
+
+                # Check sport and league preferences
+                sport_check, league_check = False, False
+                if not pref or not pref.sports:
+                    sport_check, league_check = True, True
+                else:
+                    for sport, leagues in (pref.sports or {}).items():
+                        if sport == "football":
+                            sport_check = True
+                            if not leagues or league_id in leagues:
+                                league_check = True
+                                break
+
+                if sport_check and league_check:
+                    try:
+                        # Generate branding image
+                        img_prompt = build_multi_branding_prompt(
+                            brands=pref.brands,
+                            match_title=f"{team1} vs {team2}",
+                        )
+                        image = await openai.images.generate(
+                            model=Config.DALL_E_MODEL,
+                            prompt=img_prompt,
+                            n=1,
+                            size="1024x1024",
+                        )
+
+                        async with aiohttp.ClientSession() as session:
+                            async with session.get(image.data[0].url) as response:
+                                image_data = await response.read()
+                                branding_image = BytesIO(image_data)
+                                branding_image.seek(0)
+
+                        async def generate_group_summary(
+                            team1: str,
+                            team2: str,
+                            stats: str,
+                            prefs: models.GroupPreferences,
+                        ):
+                            prompt = (
+                                f"Write a short match summary for {team1} vs {team2}.\n"
+                                f"Language: {prefs.language}, Dialect: {prefs.dialect}.\n"
+                                f"Stats: {stats}\n"
+                                "Style: Enthusiastic, engaging for betting group."
+                            )
+                            summary = await openai.chat.completions.create(
+                                model=Config.GPT_MODEL,
+                                messages=[
+                                    {
+                                        "role": "user",
+                                        "content": prompt,
+                                    },
+                                ],
+                            )
+                            return summary
+
+                        # Generate summary
+                        summary = await generate_group_summary(
+                            team1=team1, team2=team2, stats=stats, prefs=pref
+                        )
+
+                        # Make sure infographic is at position 0 again
+                        infographic.seek(0)
+
+                        await context.bot.send_media_group(
+                            chat_id=sub.group_id,
+                            media=[
+                                InputMediaPhoto(media=infographic),
+                                InputMediaPhoto(media=branding_image),
+                            ],
+                            caption=summary.choices[0].message.content.strip(),
+                        )
+                    except Exception as e:
+                        log.error(f"Error posting to group {sub.group_id}: {str(e)}")
+                        continue
+    except Exception as e:
+        log.error(f"Error in post_in_groups: {str(e)}")
+        raise
 
 
 def extract_stats(json_data: list[dict]):
