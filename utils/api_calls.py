@@ -88,7 +88,6 @@ async def get_daily_fixtures() -> list[dict]:
     """Fetch all fixtures for today across important leagues"""
     now = datetime.now(TIMEZONE)
     today = now.strftime("%Y-%m-%d")
-    seasons = now.year - 1, now.year
     all_fixtures = []
 
     url = f"{BASE_URL}/fixtures"
@@ -101,7 +100,6 @@ async def get_daily_fixtures() -> list[dict]:
         fixtures = filter_fixtures(await _get_request(url, querystring))
         for fixture in fixtures:
             all_fixtures.append(_extract_fixture_data(fixture=fixture))
-        await asyncio.sleep(5)
     except Exception as e:
         log.error(f"Error fetching fixtures: {e}")
 

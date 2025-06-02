@@ -307,34 +307,38 @@ def filter_fixtures(fixtures: list):
 
 
 def build_multi_branding_prompt(brands: list[str], match_title: str, team_colors=None):
-    if not brands:
-        brands = ["888starz"]  # الافتراضي
+    if not brands:  # ⛔️ لا علامات تجارية مفعّلة، لا هوية بصرية
+        return (
+            f"Premium digital poster for Telegram, showcasing a thrilling football match: {match_title}. "
+            f"Focus on energy, excitement, and vibrant colors representing both teams: {team_colors or '...'}."
+            " Modern and premium design. No branding. Size: 1280x720."
+        )
+
     if len(brands) == 1:
         b = brands[0]
         brand = BRANDS[b]
-        prompt = (
-            f"Premium digital poster for Telegram, promoting a high-stakes football match: {match_title}."
-            f"• {brand['logo_prompt']}"
-            f"• Use brand colors: {', '.join(brand['brand_colors'])}."
-            f"• Slogan: {brand['slogan']} (small font)."
-            f"• Highlight: {match_title}, team themes: {team_colors or '...'}."
-            f"• Modern, bold, premium style, fits 1280x720."
+        return (
+            f"Premium digital poster for Telegram, promoting a high-stakes football match: {match_title}. "
+            f"• {brand['logo_prompt']} "
+            f"• Use brand colors: {', '.join(brand['brand_colors'])}. "
+            f"• Slogan: {brand['slogan']} (small font). "
+            f"• Focus on team identity and excitement: {team_colors or '...'}."
+            " Bold, modern, fits 1280x720."
         )
-    else:
-        prompt = f"Premium split-layout poster (multi-brand):"
-        part_count = len(brands)
-        for i, b in enumerate(brands, 1):
-            brand = BRANDS[b]
-            prompt += (
-                f"--- Section {i} of {part_count} ---"
-                f"• Branding: {brand['display_name']}"
-                f"• {brand['logo_prompt']}"
-                f"• Colors: {', '.join(brand['brand_colors'])}"
-                f"• Slogan: {brand['slogan']}"
-            )
+
+    # حالة علامات متعددة: تصميم مقسّم
+    prompt = f"Premium split-layout poster (multi-brand):"
+    for i, b in enumerate(brands, 1):
+        brand = BRANDS[b]
         prompt += (
-            f"• Main focus: {match_title}, teams: {team_colors or '...'}\n"
-            "• Each brand gets a visual section (vertical/horizontal split).\n"
-            "• Unified premium sports betting style. Not cluttered, fits 1280x720."
+            f"\n--- Section {i} ---\n"
+            f"• Brand: {brand['display_name']}\n"
+            f"• {brand['logo_prompt']}\n"
+            f"• Colors: {', '.join(brand['brand_colors'])}\n"
+            f"• Slogan: {brand['slogan']}"
         )
+    prompt += (
+        f"\n• Central Match: {match_title}, team colors: {team_colors or '...'}.\n"
+        "• Style: Split visual per brand, vibrant, premium sports betting tone. Size: 1280x720."
+    )
     return prompt

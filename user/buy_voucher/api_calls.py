@@ -8,6 +8,7 @@ import models
 from typing import List, Dict, Any
 from user.buy_voucher.constants import LEAGUE_MAP
 import logging
+from utils.functions import filter_fixtures
 
 log = logging.getLogger(__name__)
 
@@ -16,56 +17,19 @@ async def get_fixtures(
     from_date: datetime,
     to_date: datetime,
 ) -> List[Dict[str, Any]]:
-    MAX_CONCURRENT_REQUESTS = 10
-    results = []
-    semaphore = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
     async with aiohttp.ClientSession() as session:
-        tasks = []
-        for l_id in set(LEAGUE_MAP.values()):
-            for season in (from_date.year, from_date.year - 1):
-                url = f"{BASE_URL}/fixtures"
-                params = {
-                    "league": l_id,
-                    "from": from_date.strftime("%Y-%m-%d"),
-                    "to": to_date.strftime("%Y-%m-%d"),
-                    "timezone": TIMEZONE_NAME,
-                    "season": season,
-                }
-                tasks.append(
-                    fetch_fixtures_with_rate_limit(session, url, params, semaphore)
-                )
-
-        # Process tasks in batches with delay
-        for i in range(0, len(tasks), MAX_CONCURRENT_REQUESTS):
-            batch = tasks[i : i + MAX_CONCURRENT_REQUESTS]
-            responses = await asyncio.gather(*batch)
-            for data in responses:
-                if isinstance(data, dict) and data.get("response", []):
-                    results.extend(data["response"])
-        return results
-
-
-async def fetch_fixtures_with_rate_limit(
-    session: aiohttp.ClientSession,
-    url: str,
-    params: Dict[str, Any],
-    semaphore: asyncio.Semaphore,
-) -> Dict[str, Any]:
-    async with semaphore:
-        return await fetch_fixtures(session, url, params)
-
-
-async def fetch_fixtures(
-    session: aiohttp.ClientSession,
-    url: str,
-    params: Dict[str, Any],
-) -> Dict[str, Any]:
-    async with session.get(url, params=params, headers=HEADERS) as response:
-        if response.status == 429:
-            return await handle_rate_limit(fetch_fixtures, session, url, params)
-        response.raise_for_status()
-        return await response.json()
+        url = f"{BASE_URL}/fixtures"
+        params = {
+            "from": from_date.strftime("%Y-%m-%d"),
+            "to": to_date.strftime("%Y-%m-%d"),
+            "timezone": TIMEZONE_NAME,
+        }
+        try:
+            fixtures = filter_fixtures(await _get_request(url, params))
+            return fixtures
+        except Exception as e:
+            log.error(f"Error fetching fixtures: {e}")
 
 
 async def get_fixture_odds(fixture_id: int) -> list:
@@ -203,7 +167,9 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
 
                                     if existing_results:
                                         existing_results.data = last_results
-                                        existing_results.last_updated = datetime.now(TIMEZONE)
+                                        existing_results.last_updated = datetime.now(
+                                            TIMEZONE
+                                        )
                                     else:
                                         session.add(
                                             models.CachedTeamResults(
