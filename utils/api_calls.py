@@ -484,6 +484,7 @@ async def post_in_groups(
                                         "content": prompt,
                                     },
                                 ],
+                                max_tokens=250,
                             )
                             return summary
 
