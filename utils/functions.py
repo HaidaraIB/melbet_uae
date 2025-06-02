@@ -305,40 +305,52 @@ def filter_fixtures(fixtures: list):
         if fix["league_id"] in [l_id["id"] for l_id in IMPORTANT_LEAGUES.values()]
     ]
 
+def build_enhanced_poster_prompt(
+    match_title: str,
+    league_name: str,
+    match_datetime: str,
+    stats_summary: str,
+    brands: list[str],
+    team_colors: str = None,
+) -> str:
+    league_block = f"🏆 Tournament: {league_name}\n🕒 Kick-off: {match_datetime}\n"
+    stats_block = f"📊 Key Stats: {stats_summary}\n🎨 Team Colors: {team_colors}\n"
 
-def build_multi_branding_prompt(brands: list[str], match_title: str, team_colors=None):
-    if not brands:  # ⛔️ لا علامات تجارية مفعّلة، لا هوية بصرية
-        return (
-            f"Premium digital poster for Telegram, showcasing a thrilling football match: {match_title}. "
-            f"Focus on energy, excitement, and vibrant colors representing both teams: {team_colors or '...'}."
-            " Modern and premium design. No branding. Size: 1280x720."
-        )
+    base_prompt = (
+        f"Design a premium Telegram sports betting poster (1280x720), "
+        f"featuring the match: {match_title}.\n"
+        f"{league_block}"
+        f"{stats_block}"
+        "🎯 Design Requirements:\n"
+        "- Display real club logos in top corners.\n"
+        "- Use glowing infographics for stats (possession, shots, xG).\n"
+        "- Center the pitch in 3D style with visible player formations.\n"
+        "- Surrounding: vibrant crowd, depth lights, stadium motion.\n"
+        "- Fonts: clean, modern, no hallucinated symbols or fake words.\n"
+        "- No placeholder numbers. Respect real context.\n"
+    )
 
     if len(brands) == 1:
-        b = brands[0]
-        brand = BRANDS[b]
-        return (
-            f"Premium digital poster for Telegram, promoting a high-stakes football match: {match_title}. "
-            f"• {brand['logo_prompt']} "
-            f"• Use brand colors: {', '.join(brand['brand_colors'])}. "
-            f"• Slogan: {brand['slogan']} (small font). "
-            f"• Focus on team identity and excitement: {team_colors or '...'}."
-            " Bold, modern, fits 1280x720."
+        brand = BRANDS[brands[0]]
+        base_prompt += (
+            f"🔻 Branding:\n"
+            f"- Add logo: {brand['logo_prompt']}\n"
+            f"- Use brand colors: {', '.join(brand['brand_colors'])}\n"
+            f"- Add slogan: \"{brand['slogan']}\" at the bottom in small font.\n"
         )
+    else:
+        base_prompt += (
+            f"🔻 Multi-brand layout:\n"
+            "- Split the poster visually (vertical or horizontal).\n"
+        )
+        for b in brands:
+            brand = BRANDS[b]
+            base_prompt += (
+                f"--- {brand['display_name']} ---\n"
+                f"- Logo prompt: {brand['logo_prompt']}\n"
+                f"- Colors: {', '.join(brand['brand_colors'])}\n"
+                f"- Slogan: \"{brand['slogan']}\"\n"
+            )
 
-    # حالة علامات متعددة: تصميم مقسّم
-    prompt = f"Premium split-layout poster (multi-brand):"
-    for i, b in enumerate(brands, 1):
-        brand = BRANDS[b]
-        prompt += (
-            f"\n--- Section {i} ---\n"
-            f"• Brand: {brand['display_name']}\n"
-            f"• {brand['logo_prompt']}\n"
-            f"• Colors: {', '.join(brand['brand_colors'])}\n"
-            f"• Slogan: {brand['slogan']}"
-        )
-    prompt += (
-        f"\n• Central Match: {match_title}, team colors: {team_colors or '...'}.\n"
-        "• Style: Split visual per brand, vibrant, premium sports betting tone. Size: 1280x720."
-    )
-    return prompt
+    base_prompt += "\n💡 Keep overall layout premium, bold, and ready for sports Telegram groups."
+    return base_prompt

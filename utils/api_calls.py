@@ -9,7 +9,7 @@ from utils.functions import (
     generate_infographic,
     draw_double_lineup_image,
     filter_fixtures,
-    build_multi_branding_prompt,
+    build_enhanced_poster_prompt,
 )
 import logging
 import asyncio
@@ -130,6 +130,14 @@ async def get_fixture_status(fixture_id: int) -> str:
     except Exception as e:
         log.error(f"Error checking fixture status: {e}")
         return "UNKNOWN"
+
+
+async def get_fixture(fixture_id: int):
+    """Check if fixture has ended"""
+    url = f"{BASE_URL}/fixtures"
+    querystring = {"id": fixture_id}
+
+    return await _get_request(url, querystring)
 
 
 # region Jobs
@@ -374,8 +382,8 @@ async def _send_post_match_stats(
     fixture_id: int,
     context: ContextTypes.DEFAULT_TYPE,
     chat_id: int = Config.MONITOR_GROUP_ID,
-    league_id: int = None,
 ):
+    fix_data = await get_fixture(fixture_id)
     stats_data = await get_fixture_stats(fixture_id)
 
     if stats_data:
@@ -399,7 +407,8 @@ async def _send_post_match_stats(
                 context=context,
                 team1=team1,
                 team2=team2,
-                league_id=league_id,
+                league=fix_data[0]["league"],
+                d=fix_data[0]['fixture']["date"],
                 infographic=infographic,
                 stats=summary_stats,
             )
@@ -410,7 +419,8 @@ async def post_in_groups(
     context: ContextTypes.DEFAULT_TYPE,
     team1: str,
     team2: str,
-    league_id: int,
+    league: dict,
+    d: str,
     infographic: BytesIO,
     stats: str,
 ):
@@ -440,16 +450,19 @@ async def post_in_groups(
                     for sport, leagues in (pref.sports or {}).items():
                         if sport == "football":
                             sport_check = True
-                            if not leagues or league_id in leagues:
+                            if not leagues or league["id"] in leagues:
                                 league_check = True
                                 break
 
                 if sport_check and league_check:
                     try:
                         # Generate branding image
-                        img_prompt = build_multi_branding_prompt(
-                            brands=pref.brands,
+                        img_prompt = build_enhanced_poster_prompt(
                             match_title=f"{team1} vs {team2}",
+                            league_name=league["name"],
+                            match_datetime=d,
+                            stats_summary=stats,
+                            brands=pref.brands,
                         )
                         image = await openai.images.generate(
                             model=Config.DALL_E_MODEL,
