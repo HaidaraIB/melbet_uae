@@ -51,4 +51,10 @@ def prompt_panel():
                 callback_data="edit_prompt_voucher",
             )
         ],
+        [
+            InlineKeyboardButton(
+                "تعليمات الإيداع والسحب",
+                callback_data="edit_prompt_dp_wd_instructions",
+            )
+        ],
     ]
