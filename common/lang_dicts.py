@@ -49,8 +49,8 @@ TEXTS = {
             "ملخص القسيمة\n"
             "- المدة: {}\n"
             "- Odds: {}\n"
-            "- التفضيلات: {}\n"
-            "- السعر: {} AED\n\n"
+            "- السعر: {} AED\n"
+            "- التفضيلات:\n{}\n\n"
             "هل تريد المتابعة للدفع؟"
         ),
         "voucher_canceled": "تم إلغاء القسيمة",
@@ -91,6 +91,14 @@ TEXTS = {
         "subscription_expired": "تم إلغاء تفعيل اشتراكك. إذا أردت إعادة التفعيل يمكنك الاشتراك من جديد ❗️",
         "already_subscribed": "أنت مشترك بالفعل ❗️",
         "choose_sport": "اختر رياضة من القائمة أدناه",
+        "create_account_group_reply": (
+            "👋 مرحباً <b>{}</b>!\n\n"
+            "🔗 رابطك الشخصي للتسجيل: <a href={}>رابط التسجيل</a>\n"
+            "⬇️ لتحميل التطبيق: <a href={}>رابط التحميل</a>\n"
+            "استخدم هذا الرابط حتى نتمكّن من تتبع مكافآتك 🎁"
+        ),
+        "start_chat_first": "يرجى فتح محادثة خاصة معي أولاً ثم إعادة إرسال كلمة حساب ❗️",
+        "link_sent_in_private": "📩 تم إرسال الرابط في الخاص ✅",
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -140,8 +148,8 @@ TEXTS = {
             "Voucher Summary\n"
             "- Duration: {}\n"
             "- Odds: {}\n"
-            "- Preferences: {}\n"
-            "- Price: {} AED\n\n"
+            "- Price: {} AED\n"
+            "- Preferences:\n{}\n\n"
             "Continue to Payment?"
         ),
         "voucher_canceled": "Voucher Canceled",
@@ -183,6 +191,14 @@ TEXTS = {
         "subscription_expired": "Your Subscription has expired, you can activate your subscription by subscribing again ❗️",
         "already_subscribed": "You already have a subscription ❗️",
         "choose_sport": "Choose a sport from the menue below",
+        "create_account_group_reply": (
+            "👋 Hello <b>{}</b>!\n\n"
+            "🔗 Your Personal link to register: <a href={}>Registeration Link</a>\n"
+            "⬇️ Download the app: <a href={}>Download Link</a>\n"
+            "🎁 Use This link to be able to keep track of your rewards"
+        ),
+        "start_chat_first": "Please start a chat with me first and then resend the last message you sent ❗️",
+        "link_sent_in_private": "📩 Registeration link was sent in private, check your inbox ✅",
     },
 }
 
@@ -203,6 +219,7 @@ BUTTONS = {
         "cancel_voucher": "إلغاء ❌",
         "choose_pref_for_me": "اختر لي",
         "choose_pref_league": "من بطولة محددة",
+        "choose_pref_sport": "من رياضة محددة",
         "choose_pref_matches": "من مباريات محددة",
         "prev": "⬅️ السابق",
         "next": "التالي ➡️",
@@ -230,6 +247,7 @@ BUTTONS = {
         "cancel_voucher": "Cancel ❌",
         "choose_pref_for_me": "Choose For Me",
         "choose_pref_league": "Specific League",
+        "choose_pref_sport": "Specific Sport",
         "choose_pref_matches": "Specific Matches",
         "prev": "⬅️ Previous",
         "next": "Next ➡️",

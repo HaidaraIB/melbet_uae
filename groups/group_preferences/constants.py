@@ -42,6 +42,7 @@ DIALECTS = {
         "cv": "Cape Verdean Portuguese",
     },
 }
+
 SPORTS = {
     "football": {
         Language.ARABIC: "⚽️ كرة القدم",
@@ -60,8 +61,10 @@ SPORTS = {
         Language.ENGLISH: "American Football 🏈",
     },
 }
+
 LEAGUES = {
     "football": {
+        # Top European Leagues
         "premier_league": {
             "name": "Premier League",
             "country": "England",
@@ -87,6 +90,67 @@ LEAGUES = {
             "country": "France",
             "id": 61,
         },
+        "eredivisie": {
+            "name": "Eredivisie",
+            "country": "Netherlands",
+            "id": 88,
+        },
+        "primeira_liga": {
+            "name": "Primeira Liga",
+            "country": "Portugal",
+            "id": 94,
+        },
+        "belgian_pro_league": {
+            "name": "Belgian Pro League",
+            "country": "Belgium",
+            "id": 144,
+        },
+        "scottish_premiership": {
+            "name": "Scottish Premiership",
+            "country": "Scotland",
+            "id": 179,
+        },
+        "swiss_super_league": {
+            "name": "Swiss Super League",
+            "country": "Switzerland",
+            "id": 207,
+        },
+        "austrian_bundesliga": {
+            "name": "Austrian Bundesliga",
+            "country": "Austria",
+            "id": 218,
+        },
+        "russian_premier_liga": {
+            "name": "Russian Premier Liga",
+            "country": "Russia",
+            "id": 235,
+        },
+        "ukrainian_premier_liga": {
+            "name": "Ukrainian Premier League",
+            "country": "Ukraine",
+            "id": 333,
+        },
+        "turkish_super_lig": {
+            "name": "Süper Lig",
+            "country": "Turkey",
+            "id": 203,
+        },
+        "danish_superliga": {
+            "name": "Danish Superliga",
+            "country": "Denmark",
+            "id": 119,
+        },
+        "norwegian_eliteserien": {
+            "name": "Eliteserien",
+            "country": "Norway",
+            "id": 103,
+        },
+        "swedish_allsvenskan": {
+            "name": "Allsvenskan",
+            "country": "Sweden",
+            "id": 113,
+        },
+        # European Cups
         "champions_league": {
             "name": "UEFA Champions League",
             "country": "Europe",
@@ -102,46 +166,12 @@ LEAGUES = {
             "country": "Europe",
             "id": 848,
         },
-        "caf_champions_league": {
-            "name": "CAF Champions League",
-            "country": "Africa",
-            "id": 2001,
+        "uefa_super_cup": {
+            "name": "UEFA Super Cup",
+            "country": "Europe",
+            "id": 733,
         },
-        "mls": {
-            "name": "Major League Soccer",
-            "country": "USA",
-            "id": 253,
-        },
-        "brasileirao": {
-            "name": "Brasileirão Série A",
-            "country": "Brazil",
-            "id": 71,
-        },
-        "eredivisie": {
-            "name": "Eredivisie",
-            "country": "Netherlands",
-            "id": 88,
-        },
-        "primeira_liga": {
-            "name": "Primeira Liga",
-            "country": "Portugal",
-            "id": 94,
-        },
-        "saudi_pro": {
-            "name": "Saudi Pro League",
-            "country": "Saudi Arabia",
-            "id": 307,
-        },
-        "libertadores": {
-            "name": "Copa Libertadores",
-            "country": "South America",
-            "id": 13,
-        },
-        "sudamericana": {
-            "name": "Copa Sudamericana",
-            "country": "South America",
-            "id": 15,
-        },
+        # Domestic Cups
         "fa_cup": {
             "name": "FA Cup",
             "country": "England",
@@ -172,10 +202,159 @@ LEAGUES = {
             "country": "France",
             "id": 66,
         },
-        "turkish_super_lig": {
-            "name": "Süper Lig",
-            "country": "Turkey",
-            "id": 203,
+        "taça_de_portugal": {
+            "name": "Taça de Portugal",
+            "country": "Portugal",
+            "id": 96,
+        },
+        # International Competitions
+        "world_cup": {
+            "name": "FIFA World Cup",
+            "country": "International",
+            "id": 1,
+        },
+        "euro_qualifiers": {
+            "name": "European Championship Qualifiers",
+            "country": "Europe",
+            "id": 47,
+        },
+        "euro_championship": {
+            "name": "UEFA European Championship",
+            "country": "Europe",
+            "id": 4,
+        },
+        "nations_league": {
+            "name": "UEFA Nations League",
+            "country": "Europe",
+            "id": 5,
+        },
+        "copa_america": {
+            "name": "Copa América",
+            "country": "South America",
+            "id": 9,
+        },
+        "gold_cup": {
+            "name": "CONCACAF Gold Cup",
+            "country": "North America",
+            "id": 14,
+        },
+        "afcon": {
+            "name": "Africa Cup of Nations",
+            "country": "Africa",
+            "id": 12,
+        },
+        "asian_cup": {
+            "name": "AFC Asian Cup",
+            "country": "Asia",
+            "id": 16,
+        },
+        "world_cup_qualifiers": {
+            "name": "FIFA World Cup Qualifiers",
+            "country": "International",
+            "id": 10,
+        },
+        "club_world_cup": {
+            "name": "FIFA Club World Cup",
+            "country": "International",
+            "id": 7,
+        },
+        # Americas
+        "mls": {
+            "name": "Major League Soccer",
+            "country": "USA",
+            "id": 253,
+        },
+        "liga_mx": {
+            "name": "Liga MX",
+            "country": "Mexico",
+            "id": 262,
+        },
+        "argentine_liga_profesional": {
+            "name": "Liga Profesional Argentina",
+            "country": "Argentina",
+            "id": 128,
+        },
+        "brasileirao": {
+            "name": "Brasileirão Série A",
+            "country": "Brazil",
+            "id": 71,
+        },
+        "colombian_liga": {
+            "name": "Liga BetPlay Dimayor",
+            "country": "Colombia",
+            "id": 239,
+        },
+        "chilean_primera": {
+            "name": "Primera División de Chile",
+            "country": "Chile",
+            "id": 265,
+        },
+        "peruvian_liga": {
+            "name": "Liga 1",
+            "country": "Peru",
+            "id": 284,
+        },
+        "ecuadorian_liga": {
+            "name": "Liga Pro",
+            "country": "Ecuador",
+            "id": 283,
+        },
+        "libertadores": {
+            "name": "Copa Libertadores",
+            "country": "South America",
+            "id": 13,
+        },
+        "sudamericana": {
+            "name": "Copa Sudamericana",
+            "country": "South America",
+            "id": 15,
+        },
+        "concacaf_champions_league": {
+            "name": "CONCACAF Champions League",
+            "country": "North America",
+            "id": 17,
+        },
+        # Asia
+        "j_league": {
+            "name": "J1 League",
+            "country": "Japan",
+            "id": 98,
+        },
+        "k_league": {
+            "name": "K League 1",
+            "country": "South Korea",
+            "id": 292,
+        },
+        "chinese_super_league": {
+            "name": "Chinese Super League",
+            "country": "China",
+            "id": 169,
+        },
+        "saudi_pro": {
+            "name": "Saudi Pro League",
+            "country": "Saudi Arabia",
+            "id": 307,
+        },
+        "qatar_stars_league": {
+            "name": "Qatar Stars League",
+            "country": "Qatar",
+            "id": 310,
+        },
+        "australian_a_league": {
+            "name": "A-League",
+            "country": "Australia",
+            "id": 106,
+        },
+        "indian_super_league": {
+            "name": "Indian Super League",
+            "country": "India",
+            "id": 323,
+        },
+        # Africa
+        "caf_champions_league": {
+            "name": "CAF Champions League",
+            "country": "Africa",
+            "id": 2001,
         },
         "egyptian_premier_league": {
             "name": "Egyptian Premier League",
@@ -186,6 +365,21 @@ LEAGUES = {
             "name": "Botola Pro",
             "country": "Morocco",
             "id": 200,
+        },
+        "south_african_psl": {
+            "name": "Premier Soccer League",
+            "country": "South Africa",
+            "id": 288,
+        },
+        "algerian_liga": {
+            "name": "Ligue 1",
+            "country": "Algeria",
+            "id": 201,
+        },
+        "tunisian_liga": {
+            "name": "Ligue 1",
+            "country": "Tunisia",
+            "id": 202,
         },
     },
     "basketball": {
@@ -229,32 +423,40 @@ LEAGUES = {
             "country": "Greece",
             "id": 296,
         },
-    },
-    "tennis": {
-        "atp_wimbledon": {
-            "name": "ATP Wimbledon",
-            "country": "UK",
-            "id": 540,
-        },
-        "atp_roland_garros": {
-            "name": "ATP Roland Garros",
+        "french_pro_a": {
+            "name": "LNB Pro A",
             "country": "France",
-            "id": 541,
+            "id": 299,
         },
-        "atp_us_open": {
-            "name": "ATP US Open",
-            "country": "USA",
-            "id": 542,
+        "german_bbl": {
+            "name": "Basketball Bundesliga",
+            "country": "Germany",
+            "id": 300,
         },
-        "atp_australian_open": {
-            "name": "ATP Australian Open",
+        "eurocup": {
+            "name": "EuroCup Basketball",
+            "country": "Europe",
+            "id": 286,
+        },
+        "champions_league": {
+            "name": "Basketball Champions League",
+            "country": "Europe",
+            "id": 287,
+        },
+        "fibas_americas": {
+            "name": "FIBA Americas League",
+            "country": "Americas",
+            "id": 301,
+        },
+        "cba": {
+            "name": "Chinese Basketball Association",
+            "country": "China",
+            "id": 302,
+        },
+        "nbl": {
+            "name": "National Basketball League",
             "country": "Australia",
-            "id": 543,
-        },
-        "atp_masters": {
-            "name": "ATP Masters 1000",
-            "country": "World",
-            "id": 544,
+            "id": 303,
         },
     },
     "hockey": {
@@ -278,6 +480,36 @@ LEAGUES = {
             "country": "Finland",
             "id": 55,
         },
+        "del": {
+            "name": "DEL",
+            "country": "Germany",
+            "id": 56,
+        },
+        "nla": {
+            "name": "National League",
+            "country": "Switzerland",
+            "id": 57,
+        },
+        "extraliga": {
+            "name": "Tipsport Extraliga",
+            "country": "Czech Republic",
+            "id": 58,
+        },
+        "ahl": {
+            "name": "AHL",
+            "country": "USA/Canada",
+            "id": 59,
+        },
+        "iihf_world_championship": {
+            "name": "IIHF World Championship",
+            "country": "International",
+            "id": 60,
+        },
+        "champions_hockey_league": {
+            "name": "Champions Hockey League",
+            "country": "Europe",
+            "id": 61,
+        },
     },
     "american football": {
         "nfl": {
@@ -295,8 +527,24 @@ LEAGUES = {
             "country": "Canada",
             "id": 3,
         },
+        "xfl": {
+            "name": "XFL",
+            "country": "USA",
+            "id": 4,
+        },
+        "european_league": {
+            "name": "European League of Football",
+            "country": "Europe",
+            "id": 5,
+        },
+        "arena_football": {
+            "name": "Arena Football League",
+            "country": "USA",
+            "id": 6,
+        },
     },
 }
+
 BRANDS = {
     "888starz": {
         "display_name": "888STARZ",

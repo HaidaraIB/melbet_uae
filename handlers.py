@@ -17,6 +17,7 @@ from user.user_settings import *
 from user.analyze_game import *
 from user.buy_voucher import *
 from user.our_plans import *
+from user.account_settings import *
 
 from admin.admin_calls import *
 from admin.admin_settings import *
@@ -34,6 +35,7 @@ from client.client_calls import *
 from models import init_db
 
 from TeleClientSingleton import TeleClientSingleton
+from Config import Config
 
 from MyApp import MyApp
 from jobs import check_suspicious_users, send_periodic_messages
@@ -135,30 +137,30 @@ def setup_and_run():
         },
     )
 
-    app.job_queue.run_daily(
-        callback=update_team_results,
-        time=time(
-            hour=3,
-            minute=0,
-            tzinfo=TIMEZONE,
-        ),
-        job_kwargs={
-            "id": "daily_team_results_update",
-            "replace_existing": True,
-        },
-    )
-    app.job_queue.run_daily(
-        callback=cache_monthly_fixtures,
-        time=time(
-            hour=1,
-            minute=0,
-            tzinfo=TIMEZONE,
-        ),
-        job_kwargs={
-            "id": "cache_monthly_fixtures",
-            "replace_existing": True,
-        },
-    )
+    # app.job_queue.run_daily(
+    #     callback=update_team_results,
+    #     time=time(
+    #         hour=3,
+    #         minute=0,
+    #         tzinfo=TIMEZONE,
+    #     ),
+    #     job_kwargs={
+    #         "id": "daily_team_results_update",
+    #         "replace_existing": True,
+    #     },
+    # )
+    # app.job_queue.run_daily(
+    #     callback=cache_monthly_fixtures,
+    #     time=time(
+    #         hour=1,
+    #         minute=0,
+    #         tzinfo=TIMEZONE,
+    #     ),
+    #     job_kwargs={
+    #         "id": "cache_monthly_fixtures",
+    #         "replace_existing": True,
+    #     },
+    # )
 
     # app.job_queue.run_once(
     #     callback=cache_monthly_fixtures,
@@ -170,6 +172,13 @@ def setup_and_run():
     # )
 
     tele_client = TeleClientSingleton()
+    tele_client.add_event_handler(
+        create_account,
+        events.NewMessage(
+            chats=Config.MONITOR_GROUP_ID,
+            pattern=f".*((انشاء حساب)|(إنشاء حساب)|(حساب)|(account)|(Account)|(create account)|(Create account)|(create Account)|(Create Account)).*",
+        ),
+    )
     tele_client.add_event_handler(client_handler, events.NewMessage(incoming=True))
     tele_client.add_event_handler(
         end_session, events.NewMessage(outgoing=True, pattern="/end")

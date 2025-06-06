@@ -12,7 +12,7 @@ class User(Base):
     user_id = sa.Column(sa.BigInteger, primary_key=True)
     username = sa.Column(sa.String)
     name = sa.Column(sa.String)
-    lang = sa.Column(sa.Enum(Language), default=Language.ARABIC)
+    lang = sa.Column(sa.Enum(Language), default=Language.ENGLISH)
     is_banned = sa.Column(sa.Boolean, default=0)
     is_admin = sa.Column(sa.Boolean, default=0)
 
@@ -51,7 +51,7 @@ class Subscription(Base):
     plan_code = sa.Column(sa.String, sa.ForeignKey("plans.code"))
     multiplier = sa.Column(sa.Float, nullable=True)  # لإدارة رأس المال فقط
     days = sa.Column(sa.Integer, nullable=True)  # لإدارة رأس المال فقط
-    price = sa.Column(sa.String) # necessary for capital management
+    price = sa.Column(sa.String)  # necessary for capital management
     remaining_vouchers = sa.Column(sa.Integer)
     status = sa.Column(sa.String, default="active")  # active / expired / canceled...
     created_at = sa.Column(sa.DateTime, default=datetime.now(TIMEZONE))

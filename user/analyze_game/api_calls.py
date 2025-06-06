@@ -1,4 +1,5 @@
-from common.constants import TIMEZONE_NAME, SPORT_API, TIMEZONE
+from common.constants import TIMEZONE_NAME, TIMEZONE
+from utils.constants import SPORT_API
 from utils.api_calls import _get_request
 import logging
 from datetime import datetime
@@ -22,7 +23,7 @@ async def search_team_id_by_name(name: str, sport: str):
 
 
 async def get_team_statistics_by_sport(
-    team_id: int, league_id: int, season: int, sport: str
+    team_id: int, league_id: int, season: int, sport: str, game_id: int
 ):
     spec = SPORT_API.get(sport)
     if not spec["team_statistics_url"]:
@@ -36,6 +37,11 @@ async def get_team_statistics_by_sport(
         "league": league_id,
         "season": season,
     }
+    if sport == "american_football":
+        params = {
+            "id": game_id,
+            "team": team_id,
+        }
     return await _get_request(
         url=spec["team_statistics_url"], params=params, headers=headers
     )
@@ -94,7 +100,7 @@ async def get_last_matches_by_sport(team_id: int, sport: str, season: str | int)
         "X-RapidAPI-Key": Config.X_RAPIDAPI_KEY,
         "X-RapidAPI-Host": spec["host"],
     }
-    url = f"https://{spec['host']}/fixtures"
+    url = f"https://{spec['host']}/games"
     params = {"team": team_id, "season": season}
     if sport == "football":
         url = f"https://{spec['host']}/v3/fixtures"
@@ -111,12 +117,20 @@ async def get_fixtures_by_sport(sport: str) -> list[dict]:
         "X-RapidAPI-Key": Config.X_RAPIDAPI_KEY,
         "X-RapidAPI-Host": spec["host"],
     }
-    params = {"date": datetime.now(TIMEZONE).strftime("%Y-%m-%d")}
+    params = {
+        "date": datetime.now(TIMEZONE).strftime("%Y-%m-%d"),
+    }
 
     data = await _get_request(url=spec["fixtures_url"], params=params, headers=headers)
     if not data:
         return []
-    
+
+    fixtures = structure_fixtures(sport=sport, data=data)
+
+    return fixtures
+
+
+def structure_fixtures(sport: str, data: list[dict]):
     fixtures = []
     if sport == "football":
         for item in data:
@@ -134,6 +148,7 @@ async def get_fixtures_by_sport(sport: str) -> list[dict]:
                     "league_name": item["league"]["name"],
                     "venue": fixture["venue"]["name"],
                     "date": fixture["date"],
+                    "sport": "football",
                 }
             )
 
@@ -152,6 +167,7 @@ async def get_fixtures_by_sport(sport: str) -> list[dict]:
                     "league_name": item["league"]["name"],
                     "venue": item["venue"],
                     "date": item["date"],
+                    "sport": "basketball",
                 }
             )
 
@@ -171,6 +187,7 @@ async def get_fixtures_by_sport(sport: str) -> list[dict]:
                     "league_name": item["league"]["name"],
                     "venue": fixture["venue"]["name"],
                     "date": item["date"],
+                    "sport": "american_football",
                 }
             )
 
@@ -189,9 +206,9 @@ async def get_fixtures_by_sport(sport: str) -> list[dict]:
                     "league_name": item["league"]["name"],
                     "venue": "N/A",
                     "date": item["date"],
+                    "sport": "hockey",
                 }
             )
-
     return fixtures
 
 

@@ -1,35 +1,47 @@
 from telegram.ext import ContextTypes
-from utils.api_calls import HEADERS, BASE_URL, handle_rate_limit, _get_request
+from utils.api_calls import BASE_URL, _get_request
+from utils.constants import SPORT_API
 from common.constants import TIMEZONE_NAME, TIMEZONE
+from user.analyze_game.api_calls import structure_fixtures
+from Config import Config
 from datetime import datetime, timedelta
-import aiohttp
 import asyncio
 import models
 from typing import List, Dict, Any
-from user.buy_voucher.constants import LEAGUE_MAP
 import logging
-from utils.functions import filter_fixtures
 
 log = logging.getLogger(__name__)
 
 
 async def get_fixtures(
     from_date: datetime,
-    to_date: datetime,
+    duration_in_days: int,
+    sport: str,
 ) -> List[Dict[str, Any]]:
 
-    async with aiohttp.ClientSession() as session:
-        url = f"{BASE_URL}/fixtures"
+    spec = SPORT_API.get(sport)
+    if not spec:
+        return []
+
+    headers = {
+        "X-RapidAPI-Key": Config.X_RAPIDAPI_KEY,
+        "X-RapidAPI-Host": spec["host"],
+    }
+    data = []
+    for day in range(duration_in_days):
         params = {
-            "from": from_date.strftime("%Y-%m-%d"),
-            "to": to_date.strftime("%Y-%m-%d"),
+            "date": (from_date + timedelta(days=day)).strftime("%Y-%m-%d"),
             "timezone": TIMEZONE_NAME,
         }
-        try:
-            fixtures = filter_fixtures(await _get_request(url, params))
-            return fixtures
-        except Exception as e:
-            log.error(f"Error fetching fixtures: {e}")
+        data += await _get_request(
+            url=spec["fixtures_url"], params=params, headers=headers
+        )
+    if not data:
+        return []
+
+    fixtures = structure_fixtures(sport=sport, data=data)
+
+    return fixtures
 
 
 async def get_fixture_odds(fixture_id: int) -> list:

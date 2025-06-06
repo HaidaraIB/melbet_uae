@@ -44,7 +44,7 @@ async def _get_request(url, params, headers=HEADERS):
 
     except Exception as e:
         log.error(f"Error in _get_request: {e}")
-        return None
+        return []
 
 
 async def get_fixture_lineups(fixture_id: int) -> tuple:

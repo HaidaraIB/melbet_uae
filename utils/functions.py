@@ -1,8 +1,8 @@
 from io import BytesIO
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Arc
-from utils.constants import IMPORTANT_LEAGUES
 from groups.group_preferences.constants import BRANDS
+from groups.group_preferences.constants import LEAGUES
 
 
 def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict) -> BytesIO:
@@ -298,12 +298,14 @@ def draw_double_lineup_image(
     return buf
 
 
-def filter_fixtures(fixtures: list):
+def filter_fixtures(fixtures: list, sport: str = "football"):
+    league_ids = [l["id"] for l in LEAGUES[sport].values()]
     return [
         fix
         for fix in fixtures
-        if fix["league_id"] in [l_id["id"] for l_id in IMPORTANT_LEAGUES.values()]
+        if fix["league_id"] in league_ids
     ]
+
 
 def build_enhanced_poster_prompt(
     match_title: str,
@@ -352,5 +354,7 @@ def build_enhanced_poster_prompt(
                 f"- Slogan: \"{brand['slogan']}\"\n"
             )
 
-    base_prompt += "\n💡 Keep overall layout premium, bold, and ready for sports Telegram groups."
+    base_prompt += (
+        "\n💡 Keep overall layout premium, bold, and ready for sports Telegram groups."
+    )
     return base_prompt
