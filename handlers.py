@@ -124,6 +124,15 @@ def setup_and_run():
             "replace_existing": True,
         },
     )
+    app.job_queue.run_repeating(
+        callback=send_periodic_messages,
+        interval=600,
+        data="dp_wd_instructions",
+        job_kwargs={
+            "id": "send_periodic_dp_wd_instructions",
+            "replace_existing": True,
+        },
+    )
     app.job_queue.run_daily(
         callback=schedule_daily_fixtures,
         time=time(
