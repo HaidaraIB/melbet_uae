@@ -17,7 +17,7 @@ from telethon.tl.functions.messages import ExportChatInviteRequest
 from telethon.tl.types import ChatBannedRights
 from openai import AsyncOpenAI
 from Config import Config
-from telethon import events
+import json
 import asyncio
 from sqlalchemy.orm import Session
 from client.client_calls.lang_dicts import *
@@ -41,46 +41,6 @@ def classify_intent(text: str):
     return None
 
 
-def parse_receipt_text(text: str):
-
-    result = {"amount": None, "transaction_id": None, "method": None, "date": None}
-
-    cleaned_text = re.sub(r"[^\w\s\d.:/-]", "", text)
-
-    amount_pattern = r"(?:مبلغ|amount|total|total payment|قيمة|value|مبلغ العملية|إجمالي المبلغ|إجمالي المبلغ المقتطع)?[:\s]*(?:usd|sar|aed|دولار|ريال|جنيه|درهم)?\s*([\d,.]+)|([\d,.]+)\s*(?:usd|sar|aed|دولار|ريال|جنيه|درهم)"
-    transaction_id_pattern = r"(?:رقم العملية|transaction id||رقم المعاملة|ref|reference|رقم|معرف العملية|الرقم المرجعي|المرجعي)[:\s]*([\w-]+)"
-    method_pattern = r"(?:الوسيلة|method|طريقة الدفع|طريقة|payment method|via|بواسطة|paid by)[:\s]*(visa|masterCard|bank transfer|paypal|تحويل بنكي|حوالة بنكية|حساب بنكي|[\w\s]+)|(\b(?:visa|mastercard|paypal|تحويل بنكي|حوالة بنكية|حساب بنكي|بطاقة|كاش)\b)"
-    date_pattern = r"(?:التاريخ|date|تاريخ|issued on|transfer time)[:\s]*(\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}\s+[جمايو|يناير|فبراير|مارس|أبريل|مايو|يونيو|يوليو|أغسطس|سبتمبر|أكتوبر|نوفمبر|ديسمبر]+\s+\d{4})|(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{2}/\d{2}/\d{4}|\d{4}\s+\d{2}\s+\d{2}|\d{2}-\d{2}-\d{4})"
-
-    amount_match = re.search(amount_pattern, cleaned_text, re.IGNORECASE)
-    if amount_match:
-        result["amount"] = amount_match.group(1) or amount_match.group(2)
-
-    transaction_id_match = re.search(
-        transaction_id_pattern, cleaned_text, re.IGNORECASE
-    )
-    if transaction_id_match:
-        result["transaction_id"] = transaction_id_match.group(1)
-
-    method_match = re.search(method_pattern, cleaned_text, re.IGNORECASE)
-    if method_match:
-        result["method"] = method_match.group(1) or method_match.group(2)
-
-    date_match = re.search(date_pattern, cleaned_text, re.IGNORECASE)
-    if date_match:
-        result["date"] = date_match.group(1) or date_match.group(2)
-
-    if result["transaction_id"] in ["المرجعي", "رقم", "معرف"]:
-        result["transaction_id"] = None
-
-    if not any(result.values()):
-        log.warning(f"فشل تحليل النص: {cleaned_text}")
-    else:
-        log.info(f"تم استخراج التفاصيل: {result}")
-
-    return result
-
-
 def is_financial_receipt(text: str) -> bool:
     keywords = [
         "مبلغ",
@@ -97,14 +57,13 @@ def is_financial_receipt(text: str) -> bool:
     return any(keyword.lower() in text.lower() for keyword in keywords)
 
 
-
 async def extract_text_from_photo(event, lang):
     path = None
     photo_name = "photo.jpg"
     try:
         # تحميل الصورة من تيليجرام
         path = await event.download_media(file=photo_name)
-        
+
         # (اختياري) معالجة الصورة للتوضيح، إذا أردت
         img = Image.open(path).convert("L")
         img = img.filter(ImageFilter.SHARPEN)
@@ -131,9 +90,46 @@ async def extract_text_from_photo(event, lang):
         cleaned_text = re.sub(
             r"[^\w\s\d.:/-إأآابتثجحخدذرزسشصضطظعغفقكلمنهويةى]", "", text
         )
-
-        parsed_details = parse_receipt_text(cleaned_text.lower())
         log.info(f"النص المستخرج: {cleaned_text}")
+        resp = await openai.chat.completions.create(
+            model=Config.GPT_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": f""""You are a professional financial assistant.
+
+Given the following payment or bank receipt text, analyze and extract all relevant fields.  
+Return your full response as a single JSON object with these fields:
+- transaction_id (string)
+- from (sender name, string)
+- to (recipient name, string)
+- amount (string/float)
+- currency (string)
+- payment_method (string: bank/service name or logo if present)
+- date (string, if detected)
+- warnings (array of strings, if any field is suspicious or missing, else empty array)
+- summary_ar (string, clear summary in Arabic)
+- summary_en (string, clear summary in English)
+
+If a field is missing, set its value to null.  
+If you detect other relevant info (such as extra logo, country, etc) add a field 'extra' as an object.
+
+Output ONLY a valid JSON object, without any extra explanation or text.
+
+Receipt OCR text:
+
+{cleaned_text}
+
+Pre-parsed fields (for reference, use or correct them as needed):"""
+                }
+            ],
+            temperature=0.7,
+        )
+        content = resp.choices[0].message.content.strip()
+        if "```json" in content:
+            json_part = content.split("```json")[1].split("```")[0].strip()
+        parsed_details = json.loads(r"{}".format(json_part))
+        print(parsed_details)
         return cleaned_text, parsed_details
 
     except Exception as e:
