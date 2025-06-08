@@ -31,3 +31,6 @@ class Config:
     X_RAPIDAPI_BB_HOST = os.getenv("X_RAPIDAPI_BB_HOST")
     X_RAPIDAPI_AFB_HOST = os.getenv("X_RAPIDAPI_AFB_HOST")
     X_RAPIDAPI_H_HOST = os.getenv("X_RAPIDAPI_H_HOST")
+
+    WEBHOOK_API_KEY = os.getenv("WEBHOOK_API_KEY")
+    WEBHOOK_TOKEN = os.getenv("WEBHOOK_TOKEN")

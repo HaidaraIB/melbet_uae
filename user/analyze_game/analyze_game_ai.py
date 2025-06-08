@@ -67,8 +67,7 @@ async def choose_sport(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not update.callback_query.data.startswith("back"):
             sport = update.callback_query.data.replace("analyze_", "")
             fixtures = await get_fixtures_by_sport(sport=sport)
-            if sport == "football":
-                fixtures = filter_fixtures(fixtures)
+            fixtures = filter_fixtures(fixtures=fixtures, sport=sport)
             context.user_data["analyze_game_sport"] = sport
             context.user_data["analyze_game_fixtures"] = fixtures
         else:

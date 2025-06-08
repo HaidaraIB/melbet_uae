@@ -29,6 +29,7 @@ class User(Base):
     account_changes = relationship("MelbetAccountChange", back_populates="user")
     recommendations = relationship("FixtureRecommendation", back_populates="user")
     subscriptions = relationship("Subscription", back_populates="user")
+    transactions = relationship("Transaction", back_populates="user")
 
     # Relationship for fraud logs (both as user and copied_from)
     fraud_committed = relationship(

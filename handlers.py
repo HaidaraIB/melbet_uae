@@ -108,7 +108,7 @@ def setup_and_run():
 
     app.job_queue.run_repeating(
         callback=send_periodic_messages,
-        interval=2 * 60 * 60,
+        interval=3 * 60 * 60,
         data="security_messages",
         job_kwargs={
             "id": "send_periodic_security_messages",
@@ -185,12 +185,28 @@ def setup_and_run():
         create_account,
         events.NewMessage(
             chats=Config.MONITOR_GROUP_ID,
-            pattern=f".*((انشاء حساب)|(إنشاء حساب)|(حساب)|(account)|(Account)|(create account)|(Create account)|(create Account)|(Create Account)).*",
+            pattern=r".*((انشاء حساب)|(إنشاء حساب)|(حساب)|(account)|(Account)|(create account)|(Create account)|(create Account)|(Create Account)).*",
         ),
     )
-    tele_client.add_event_handler(client_handler, events.NewMessage(incoming=True))
     tele_client.add_event_handler(
-        end_session, events.NewMessage(outgoing=True, pattern="/end")
+        listen_to_dp_and_wd_requests,
+        events.NewMessage(chats=Config.MONITOR_GROUP_ID, incoming=True),
+    )
+    tele_client.add_event_handler(
+        get_account_number,
+        events.NewMessage(pattern=r"^\d+$", incoming=True),
+    )
+    tele_client.add_event_handler(
+        end_session,
+        events.NewMessage(pattern="/end", outgoing=True),
+    )
+    tele_client.add_event_handler(
+        handle_session,
+        events.NewMessage(incoming=True),
+    )
+    tele_client.add_event_handler(
+        respond_in_private,
+        events.NewMessage(incoming=True),
     )
 
     app.run_polling(allowed_updates=Update.ALL_TYPES, close_loop=False)

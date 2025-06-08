@@ -1,7 +1,6 @@
 from Config import Config
 
 
-
 SPORT_API = {
     "football": {
         "host": Config.X_RAPIDAPI_FB_HOST,

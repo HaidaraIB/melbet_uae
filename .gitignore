@@ -6,3 +6,4 @@ session.session-journal
 test.py
 errors.txt
 test3.py
+service_account.json

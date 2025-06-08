@@ -4,6 +4,8 @@ from telethon import types, events
 from common.lang_dicts import *
 import models
 import logging
+from client.client_calls.common import now_iso
+from user.account_settings.functions import check_reg_account
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +47,72 @@ async def create_account(event: events.newmessage.NewMessage.Event):
             event.chat_id,
             message=TEXTS[user.lang]["link_sent_in_private"],
         )
+    raise events.StopPropagation
+
+
+async def get_account_number(event: events.NewMessage.Event):
+    uid: int = event.sender_id
+    account_number: str = event.raw_text
+    with models.session_scope() as s:
+        user = s.get(models.User, uid)
+        sender = await TeleClientSingleton().get_entity(uid)
+        if not user:
+            user = models.User(
+                user_id=uid,
+                username=sender.username or "N/A",
+                name=(sender.first_name or "") + " " + (sender.last_name or ""),
+            )
+            s.add(user)
+            s.commit()
+        # Check if account already exist before calling the webhook
+        existing_account = (
+            s.query(models.MelbetAccount)
+            .filter(models.MelbetAccount.user_id == uid)
+            .first()
+        )
+        duplicate_account = (
+            s.query(models.MelbetAccount)
+            .filter(models.MelbetAccount.account_number == account_number)
+            .first()
+        )
+        if existing_account:
+            await TeleClientSingleton().send_message(
+                entity=uid,
+                message=TEXTS[user.lang]["already_have_an_account"].format(
+                    existing_account.account_number
+                ),
+                parse_mode="html"
+            )
+        elif duplicate_account:
+            await TeleClientSingleton().send_message(
+                entity=uid,
+                message=TEXTS[user.lang]["duplicate_account_not_yours"],
+            )
+
+        else:
+            # Check if account is registered through us
+            is_reg = await check_reg_account(tg_id=uid)
+            if is_reg:
+                s.add(
+                    models.MelbetAccount(
+                        user_id=uid,
+                        account_number=account_number.strip(),
+                        username=sender.username
+                        or f"{sender.first_name} {sender.last_name}",
+                        timestamp=now_iso(),
+                    )
+                )
+                s.commit()
+                await TeleClientSingleton().send_message(
+                    entity=uid,
+                    message=TEXTS[user.lang]["account_link_success"],
+                )
+            else:
+                await TeleClientSingleton().send_message(
+                    entity=uid,
+                    message=TEXTS[user.lang]["account_not_reg"],
+                )
+    raise events.StopPropagation
 
 
 # from telegram import Update, Chat

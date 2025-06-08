@@ -1,1 +1,1 @@
-from user.account_settings.create_account import create_account
+from user.account_settings.create_account import create_account, get_account_number

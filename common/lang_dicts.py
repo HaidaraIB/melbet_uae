@@ -95,10 +95,16 @@ TEXTS = {
             "👋 مرحباً <b>{}</b>!\n\n"
             "🔗 رابطك الشخصي للتسجيل: <a href={}>رابط التسجيل</a>\n"
             "⬇️ لتحميل التطبيق: <a href={}>رابط التحميل</a>\n"
-            "استخدم هذا الرابط حتى نتمكّن من تتبع مكافآتك 🎁"
+            "استخدم هذا الرابط حتى نتمكّن من تتبع مكافآتك 🎁\n\n"
+            "<i><b>بعد التسجيل، قم بإرسال رقم الحساب</b></i>"
         ),
         "start_chat_first": "يرجى فتح محادثة خاصة معي أولاً ثم إعادة إرسال كلمة حساب ❗️",
         "link_sent_in_private": "📩 تم إرسال الرابط في الخاص ✅",
+        "duplicate_account_not_yours": "رقم حساب مكرر ❗️",
+        "account_link_success": "تم ربط الحساب بمعرفك بنجاح ✅",
+        "account_not_reg": "هذا الحساب غير مسجل بعد، الرجاء المحاولة لاحقاً ❗️",
+        "already_have_an_account": "لديك حساب مسجل بالفعل <code>{}</code> ❗️",
+
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -195,10 +201,16 @@ TEXTS = {
             "👋 Hello <b>{}</b>!\n\n"
             "🔗 Your Personal link to register: <a href={}>Registeration Link</a>\n"
             "⬇️ Download the app: <a href={}>Download Link</a>\n"
-            "🎁 Use This link to be able to keep track of your rewards"
+            "🎁 Use This link to be able to keep track of your rewards\n\n"
+            "<i><b>After registeration, send me the account number</b></i>"
         ),
         "start_chat_first": "Please start a chat with me first and then resend the last message you sent ❗️",
         "link_sent_in_private": "📩 Registeration link was sent in private, check your inbox ✅",
+        "duplicate_account_not_yours": "Duplicate account number ❗️",
+        "account_link_success": "Account link success ✅",
+        "account_not_reg": "This account is not registered yet, try again later ❗️",
+        "already_have_an_account": "You already have an account <code>{}</code> ❗️",
+
     },
 }
 

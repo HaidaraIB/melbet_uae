@@ -1,11 +1,10 @@
 import os
 import models
 import re
-import pytesseract
+from google.cloud import vision
 from PIL import Image, ImageEnhance, ImageFilter
 from datetime import datetime, timezone
 import time
-from langdetect import detect
 from TeleClientSingleton import TeleClientSingleton
 from telethon.tl.functions.channels import (
     CreateChannelRequest,
@@ -21,6 +20,7 @@ from Config import Config
 from telethon import events
 import asyncio
 from sqlalchemy.orm import Session
+from client.client_calls.lang_dicts import *
 import logging
 
 log = logging.getLogger(__name__)
@@ -47,10 +47,10 @@ def parse_receipt_text(text: str):
 
     cleaned_text = re.sub(r"[^\w\s\d.:/-]", "", text)
 
-    amount_pattern = r"(?:مبلغ|amount|total|قيمة|value|مبلغ العملية|إجمالي المبلغ|إجمالي المبلغ المقتطع)[:\s]*(?:USD|SAR|AED|دولار|ريال|جنيه|درهم)?\s*([\d,.]+)|([\d,.]+)\s*(?:USD|SAR|AED|دولار|ريال|جنيه|درهم)"
-    transaction_id_pattern = r"(?:رقم العملية|transaction id|رقم المعاملة|ref|reference|رقم|معرف العملية|الرقم المرجعي|المرجعي)[:\s]*([\w-]+)"
-    method_pattern = r"(?:الوسيلة|method|طريقة الدفع|طريقة|payment|via|بواسطة|paid by)[:\s]*(Visa|MasterCard|Bank Transfer|PayPal|تحويل بنكي|حوالة بنكية|حساب بنكي|[\w\s]+)|(\b(?:Visa|MasterCard|PayPal|تحويل بنكي|حوالة بنكية|حساب بنكي|بطاقة|كاش)\b)"
-    date_pattern = r"(?:التاريخ|date|تاريخ|issued on)[:\s]*(\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}\s+[جمايو|يناير|فبراير|مارس|أبريل|مايو|يونيو|يوليو|أغسطس|سبتمبر|أكتوبر|نوفمبر|ديسمبر]+\s+\d{4})|(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{2}/\d{2}/\d{4}|\d{4}\s+\d{2}\s+\d{2}|\d{2}-\d{2}-\d{4})"
+    amount_pattern = r"(?:مبلغ|amount|total|total payment|قيمة|value|مبلغ العملية|إجمالي المبلغ|إجمالي المبلغ المقتطع)?[:\s]*(?:usd|sar|aed|دولار|ريال|جنيه|درهم)?\s*([\d,.]+)|([\d,.]+)\s*(?:usd|sar|aed|دولار|ريال|جنيه|درهم)"
+    transaction_id_pattern = r"(?:رقم العملية|transaction id||رقم المعاملة|ref|reference|رقم|معرف العملية|الرقم المرجعي|المرجعي)[:\s]*([\w-]+)"
+    method_pattern = r"(?:الوسيلة|method|طريقة الدفع|طريقة|payment method|via|بواسطة|paid by)[:\s]*(visa|masterCard|bank transfer|paypal|تحويل بنكي|حوالة بنكية|حساب بنكي|[\w\s]+)|(\b(?:visa|mastercard|paypal|تحويل بنكي|حوالة بنكية|حساب بنكي|بطاقة|كاش)\b)"
+    date_pattern = r"(?:التاريخ|date|تاريخ|issued on|transfer time)[:\s]*(\d{1,2}[-/]\d{1,2}[-/]\d{2,4}|\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{1,2}\s+[جمايو|يناير|فبراير|مارس|أبريل|مايو|يونيو|يوليو|أغسطس|سبتمبر|أكتوبر|نوفمبر|ديسمبر]+\s+\d{4})|(\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{2}/\d{2}/\d{4}|\d{4}\s+\d{2}\s+\d{2}|\d{2}-\d{2}-\d{4})"
 
     amount_match = re.search(amount_pattern, cleaned_text, re.IGNORECASE)
     if amount_match:
@@ -97,38 +97,49 @@ def is_financial_receipt(text: str) -> bool:
     return any(keyword.lower() in text.lower() for keyword in keywords)
 
 
-async def extract_text_from_photo(event: events.NewMessage.Event):
-    path = None
-    try:
-        path = await event.download_media(file="photo.jpg")
 
+async def extract_text_from_photo(event, lang):
+    path = None
+    photo_name = "photo.jpg"
+    try:
+        # تحميل الصورة من تيليجرام
+        path = await event.download_media(file=photo_name)
+        
+        # (اختياري) معالجة الصورة للتوضيح، إذا أردت
         img = Image.open(path).convert("L")
         img = img.filter(ImageFilter.SHARPEN)
         enhancer = ImageEnhance.Contrast(img)
         img = enhancer.enhance(2.5)
+        img.save(photo_name)
+        img_path_to_send = photo_name
 
-        text = pytesseract.image_to_string(img, lang="eng+ara").strip()
+        # إنشاء عميل Google Vision
+        client = vision.ImageAnnotatorClient()
+        with open(img_path_to_send, "rb") as image_file:
+            content = image_file.read()
 
-        if not text:
+        image = vision.Image(content=content)
+        response = client.text_detection(image=image)
+        texts = response.text_annotations
+
+        if not texts:
             log.warning("لم يتم استخراج أي نص من الصورة.")
-            await event.reply(
-                "عذرًا، لم يتم استخراج أي نص من الصورة. يرجى إرسال صورة أوضح بجودة عالية."
-            )
+            await event.reply(TEXTS[lang]["no_text_extracted_from_photo"])
             return None, None
 
+        text = texts[0].description.strip()
         cleaned_text = re.sub(
             r"[^\w\s\d.:/-إأآابتثجحخدذرزسشصضطظعغفقكلمنهويةى]", "", text
         )
 
-        parsed_details = parse_receipt_text(cleaned_text)
+        parsed_details = parse_receipt_text(cleaned_text.lower())
         log.info(f"النص المستخرج: {cleaned_text}")
-
         return cleaned_text, parsed_details
 
     except Exception as e:
-        log.error(f"خطأ في OCR: {e}")
+        log.error(f"خطأ في OCR (Google Vision): {e}")
         await event.reply(
-            "عذرًا، حدث خطأ أثناء معالجة الصورة. يرجى إرسال صورة أوضح أو التأكد من جودة الصورة."
+            "عذرًا، حدث خطأ أثناء معالجة الصورة (Google OCR). يرجى إرسال صورة أوضح أو التأكد من جودة الصورة."
         )
         return None, None
 
@@ -163,7 +174,7 @@ async def gpt_reply(uid: int, st: str, prompt: str, msg: str = None) -> str:
                 and models.SessionMessage.session_type == st
             )
             .order_by(models.SessionMessage.timestamp)
-            .limit(10)
+            .limit(20)
             .all()
         )
         valid_roles = {"system", "assistant", "user"}
@@ -175,15 +186,12 @@ async def gpt_reply(uid: int, st: str, prompt: str, msg: str = None) -> str:
         system = f"{prompt}\n(This is a private session for {st})"
         msgs = [{"role": "system", "content": system}] + history
         if msg:
-            try:
-                lang = detect(msg)
-                log.info(f"تم اكتشاف لغة الرسالة: {lang}")
-            except Exception:
-                lang = "en"
             msgs.append({"role": "user", "content": msg})
         try:
             resp = await openai.chat.completions.create(
-                model=Config.GPT_MODEL, messages=msgs, temperature=0.7
+                model=Config.GPT_MODEL,
+                messages=msgs,
+                temperature=0.7,
             )
             reply = resp.choices[0].message.content.strip()
             save_message(uid, st, "assistant", reply, s)
@@ -193,62 +201,61 @@ async def gpt_reply(uid: int, st: str, prompt: str, msg: str = None) -> str:
             return "Sorry, an error occurred while processing your request. Please try again later."
 
 
-async def get_or_create_session(uid: int, st: str):
-    with models.session_scope() as s:
-        user_session = s.get(models.UserSession, uid)
-        if user_session:
-            try:
-                await TeleClientSingleton().get_entity(user_session.group_id)
-                if user_session.session_type != st:
-                    try:
-                        user: models.User = user_session.user
-                        await TeleClientSingleton()(
-                            EditTitleRequest(
-                                channel=user_session.group_id,
-                                title=f"{st} – {user.username if user.username else user.name}",
-                            )
-                        )
-                    except Exception as e:
-                        log.error(f"خطأ في تعديل عنوان القناة: {e}")
-                    user_session.session_type = st
-                user_session.last_active = now_iso()
-                s.commit()
-                return user_session.group_id, False
-            except ValueError as e:
-                log.warning(
-                    f"معرف المجموعة {user_session.group_id} غير صالح للمستخدم {uid}: {e}. إنشاء مجموعة جديدة."
-                )
-                s.query(models.UserSession).filter(
-                    models.UserSession.user_id == uid
-                ).delete()
-                s.commit()
-
+async def get_or_create_session(uid: int, st: str, s: Session):
+    user_session = s.get(models.UserSession, uid)
+    if user_session:
         try:
-            user = s.get(models.User, uid)
-            res = await TeleClientSingleton()(
-                CreateChannelRequest(
-                    title=f"{st} – {user.username if user.username else user.name}",
-                    about=f"جلسة {st} للمستخدم {uid}",
-                    megagroup=True,
+            await TeleClientSingleton().get_entity(user_session.group_id)
+            if user_session.session_type != st:
+                try:
+                    user: models.User = user_session.user
+                    await TeleClientSingleton()(
+                        EditTitleRequest(
+                            channel=user_session.group_id,
+                            title=f"{st} – {user.username if user.username else user.name}",
+                        )
+                    )
+                except Exception as e:
+                    log.error(f"خطأ في تعديل عنوان القناة: {e}")
+                user_session.session_type = st
+            user_session.last_active = now_iso()
+            s.commit()
+            return user_session.group_id, False
+        except ValueError as e:
+            log.warning(
+                f"معرف المجموعة {user_session.group_id} غير صالح للمستخدم {uid}: {e}. إنشاء مجموعة جديدة."
+            )
+            s.query(models.UserSession).filter(
+                models.UserSession.user_id == uid
+            ).delete()
+            s.commit()
+
+    try:
+        user = s.get(models.User, uid)
+        res = await TeleClientSingleton()(
+            CreateChannelRequest(
+                title=f"{st} – {user.username if user.username else user.name}",
+                about=f"جلسة {st} للمستخدم {uid}",
+                megagroup=True,
+            )
+        )
+        chat = res.chats[0]
+        gid = chat.id
+        with models.session_scope() as s:
+            s.add(
+                models.UserSession(
+                    user_id=uid,
+                    group_id=gid,
+                    session_type=st,
+                    last_active=now_iso(),
+                    created_at=now_iso(),
                 )
             )
-            chat = res.chats[0]
-            gid = chat.id
-            with models.session_scope() as s:
-                s.add(
-                    models.UserSession(
-                        user_id=uid,
-                        group_id=gid,
-                        session_type=st,
-                        last_active=now_iso(),
-                        created_at=now_iso(),
-                    )
-                )
-                s.commit()
-            return gid, True
-        except Exception as e:
-            log.error(f"خطأ في إنشاء المجموعة: {e}")
-            raise
+            s.commit()
+        return gid, True
+    except Exception as e:
+        log.error(f"خطأ في إنشاء المجموعة: {e}")
+        raise
 
 
 async def kick_user_and_admin(gid: int, uid: int):
@@ -302,9 +309,9 @@ async def resume_timers_on_startup():
 
 async def start_session(uid: int, st: str):
     tg_user = await TeleClientSingleton().get_entity(uid)
-    try:
-        with models.session_scope() as s:
-            user = s.get(models.User, uid)
+    with models.session_scope() as s:
+        user = s.get(models.User, uid)
+        try:
             if not user:
                 user = models.User(
                     user_id=tg_user.id,
@@ -316,70 +323,153 @@ async def start_session(uid: int, st: str):
                     ),
                 )
                 s.add(user)
+                s.commit()
             is_user_blacklisted = s.get(models.Blacklist, uid)
             if is_user_blacklisted:
                 await TeleClientSingleton().send_message(
-                    uid,
-                    "عذرًا، تم إضافتك إلى القائمة السوداء بسبب محاولات احتيال متكررة.",
+                    entity=uid,
+                    message=TEXTS[user.lang]["blacklisted_user"],
                 )
                 return
-        gid, is_new = await get_or_create_session(uid, st)
-        peer = await TeleClientSingleton().get_entity(gid)
-        if is_new:
-            welcome = await gpt_reply(uid, st, "")
-            msg = await TeleClientSingleton().send_message(peer, welcome)
-            end_cmd = await TeleClientSingleton().send_message(peer, "/end")
+            gid, is_new = await get_or_create_session(uid, st, s)
+            peer = await TeleClientSingleton().get_entity(gid)
+            if is_new:
+                welcome = await gpt_reply(uid, st, "")
+                msg = await TeleClientSingleton().send_message(peer, welcome)
+                end_cmd = await TeleClientSingleton().send_message(peer, "/end")
+                try:
+                    await TeleClientSingleton().pin_message(peer, msg, notify=False)
+                    await TeleClientSingleton().pin_message(peer, end_cmd, notify=False)
+                except Exception as e:
+                    log.error(f"خطأ في تثبيت الرسالة: {e}")
             try:
-                await TeleClientSingleton().pin_message(peer, msg, notify=False)
-                await TeleClientSingleton().pin_message(peer, end_cmd, notify=False)
+                await TeleClientSingleton()(
+                    EditBannedRequest(
+                        peer,
+                        tg_user,
+                        ChatBannedRights(until_date=0, view_messages=False),
+                    )
+                )
             except Exception as e:
-                log.error(f"خطأ في تثبيت الرسالة: {e}")
-        try:
+                log.error(f"خطأ في تعديل الأذونات: {e}")
             await TeleClientSingleton()(
-                EditBannedRequest(
-                    peer,
-                    tg_user,
-                    ChatBannedRights(until_date=0, view_messages=False),
+                InviteToChannelRequest(
+                    channel=peer,
+                    users=[
+                        tg_user,
+                        await TeleClientSingleton().get_entity(Config.ADMIN_ID),
+                    ],
                 )
             )
+            inv = await TeleClientSingleton()(
+                ExportChatInviteRequest(
+                    peer=peer,
+                    expire_date=int(time.time()) + 3600,
+                    usage_limit=1,
+                )
+            )
+            await TeleClientSingleton().send_message(
+                entity=uid,
+                message=TEXTS[user.lang]["session_link"].format(st, inv.link),
+            )
+            if st == "deposit":
+                asyncio.create_task(session_timer(gid, uid))
+            else:
+                with models.session_scope() as s:
+                    s.query(models.SessionTimer).filter(
+                        models.SessionTimer.uid == uid, models.SessionTimer.gid == gid
+                    ).delete()
+                    s.commit()
+        except ValueError as e:
+            log.error(f"فشل في بدء الجلسة للمستخدم {uid} بسبب خطأ في الكيان: {e}")
+            await TeleClientSingleton().send_message(
+                entity=uid,
+                message=TEXTS[user.lang]["session_start_failed"],
+            )
         except Exception as e:
-            log.error(f"خطأ في تعديل الأذونات: {e}")
-        await TeleClientSingleton()(
-            InviteToChannelRequest(
-                channel=peer,
-                users=[
-                    tg_user,
-                    await TeleClientSingleton().get_entity(Config.ADMIN_ID),
-                ],
+            log.error(f"خطأ غير متوقع في بدء الجلسة للمستخدم {uid}: {e}")
+            await TeleClientSingleton().send_message(
+                entity=uid,
+                message=TEXTS[user.lang]["unexpected_session_error"],
+            )
+
+
+async def add_or_update_account(
+    uid: int,
+    cid: int,
+    account_number: str,
+    st: str,
+    session_prompt: models.Setting,
+    default_prompt: models.Setting,
+    lang,
+    s: Session,
+):
+    sender = await TeleClientSingleton().get_entity(uid)
+    sender_username = sender.username or sender.first_name or f"user_{uid}"
+    existing_account = (
+        s.query(models.MelbetAccount)
+        .filter(models.MelbetAccount.user_id == uid)
+        .first()
+    )
+    if existing_account and existing_account.user_id != uid:
+        system_msg = TEXTS[lang]["account_belongs_another"].format(
+            account_number.strip()
+        )
+        save_message(uid, st, "system", system_msg, s)
+        await TeleClientSingleton().send_message(cid, system_msg)
+    elif existing_account:
+        count = s.query(models.MelbetAccountChange).filter_by(user_id=uid).count()
+        if count >= 3:
+            system_msg = TEXTS[lang]["account_change_failed"].format(count)
+            save_message(uid, st, "system", system_msg, s)
+            await TeleClientSingleton().send_message(cid, system_msg)
+            return
+        default_account = existing_account.account_number
+        existing_account.account_number = account_number.strip()
+        s.add(
+            models.MelbetAccountChange(
+                user_id=uid,
+                username=sender_username,
+                old_account=default_account,
+                new_account=account_number.strip(),
+                timestamp=now_iso(),
             )
         )
-        inv = await TeleClientSingleton()(
-            ExportChatInviteRequest(
-                peer=peer,
-                expire_date=int(time.time()) + 3600,
-                usage_limit=1,
+        s.commit()
+
+        change_account_prompt = s.get(models.Setting, "gpt_prompt_change_account")
+
+        system_msg = TEXTS[lang]["account_updated"].format(
+            existing_account.account_number, account_number.strip(), count + 1
+        )
+        save_message(uid, st, "system", system_msg, s)
+        reply = await gpt_reply(
+            uid=uid,
+            st=st,
+            prompt=(
+                change_account_prompt.value
+                if change_account_prompt
+                else default_prompt.value
+            ),
+            msg=system_msg,
+        )
+        await TeleClientSingleton().send_message(cid, f"{system_msg}\n\n{reply}")
+    else:
+        s.add(
+            models.MelbetAccount(
+                user_id=uid,
+                account_number=account_number.strip(),
+                username=sender_username,
+                timestamp=now_iso(),
             )
         )
-        await TeleClientSingleton().send_message(
-            uid, f"🔗 Private {st} session link:\n{inv.link}"
+        s.commit()
+        system_msg = TEXTS[lang]["account_saved"].format(account_number.strip())
+        save_message(uid, st, "system", system_msg, s)
+        reply = await gpt_reply(
+            uid=uid,
+            st=st,
+            prompt=(session_prompt.value if session_prompt else default_prompt.value),
+            msg=system_msg,
         )
-        if st == "deposit":
-            asyncio.create_task(session_timer(gid, uid))
-        else:
-            with models.session_scope() as s:
-                s.query(models.SessionTimer).filter(
-                    models.SessionTimer.uid == uid, models.SessionTimer.gid == gid
-                ).delete()
-                s.commit()
-    except ValueError as e:
-        log.error(f"فشل في بدء الجلسة للمستخدم {uid} بسبب خطأ في الكيان: {e}")
-        await TeleClientSingleton().send_message(
-            uid,
-            "Sorry, an error occurred while creating the session. Please try again later.",
-        )
-    except Exception as e:
-        log.error(f"خطأ غير متوقع في بدء الجلسة للمستخدم {uid}: {e}")
-        await TeleClientSingleton().send_message(
-            uid,
-            "Sorry, an error occurred while creating the session. Please try again later.",
-        )
+        await TeleClientSingleton().send_message(cid, f"{system_msg}\n\n{reply}")

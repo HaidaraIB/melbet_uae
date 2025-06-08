@@ -1,6 +1,7 @@
 from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.error import TimedOut, NetworkError
+from telethon import events
 import traceback
 import json
 import html
@@ -9,7 +10,7 @@ from Config import Config
 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if isinstance(context.error, (TimedOut, NetworkError)):
+    if isinstance(context.error, (TimedOut, NetworkError, events.StopPropagation)):
         return
     tb_list = traceback.format_exception(
         None, context.error, context.error.__traceback__

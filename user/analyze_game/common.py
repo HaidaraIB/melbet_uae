@@ -24,7 +24,7 @@ def summarize_injuries(injuries: list[dict], sport: str):
                 for i in injuries
             ]
         )
-    if sport == "american_football":
+    elif sport == "american_football":
         return "\n".join(
             [
                 f"{i['player']['name']} ({i['status']}) - {i['description']}"

@@ -1,8 +1,7 @@
 from io import BytesIO
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle, Arc
-from groups.group_preferences.constants import BRANDS
-from groups.group_preferences.constants import LEAGUES
+from groups.group_preferences.constants import BRANDS, LEAGUES
 
 
 def generate_infographic(team1: str, stats1: dict, team2: str, stats2: dict) -> BytesIO:
