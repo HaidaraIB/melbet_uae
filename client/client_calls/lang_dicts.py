@@ -3,7 +3,7 @@ from models.Language import Language
 TEXTS = {
     Language.ARABIC: {
         "receipt_unclear_chars": "النظام: الإيصال يحتوي على أحرف غير واضحة. يرجى إرسال صورة أوضح بجودة عالية.",
-        "missing_essential_details": "النظام: لم نتمكن من استخراج التفاصيل الأساسية: {}. يرجى تقديم إيصال يتضمن المبلغ ورقم العملية على الأقل.",
+        "missing_essential_details": "النظام: لم نتمكن من استخراج التفاصيل الأساسية: {}. إذا لم يحتوي الإيصال على المعلومات المفقودة الرجاء إرسالها يدوياً.",
         "fraud_detected_blacklisted": "النظام: تم اكتشاف محاولة احتيال. هذه العملية (رقم العملية: {}) استخدمها في الأصل المستخدم @{} ({}) في {}. هذه محاولتك رقم {}. لقد تم إضافتك إلى القائمة السوداء.",
         "fraud_detected_warning": "النظام: تم اكتشاف محاولة احتيال. هذه العملية (رقم العملية: {}) استخدمها في الأصل المستخدم @{} ({}) في {}. هذه محاولتك رقم {}. للعلم، في حال وصول عدد المحاولات إلى 5، سيتم إنهاء التعامل معك وإضافتك إلى القائمة السوداء.",
         "receipt_verified_success": "النظام: تم التحقق من الإيصال بنجاح:\n{}",
@@ -28,9 +28,9 @@ TEXTS = {
     },
     Language.ENGLISH: {
         "receipt_unclear_chars": "System: The receipt contains unclear characters. Please send a clearer, higher quality image.",
-        "missing_essential_details": "System: We couldn't extract the essential details: {}. Please provide a receipt that includes at least the amount and transaction ID.",
-        "fraud_detected_blacklisted": "System: Fraud attempt detected. This transaction (ID: {}) was originally used by user @{} ({}) on {}. This is your attempt number {}. You have been added to the blacklist.",
-        "fraud_detected_warning": "System: Fraud attempt detected. This transaction (ID: {}) was originally used by user @{} ({}) on {}. This is your attempt number {}. Note that if you reach 5 attempts, you will be blacklisted.",
+        "missing_essential_details": "System: We couldn't extract the essential details: {}. If the receipt doesn't contain the missing info please provide them manually.",
+        "fraud_detected_blacklisted": "System: Fraud attempt detected. This transaction (ID: {}) was sent from another user. This is your attempt number {}. You have been added to the blacklist.",
+        "fraud_detected_warning": "System: Fraud attempt detected. This transaction (ID: {}) was sent from another user. This is your attempt number {}. Note that if you reach 5 attempts, you will be blacklisted.",
         "receipt_verified_success": "System: Receipt verified successfully:\n{}",
         "missing_optional_details": "Note: The following details are missing: {}. Please provide them manually if possible.\n",
         "blacklisted_user": "Sorry, you have been blacklisted due to repeated fraud attempts.",

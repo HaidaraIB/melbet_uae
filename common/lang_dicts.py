@@ -104,7 +104,10 @@ TEXTS = {
         "account_link_success": "تم ربط الحساب بمعرفك بنجاح ✅",
         "account_not_reg": "هذا الحساب غير مسجل بعد، الرجاء المحاولة لاحقاً ❗️",
         "already_have_an_account": "لديك حساب مسجل بالفعل <code>{}</code> ❗️",
-
+        "link_account_request": (
+            "طلب ربط حساب:\n" "{}" "تحقق من التسجيلات وقم بتأكيد الطلب"
+        ),
+        "link_account_request_submited": "تم إرسال طلبك للمراجعة، ستصلك رسالة عند اكتمال العملية",
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -210,6 +213,10 @@ TEXTS = {
         "account_link_success": "Account link success ✅",
         "account_not_reg": "This account is not registered yet, try again later ❗️",
         "already_have_an_account": "You already have an account <code>{}</code> ❗️",
+        "link_account_request": (
+            "Link account request:\n" "{}" "Check the registeration and confirm"
+        ),
+        "link_account_request_submited": "Request submited successfully, you'll recieve a message when it's done",
 
     },
 }

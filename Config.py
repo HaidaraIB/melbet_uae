@@ -9,6 +9,7 @@ class Config:
     API_HASH = os.getenv("API_HASH")
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     SESSION = os.getenv("SESSION")
+    BOT_SESSION = os.getenv("BOT_SESSION")
     OWNER_ID = int(os.getenv("OWNER_ID"))
     ADMIN_ID = int(os.getenv("ADMIN_ID"))
     MONITOR_GROUP_ID = int(os.getenv("MONITOR_GROUP_ID"))

@@ -1,1 +1,5 @@
-from user.account_settings.create_account import create_account, get_account_number
+from user.account_settings.create_account import (
+    create_account,
+    get_account_number,
+    handle_link_account_request,
+)

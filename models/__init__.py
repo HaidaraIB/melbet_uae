@@ -5,7 +5,6 @@ from models.Blacklist import Blacklist
 from models.MelbetAccount import MelbetAccount
 from models.MelbetAccountChange import MelbetAccountChange
 from models.PaymentText import PaymentText
-from models.SessionMessage import SessionMessage
 from models.Setting import Setting
 from models.UserSession import UserSession
 from models.FraudLog import FraudLog

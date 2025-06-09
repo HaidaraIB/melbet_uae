@@ -20,6 +20,9 @@ class PaymentMethod(Base):
 
     transactions = relationship("Transaction", back_populates="payment_method")
 
+    def __str__(self):
+        return self.name
+
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -45,7 +48,19 @@ class Transaction(Base):
     player_account = sa.Column(sa.String, nullable=True)
 
     status = sa.Column(sa.String, default="pending", index=True)
-    created_at = sa.Column(sa.DateTime, default=datetime.now(TIMEZONE))
+    date = sa.Column(sa.DateTime, nullable=True)
+    timestamp = sa.Column(sa.DateTime, default=datetime.now(TIMEZONE))
 
     payment_method = relationship("PaymentMethod", back_populates="transactions")
     user = relationship("User", back_populates="transactions")
+    fraud_logs = relationship("FraudLog", back_populates="transaction")
+
+    def __str__(self):
+        return (
+            f"New {self.type} request from @{self.user.username}:\n"
+            f"Amount: <code>{self.amount}</code>\n"
+            f"Transaction ID: <code>{self.receipt_id}</code>\n"
+            f"Payment Method: <b>{self.payment_method.name}</b>\n"
+            f"Date: {self.date or "N/A"}\n"
+            f"Account Number: <code>{self.player_account}</code>"
+        )

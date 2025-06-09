@@ -1,8 +1,9 @@
 data/*
 .env
 __pycache__/
-session.session
-session.session-journal
+*.session
+*.session-journal
+*.pkl
 test.py
 errors.txt
 test3.py

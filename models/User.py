@@ -23,7 +23,6 @@ class User(Base):
 
     # Relationships (one-to-many)
     sessions = relationship("UserSession", back_populates="user")
-    messages = relationship("SessionMessage", back_populates="user")
     payment_texts = relationship("PaymentText", back_populates="user")
     melbet_account = relationship("MelbetAccount", back_populates="user", uselist=False)
     account_changes = relationship("MelbetAccountChange", back_populates="user")
@@ -33,7 +32,9 @@ class User(Base):
 
     # Relationship for fraud logs (both as user and copied_from)
     fraud_committed = relationship(
-        "FraudLog", foreign_keys="[FraudLog.user_id]", back_populates="user"
+        "FraudLog",
+        foreign_keys="[FraudLog.user_id]",
+        back_populates="user",
     )
     fraud_copied_from = relationship(
         "FraudLog",

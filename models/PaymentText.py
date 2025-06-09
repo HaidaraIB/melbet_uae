@@ -13,6 +13,5 @@ class PaymentText(Base):
     text = sa.Column(sa.Text)
     transaction_id = sa.Column(sa.String, unique=True)
     timestamp = sa.Column(sa.DateTime)
-    username = sa.Column(sa.String)
 
     user = relationship("User", back_populates="payment_texts")

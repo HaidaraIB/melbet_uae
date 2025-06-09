@@ -34,6 +34,7 @@ from client.client_calls import *
 
 from models import init_db
 
+from TeleBotSingleton import TeleBotSingleton
 from TeleClientSingleton import TeleClientSingleton
 from Config import Config
 
@@ -41,6 +42,7 @@ from MyApp import MyApp
 from jobs import check_suspicious_users, send_periodic_messages
 
 from datetime import time
+import re
 
 
 def setup_and_run():
@@ -181,34 +183,53 @@ def setup_and_run():
     # )
 
     tele_client = TeleClientSingleton()
+    # monitor
     tele_client.add_event_handler(
         create_account,
         events.NewMessage(
             chats=Config.MONITOR_GROUP_ID,
-            pattern=r".*((انشاء حساب)|(إنشاء حساب)|(حساب)|(account)|(Account)|(create account)|(Create account)|(create Account)|(Create Account)).*",
+            pattern=r".*?([اإ]نشاء\s+حساب|حساب|[aA]ccount|[cC]reate\s+[aA]ccount)",
         ),
     )
     tele_client.add_event_handler(
         listen_to_dp_and_wd_requests,
         events.NewMessage(chats=Config.MONITOR_GROUP_ID, incoming=True),
     )
+    # account
     tele_client.add_event_handler(
         get_account_number,
         events.NewMessage(pattern=r"^\d+$", incoming=True),
+    )
+    # private
+    tele_client.add_event_handler(
+        respond_in_private,
+        events.NewMessage(incoming=True),
+    )
+    # session
+    tele_client.add_event_handler(
+        send_transaction_to_proccess,
+        events.NewMessage(incoming=True, pattern=r"^[oO][kK]$"),
     )
     tele_client.add_event_handler(
         end_session,
         events.NewMessage(pattern="/end", outgoing=True),
     )
     tele_client.add_event_handler(
-        handle_session,
+        get_receipt,
         events.NewMessage(incoming=True),
     )
     tele_client.add_event_handler(
-        respond_in_private,
+        get_missing,
         events.NewMessage(incoming=True),
+    )
+
+    tele_bot = TeleBotSingleton()
+    tele_bot.add_event_handler(
+        handle_link_account_request,
+        events.CallbackQuery(pattern=r"^((confirm)|(decline))_link_account"),
     )
 
     app.run_polling(allowed_updates=Update.ALL_TYPES, close_loop=False)
 
     tele_client.disconnect()
+    tele_bot.disconnect()

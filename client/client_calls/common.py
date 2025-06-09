@@ -3,9 +3,9 @@ import models
 import re
 from google.cloud import vision
 from PIL import Image, ImageEnhance, ImageFilter
-from datetime import datetime, timezone
 import time
 from TeleClientSingleton import TeleClientSingleton
+from TeleBotSingleton import TeleBotSingleton
 from telethon.tl.functions.channels import (
     CreateChannelRequest,
     InviteToChannelRequest,
@@ -15,12 +15,15 @@ from telethon.tl.functions.channels import (
 )
 from telethon.tl.functions.messages import ExportChatInviteRequest
 from telethon.tl.types import ChatBannedRights
+from telethon import Button
 from openai import AsyncOpenAI
 from Config import Config
 import json
 import asyncio
 from sqlalchemy.orm import Session
 from client.client_calls.lang_dicts import *
+from client.client_calls.functions import now_iso, clear_session_data, session_data
+from client.client_calls.constants import SessionState
 import logging
 
 log = logging.getLogger(__name__)
@@ -28,36 +31,7 @@ log = logging.getLogger(__name__)
 openai = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
 
 
-def now_iso() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-def classify_intent(text: str):
-    t = (text or "").lower()
-    if any(k in t for k in ("dp", "deposit", "ايداع", "إيداع")):
-        return "deposit"
-    if any(k in t for k in ("wd", "withdraw", "سحب")):
-        return "withdraw"
-    return None
-
-
-def is_financial_receipt(text: str) -> bool:
-    keywords = [
-        "مبلغ",
-        "تحويل",
-        "إيصال",
-        "amount",
-        "transaction",
-        "payment",
-        "deposit",
-        "رقم العملية",
-        "معرف العملية",
-        "درهم",
-    ]
-    return any(keyword.lower() in text.lower() for keyword in keywords)
-
-
-async def extract_text_from_photo(event, lang):
+async def extract_text_from_photo(event, lang, payment_methods):
     path = None
     photo_name = "photo.jpg"
     try:
@@ -96,31 +70,27 @@ async def extract_text_from_photo(event, lang):
             messages=[
                 {
                     "role": "user",
-                    "content": f""""You are a professional financial assistant.
-
-Given the following payment or bank receipt text, analyze and extract all relevant fields.  
-Return your full response as a single JSON object with these fields:
-- transaction_id (string)
-- from (sender name, string)
-- to (recipient name, string)
-- amount (string/float)
-- currency (string)
-- payment_method (string: bank/service name or logo if present)
-- date (string, if detected)
-- warnings (array of strings, if any field is suspicious or missing, else empty array)
-- summary_ar (string, clear summary in Arabic)
-- summary_en (string, clear summary in English)
-
-If a field is missing, set its value to null.  
-If you detect other relevant info (such as extra logo, country, etc) add a field 'extra' as an object.
-
-Output ONLY a valid JSON object, without any extra explanation or text.
-
-Receipt OCR text:
-
-{cleaned_text}
-
-Pre-parsed fields (for reference, use or correct them as needed):"""
+                    "content": (
+                        f"You are a professional financial assistant.\n\n"
+                        "Given the following payment or bank receipt text, analyze and extract all relevant fields.\n"
+                        "Return your full response as a single JSON object with these fields:\n"
+                        "- transaction_id (string)\n"
+                        "- from (sender name, string)\n"
+                        "- to (recipient name, string)\n"
+                        "- amount (string/float)\n"
+                        "- currency (string)\n"
+                        f"- payment_method from our list of payment methods {payment_methods}\n"
+                        "- date (string, if detected)\n"
+                        "- warnings (array of strings, if any field is suspicious or missing, else empty array)\n"
+                        "- summary_ar (string, clear summary in Arabic)\n"
+                        "- summary_en (string, clear summary in English)\n\n"
+                        "If a field is missing, set its value to null.\n"
+                        "If you detect other relevant info (such as extra logo, country, etc) add a field 'extra' as an object.\n\n"
+                        "Output ONLY a valid JSON object, without any extra explanation or text.\n\n"
+                        "Receipt OCR text:\n\n"
+                        f"{cleaned_text}\n\n"
+                        "Pre-parsed fields (for reference, use or correct them as needed):"
+                    ),
                 }
             ],
             temperature=0.7,
@@ -129,7 +99,6 @@ Pre-parsed fields (for reference, use or correct them as needed):"""
         if "```json" in content:
             json_part = content.split("```json")[1].split("```")[0].strip()
         parsed_details = json.loads(r"{}".format(json_part))
-        print(parsed_details)
         return cleaned_text, parsed_details
 
     except Exception as e:
@@ -142,59 +111,6 @@ Pre-parsed fields (for reference, use or correct them as needed):"""
     finally:
         if path and os.path.exists(path):
             os.remove(path)
-
-
-def save_message(uid: int, st: str, role: str, msg: str, s: Session):
-    valid_roles = {"system", "assistant", "user"}
-    if role not in valid_roles:
-        log.warning(f"دور غير صالح: {role}، يتم تعيينه إلى 'user'")
-        role = "user"
-    s.add(
-        models.SessionMessage(
-            user_id=uid,
-            session_type=st,
-            role=role,
-            message=msg,
-            timestamp=now_iso(),
-        )
-    )
-    s.commit()
-
-
-async def gpt_reply(uid: int, st: str, prompt: str, msg: str = None) -> str:
-    with models.session_scope() as s:
-        s_msgs = (
-            s.query(models.SessionMessage)
-            .filter(
-                models.SessionMessage.user_id == uid
-                and models.SessionMessage.session_type == st
-            )
-            .order_by(models.SessionMessage.timestamp)
-            .limit(20)
-            .all()
-        )
-        valid_roles = {"system", "assistant", "user"}
-        history = [
-            {"role": msg.role, "content": msg.message}
-            for msg in reversed(s_msgs)
-            if msg.role in valid_roles and msg.message is not None
-        ]
-        system = f"{prompt}\n(This is a private session for {st})"
-        msgs = [{"role": "system", "content": system}] + history
-        if msg:
-            msgs.append({"role": "user", "content": msg})
-        try:
-            resp = await openai.chat.completions.create(
-                model=Config.GPT_MODEL,
-                messages=msgs,
-                temperature=0.7,
-            )
-            reply = resp.choices[0].message.content.strip()
-            save_message(uid, st, "assistant", reply, s)
-            return reply
-        except Exception as e:
-            log.error(f"خطأ في استدعاء OpenAI API: {e}")
-            return "Sorry, an error occurred while processing your request. Please try again later."
 
 
 async def get_or_create_session(uid: int, st: str, s: Session):
@@ -307,6 +223,8 @@ async def start_session(uid: int, st: str):
     tg_user = await TeleClientSingleton().get_entity(uid)
     with models.session_scope() as s:
         user = s.get(models.User, uid)
+        default_prompt = s.get(models.Setting, "gpt_prompt")
+        session_prompt = s.get(models.Setting, f"gpt_prompt_{st}")
         try:
             if not user:
                 user = models.User(
@@ -330,7 +248,25 @@ async def start_session(uid: int, st: str):
             gid, is_new = await get_or_create_session(uid, st, s)
             peer = await TeleClientSingleton().get_entity(gid)
             if is_new:
-                welcome = await gpt_reply(uid, st, "")
+                resp = await openai.chat.completions.create(
+                    model=Config.GPT_MODEL,
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                session_prompt.value
+                                if session_prompt
+                                else default_prompt.value
+                            ),
+                        },
+                        {
+                            "role": "user",
+                            "content": f"A {st} session is opened with user {user.name}, welcome him.",
+                        },
+                    ],
+                    temperature=0.7,
+                )
+                welcome = resp.choices[0].message.content.strip()
                 msg = await TeleClientSingleton().send_message(peer, welcome)
                 end_cmd = await TeleClientSingleton().send_message(peer, "/end")
                 try:
@@ -390,82 +326,134 @@ async def start_session(uid: int, st: str):
             )
 
 
-async def add_or_update_account(
+async def submit_to_admin(user: models.User, s: Session):
+    st = session_data[user.user_id]["type"]
+    data = session_data[user.user_id]["data"]
+    payment_method = (
+        s.query(models.PaymentMethod).filter_by(name=data["payment_method"]).first()
+    )
+    player_account = (
+        s.query(models.MelbetAccount).filter_by(user_id=user.user_id).first()
+    )
+    transaction = models.Transaction(
+        user_id=user.user_id,
+        payment_method_id=payment_method.id,
+        type=st,
+        amount=data["amount"],
+        receipt_id=data["transaction_id"],
+        player_account=player_account.account_number,
+        status="pending",
+        date=data.get("date"),
+        timestamp=now_iso(),
+    )
+    s.add(transaction)
+    s.commit()
+
+    await TeleBotSingleton().send_message(
+        entity=Config.ADMIN_ID,
+        message=str(transaction),
+        parse_mode="html",
+        buttons=[
+            [
+                Button.inline(
+                    text="تأكيد ✅",
+                    data=f"confirm_{st}_{transaction.id}",
+                ),
+                Button.inline(
+                    text="إلغاء ❌",
+                    data=f"decline_{st}_{transaction.id}",
+                ),
+            ]
+        ],
+    )
+
+
+async def handle_fraud(
     uid: int,
     cid: int,
-    account_number: str,
-    st: str,
-    session_prompt: models.Setting,
-    default_prompt: models.Setting,
-    lang,
+    user: models.User,
+    duplicate: models.PaymentText,
+    extracted: str,
+    transaction_id: int,
     s: Session,
 ):
-    sender = await TeleClientSingleton().get_entity(uid)
-    sender_username = sender.username or sender.first_name or f"user_{uid}"
-    existing_account = (
-        s.query(models.MelbetAccount)
-        .filter(models.MelbetAccount.user_id == uid)
-        .first()
+    s.add(
+        models.FraudLog(
+            user_id=uid,
+            copied_from_id=duplicate.user_id,
+            timestamp=now_iso(),
+            receipt_text=extracted,
+            transaction_id=transaction_id,
+        )
     )
-    if existing_account and existing_account.user_id != uid:
-        system_msg = TEXTS[lang]["account_belongs_another"].format(
-            account_number.strip()
-        )
-        save_message(uid, st, "system", system_msg, s)
-        await TeleClientSingleton().send_message(cid, system_msg)
-    elif existing_account:
-        count = s.query(models.MelbetAccountChange).filter_by(user_id=uid).count()
-        if count >= 3:
-            system_msg = TEXTS[lang]["account_change_failed"].format(count)
-            save_message(uid, st, "system", system_msg, s)
-            await TeleClientSingleton().send_message(cid, system_msg)
-            return
-        default_account = existing_account.account_number
-        existing_account.account_number = account_number.strip()
+    s.commit()
+    count = s.query(models.FraudLog).filter_by(user_id=uid).count()
+    if count >= 5:
         s.add(
-            models.MelbetAccountChange(
+            models.Blacklist(
                 user_id=uid,
-                username=sender_username,
-                old_account=default_account,
-                new_account=account_number.strip(),
                 timestamp=now_iso(),
             )
         )
         s.commit()
-
-        change_account_prompt = s.get(models.Setting, "gpt_prompt_change_account")
-
-        system_msg = TEXTS[lang]["account_updated"].format(
-            existing_account.account_number, account_number.strip(), count + 1
+        user_msg = (
+            "Fraud attempt detected.\n"
+            f"This transaction (ID: {transaction_id}) was sent by another user.\n"
+            f"This is your attempt number {count}.\n"
+            "You have been added to the blacklist."
         )
-        save_message(uid, st, "system", system_msg, s)
-        reply = await gpt_reply(
-            uid=uid,
-            st=st,
-            prompt=(
-                change_account_prompt.value
-                if change_account_prompt
-                else default_prompt.value
-            ),
-            msg=system_msg,
+        admin_msg = (
+            f"المستخدم @{user.username} (<code>{uid}</code>) في القائمة السوداء عدد المحاولات {count} ⚠️\n"
+            f"رقم العملية الذي تمت المحاولة فيه: <code>{transaction_id}</code>\n"
+            f"عائد للمستخدم @{duplicate.user.username} (<code>{duplicate.user_id}</code>)"
         )
-        await TeleClientSingleton().send_message(cid, f"{system_msg}\n\n{reply}")
     else:
-        s.add(
-            models.MelbetAccount(
-                user_id=uid,
-                account_number=account_number.strip(),
-                username=sender_username,
-                timestamp=now_iso(),
-            )
+        user_msg = (
+            "Fraud attempt detected.\n"
+            f"This transaction (ID: {transaction_id}) was sent by another user.\n"
+            f"This is your attempt number {count}.\n"
+            "Note that if you reach 5 attempts, you will be blacklisted."
         )
-        s.commit()
-        system_msg = TEXTS[lang]["account_saved"].format(account_number.strip())
-        save_message(uid, st, "system", system_msg, s)
-        reply = await gpt_reply(
-            uid=uid,
-            st=st,
-            prompt=(session_prompt.value if session_prompt else default_prompt.value),
-            msg=system_msg,
+        admin_msg = (
+            f"محاولة احتيال رقم {count} للمستخدم @{user.username} (<code>{uid}</code>) ⚠️\n"
+            f"رقم العملية الذي تمت المحاولة فيه: <code>{transaction_id}</code>\n"
+            f"عائد للمستخدم @{duplicate.user.username} (<code>{duplicate.user_id}</code>)"
         )
-        await TeleClientSingleton().send_message(cid, f"{system_msg}\n\n{reply}")
+    await TeleClientSingleton().send_message(entity=cid, message=user_msg)
+    await TeleClientSingleton().send_message(entity=Config.ADMIN_ID, message=admin_msg)
+    if count >= 5:
+        await kick_user_and_admin(gid=cid, uid=uid)
+        clear_session_data(user_id=uid)
+
+
+async def save_payment_text(
+    uid: int,
+    cid: int,
+    st: str,
+    extracted: str,
+    parsed_details: dict,
+    transaction_id: int,
+    s: Session,
+):
+    s.add(
+        models.PaymentText(
+            user_id=uid,
+            session_type=st,
+            text=extracted,
+            transaction_id=transaction_id,
+            timestamp=now_iso(),
+        )
+    )
+    s.commit()
+    details_str = "".join([f"{k}: {v}\n" for k, v in parsed_details.items() if v])
+    user_msg = (
+        f"Receipt verified successfully, all required fields {session_data[uid]['metadata']['required_fields']} were extracted:\n"
+        f"{details_str}\n"
+    )
+    system_msg = f"User {uid} has provided a receipt containing all required fields {session_data[uid]['metadata']['required_fields']}\n"
+    if "date" not in parsed_details:
+        user_msg += "optional fields ['date'] are missing, please provide them manually if they're present."
+        system_msg += "but missed optional fields ['date']"
+    user_msg += "You can send OK if all the information are correct."
+    await TeleClientSingleton().send_message(entity=cid, message=user_msg)
+    session_data[uid]["state"] = SessionState.AWAITING_CONFIRMATION.name
