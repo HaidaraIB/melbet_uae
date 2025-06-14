@@ -2,9 +2,8 @@ from models.DB import init_db, session_scope, with_retry
 from models.User import User, Subscription
 from models.Language import Language
 from models.Blacklist import Blacklist
-from models.MelbetAccount import MelbetAccount
-from models.MelbetAccountChange import MelbetAccountChange
-from models.PaymentText import PaymentText
+from models.PlayerAccount import PlayerAccount
+from models.PlayerAccountChange import PlayerAccountChange
 from models.Setting import Setting
 from models.UserSession import UserSession
 from models.FraudLog import FraudLog
@@ -15,11 +14,11 @@ from models.FixtureCache import (
     CachedH2H,
     CachedOdds,
     CachedStandings,
-    CachedStats,
+    CachedFixtureStats,
     CachedTeamStats,
     CachedTeamResults,
 )
 from models.Plan import Plan
 from models.GroupPreferences import GroupPreferences
 from models.GroupSubscription import GroupSubscription
-from models.Transaction import Transaction, PaymentMethod
+from models.Transaction import Transaction, PaymentMethod, Proof, Receipt

@@ -16,6 +16,7 @@ from common.keyboards import build_user_keyboard, build_admin_keyboard
 from common.common import check_hidden_keyboard, get_lang
 from common.lang_dicts import TEXTS
 from client.client_calls.common import resume_timers_on_startup
+from client.client_calls.functions import load_session_data
 from Config import Config
 
 
@@ -37,16 +38,16 @@ async def inits(app: Application):
         gpt_prompt = s.get(models.Setting, "gpt_prompt")
         if not gpt_prompt:
             default_prompt = (
-                "You are the owner of MELBET. Use a professional and friendly tone. "
                 "Respond in English by default, but match the user's language (e.g., Arabic if the message is in Arabic). "
                 "If analyzing a receipt, identify if it is a financial transaction and extract details like amount, transaction ID, payment method, and date if possible. "
                 "If details are missing or the text contains unclear characters, inform the user that hiding required details or submitting unclear images may delay the deposit process. "
                 "Request a clearer image or missing details if necessary. "
-                "When requested, store the user's MELBET account number and verify it in future interactions. "
+                "When requested, store the user's Player account number and verify it in future interactions. "
                 "If the user provides a different account number, warn them that it does not match their default account and request confirmation to update it."
             )
             s.add(models.Setting(key="gpt_prompt", value=default_prompt))
     await resume_timers_on_startup()
+    load_session_data()
 
 
 async def set_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):

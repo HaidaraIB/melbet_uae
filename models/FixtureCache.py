@@ -12,10 +12,11 @@ class CachedFixture(Base):
     season = sa.Column(sa.Integer)
     fixture_date = sa.Column(sa.DateTime)
     data = sa.Column(sa.JSON)  # Stores the full fixture data
+    sport = sa.Column(sa.String)
 
     # Relationships to other cached data
     odds = relationship("CachedOdds", back_populates="fixture")
-    stats = relationship("CachedStats", back_populates="fixture")
+    stats = relationship("CachedFixtureStats", back_populates="fixture")
     h2h = relationship("CachedH2H", back_populates="fixture")
     standings = relationship("CachedStandings", back_populates="fixture")
     team_stats = relationship("CachedTeamStats", back_populates="fixture")
@@ -28,12 +29,13 @@ class CachedOdds(Base):
     fixture_id = sa.Column(sa.Integer, sa.ForeignKey("cached_fixtures.fixture_id"))
     data = sa.Column(sa.JSON)
     last_updated = sa.Column(sa.DateTime)
+    sport = sa.Column(sa.String)
 
     fixture = relationship("CachedFixture", back_populates="odds")
 
 
-class CachedStats(Base):
-    __tablename__ = "cached_stats"
+class CachedFixtureStats(Base):
+    __tablename__ = "cached_fixture_stats"
 
     id = sa.Column(sa.Integer, primary_key=True)
     fixture_id = sa.Column(sa.Integer, sa.ForeignKey("cached_fixtures.fixture_id"))
@@ -52,6 +54,7 @@ class CachedH2H(Base):
     away_id = sa.Column(sa.Integer)
     data = sa.Column(sa.JSON)
     last_updated = sa.Column(sa.DateTime)
+    sport = sa.Column(sa.String)
 
     fixture = relationship("CachedFixture", back_populates="h2h")
 
@@ -62,9 +65,11 @@ class CachedStandings(Base):
     id = sa.Column(sa.Integer, primary_key=True)
     fixture_id = sa.Column(sa.Integer, sa.ForeignKey("cached_fixtures.fixture_id"))
     league_id = sa.Column(sa.Integer)
+    team_id = sa.Column(sa.Integer)
     season = sa.Column(sa.Integer)
     data = sa.Column(sa.JSON)
     last_updated = sa.Column(sa.DateTime)
+    sport = sa.Column(sa.String)
 
     fixture = relationship("CachedFixture", back_populates="standings")
 
@@ -79,6 +84,7 @@ class CachedTeamStats(Base):
     season = sa.Column(sa.Integer)
     data = sa.Column(sa.JSON)
     last_updated = sa.Column(sa.DateTime)
+    sport = sa.Column(sa.String)
 
     fixture = relationship("CachedFixture", back_populates="team_stats")
 
@@ -88,8 +94,9 @@ class CachedTeamResults(Base):
 
     id = sa.Column(sa.Integer, primary_key=True)
     team_id = sa.Column(sa.Integer, index=True)
-    data = sa.Column(sa.JSON)  # Stores the list of recent matches
+    data = sa.Column(sa.JSON)
     last_updated = sa.Column(sa.DateTime)
+    sport = sa.Column(sa.String)
 
     # Index for faster lookups
     __table_args__ = (sa.Index("idx_team_results_team_id", "team_id"),)

@@ -19,8 +19,10 @@ log = logging.getLogger(__name__)
 
 
 async def send_periodic_messages(context: ContextTypes.DEFAULT_TYPE):
+    chat_id = context.job.data["chat_id"]
+    topic = context.job.data["topic"]
     with models.session_scope() as s:
-        prompt = s.get(models.Setting, f"gpt_prompt_{context.job.data}")
+        prompt = s.get(models.Setting, f"gpt_prompt_{topic}")
         default_prompt = s.get(models.Setting, "gpt_prompt")
         system = f"{prompt.value if prompt else default_prompt.value}"
     note = (
@@ -35,16 +37,15 @@ async def send_periodic_messages(context: ContextTypes.DEFAULT_TYPE):
         .message.content.strip()
     )
     await context.bot.send_message(
-        chat_id=Config.MONITOR_GROUP_ID,
+        chat_id=chat_id,
         text=note,
         parse_mode=ParseMode.MARKDOWN,
     )
 
 
 async def check_suspicious_users(context: ContextTypes.DEFAULT_TYPE):
-    async for member in TeleClientSingleton().iter_participants(
-        Config.MONITOR_GROUP_ID
-    ):
+    chat_id = context.job.data["chat_id"]
+    async for member in TeleClientSingleton().iter_participants(chat_id):
         if isinstance(
             member.participant,
             (
@@ -61,9 +62,7 @@ async def check_suspicious_users(context: ContextTypes.DEFAULT_TYPE):
         )
         if is_scammer:
             try:
-                monitor_group = await TeleClientSingleton().get_entity(
-                    Config.MONITOR_GROUP_ID
-                )
+                monitor_group = await TeleClientSingleton().get_entity(entity=chat_id)
                 await TeleClientSingleton()(
                     EditBannedRequest(
                         channel=monitor_group,
@@ -80,20 +79,6 @@ async def check_suspicious_users(context: ContextTypes.DEFAULT_TYPE):
 
 def contains_restricted_word(text: str):
     restricted_words = [
-        r"melbet",
-        r"mel\-bet",
-        r"mel bet",
-        r"mlbet",
-        r"me1bet",
-        r"m3lbet",
-        r"melbett",
-        r"meIbet",
-        r"m€lbet",
-        r"mèlbet",
-        r"міlbet",
-        r"ملبت",
-        r"ميلبت",
-        r"مل\-بيت",
         r"manager",
         r"manger",
         r"mngr",

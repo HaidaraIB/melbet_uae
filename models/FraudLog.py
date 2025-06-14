@@ -11,14 +11,11 @@ class FraudLog(Base):
     copied_from_id = sa.Column(sa.BigInteger, sa.ForeignKey("users.user_id"))
     timestamp = sa.Column(sa.DateTime)
     receipt_text = sa.Column(sa.Text, nullable=False)
-    transaction_id = sa.Column(sa.String, sa.ForeignKey("transactions.id"))
+    transaction_id = sa.Column(sa.String)
 
     user = relationship(
         "User", foreign_keys=[user_id], back_populates="fraud_committed"
     )
     copied_from_user = relationship(
         "User", foreign_keys=[copied_from_id], back_populates="fraud_copied_from"
-    )
-    transaction = relationship(
-        "Transaction", back_populates="fraud_logs"
     )

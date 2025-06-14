@@ -1,19 +1,20 @@
 from models.Language import Language
 
+TRANSACTION_TYPES = {
+    Language.ARABIC: {
+        "deposit": "الإيداع",
+        "withdraw": "السحب",
+    },
+    Language.ENGLISH: {
+        "deposit": "Deposit",
+        "withdraw": "Withdrawal",
+    },
+}
+
 TEXTS = {
     Language.ARABIC: {
-        "receipt_unclear_chars": "النظام: الإيصال يحتوي على أحرف غير واضحة. يرجى إرسال صورة أوضح بجودة عالية.",
-        "missing_essential_details": "النظام: لم نتمكن من استخراج التفاصيل الأساسية: {}. إذا لم يحتوي الإيصال على المعلومات المفقودة الرجاء إرسالها يدوياً.",
-        "fraud_detected_blacklisted": "النظام: تم اكتشاف محاولة احتيال. هذه العملية (رقم العملية: {}) استخدمها في الأصل المستخدم @{} ({}) في {}. هذه محاولتك رقم {}. لقد تم إضافتك إلى القائمة السوداء.",
-        "fraud_detected_warning": "النظام: تم اكتشاف محاولة احتيال. هذه العملية (رقم العملية: {}) استخدمها في الأصل المستخدم @{} ({}) في {}. هذه محاولتك رقم {}. للعلم، في حال وصول عدد المحاولات إلى 5، سيتم إنهاء التعامل معك وإضافتك إلى القائمة السوداء.",
-        "receipt_verified_success": "النظام: تم التحقق من الإيصال بنجاح:\n{}",
-        "missing_optional_details": "ملاحظة: التفاصيل التالية مفقودة: {}. يُرجى تقديمها يدويًا إذا أمكن.\n",
         "blacklisted_user": "عذرًا، تم إضافتك إلى القائمة السوداء بسبب محاولات احتيال متكررة.",
         "session_link": "🔗 Private {} session link:\n{}",
-        "account_belongs_another": "هذا الحساب {} عائد لمستخدم آخر",
-        "account_change_failed": "فشل تغيير الحساب ❗️\nالنظام: تم اكتشاف محاولات متكررة لتغيير رقم الحساب. هذه محاولتك رقم {}.",
-        "account_updated": "تم تحديث الحساب الخاص بك من {} إلى {}. هذه محاولتك رقم {}",
-        "account_saved": "النظام: تم حفظ رقم الحساب {} بنجاح. جاري معالجة الإيداع.",
         "no_account": (
             "ليس لديك حساب بعد، يمكنك إنشاء حساب باتباع الخطوات التالية\n\n"
             "1️⃣ عد إلى المجموعة العامة\n"
@@ -25,20 +26,19 @@ TEXTS = {
         ),
         "account_not_reg": "لم تقم بإنشاء هذا الحساب عبر الرابط المرسل إليك ❗️",
         "no_text_extracted_from_photo": "عذرًا، لم يتم استخراج أي نص من الصورة. يرجى إرسال صورة أوضح بجودة عالية.",
+        "google_vision_error": "عذرًا، حدث خطأ أثناء معالجة الصورة. يرجى إرسال صورة أوضح أو التأكد من جودة الصورة.",
+        "deposit_approved": "تمت الموافقة على الإيداع رقم <code>{}</code> وإضافة {} {} إلى حسابك <code>{}</code>",
+        "withdraw_approved": "تمت الموافقة على السحب رقم <code>{}</code> لكود السحب <code>{}</code> لحساب اللاعب <code>{}</code>",
+        "transaction_declined": (
+            "للأسف، تم رفض طلب {} رقم <code>{}</code>\n" "السبب:\n{}"
+        ),
+        "withdraw_failed": (
+            "فشلت عملية السحب، رسالة الخطأ: {}\n" "تحقق من صحة كود السحب وأعد المحاولة"
+        ),
     },
     Language.ENGLISH: {
-        "receipt_unclear_chars": "System: The receipt contains unclear characters. Please send a clearer, higher quality image.",
-        "missing_essential_details": "System: We couldn't extract the essential details: {}. If the receipt doesn't contain the missing info please provide them manually.",
-        "fraud_detected_blacklisted": "System: Fraud attempt detected. This transaction (ID: {}) was sent from another user. This is your attempt number {}. You have been added to the blacklist.",
-        "fraud_detected_warning": "System: Fraud attempt detected. This transaction (ID: {}) was sent from another user. This is your attempt number {}. Note that if you reach 5 attempts, you will be blacklisted.",
-        "receipt_verified_success": "System: Receipt verified successfully:\n{}",
-        "missing_optional_details": "Note: The following details are missing: {}. Please provide them manually if possible.\n",
         "blacklisted_user": "Sorry, you have been blacklisted due to repeated fraud attempts.",
         "session_link": "🔗 Private {} session link:\n{}",
-        "account_belongs_another": "This account {} belongs to another user",
-        "account_change_failed": "Account change failed ❗️\nSystem: Repeated account change attempts detected. This is your attempt number {}.",
-        "account_updated": "Your account has been updated from {} to {}. This is your attempt number {}",
-        "account_saved": "System: Account number {} saved successfully. Processing your deposit.",
         "no_account": (
             "You don't have an account yet, you can create one by doing the following:\n\n"
             "1️⃣ Go to our group\n"
@@ -50,6 +50,16 @@ TEXTS = {
         ),
         "account_not_reg": "Account is not created via the previous registeratin link ❗️",
         "no_text_extracted_from_photo": "Sorry, I was unable to extract any text from this photo, please try again with a better photo resollution",
+        "google_vision_error": "Sorry, an error occured while processing your image, please try with a more clear one.",
+        "deposit_approved": "Deposit number <code>{}</code> has been approved and a <b>{} {}</b> is added to your account <code>{}</code>",
+        "withdraw_approved": "Withdrawal number <code>{}</code> has been approved for the code <code>{}</code> on account <code>{}</code>",
+        "transaction_declined": (
+            "Unfortunatly, {} number <code>{}</code> has been decline\n" "Reason:\n{}"
+        ),
+        "withdraw_failed": (
+            "Withdrawal failed with error message: {}\n"
+            "check if your withdrawal code is correct and try again"
+        ),
     },
 }
 

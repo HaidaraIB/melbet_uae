@@ -10,6 +10,7 @@ import logging
 import asyncio
 import traceback
 from common.error_handler import write_error
+from telethon.events import StopPropagation
 
 Base = declarative_base()
 engine = create_engine(
@@ -32,7 +33,14 @@ def init_db():
     Base.metadata.create_all(engine)
 
 
-Session = scoped_session(sessionmaker(bind=engine, autocommit=False, autoflush=False))
+Session = scoped_session(
+    sessionmaker(
+        bind=engine,
+        autocommit=False,
+        autoflush=False,
+        expire_on_commit=False,
+    )
+)
 
 
 @contextmanager

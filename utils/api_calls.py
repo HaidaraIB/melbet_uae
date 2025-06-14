@@ -38,7 +38,7 @@ async def _get_request(url, params, headers=HEADERS):
         async with aiohttp.ClientSession() as session:
             async with session.get(url, params=params, headers=headers) as response:
                 if response.status == 429:
-                    return await handle_rate_limit(_get_request, url, params)
+                    return await handle_rate_limit(_get_request, url, params, headers)
                 data = await response.json()
                 return data.get("response", [])
 
@@ -145,7 +145,8 @@ async def get_fixture(fixture_id: int):
 
 async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
     """Enhanced monitoring with match completion detection"""
-    match = context.job.data
+    match = context.job.data["match"]
+    chat_id = context.job.data["chat_id"]
 
     # First check if match has ended
     status = await get_fixture_status(match["fixture_id"])
@@ -177,13 +178,14 @@ async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
             )
 
             await context.bot.send_message(
-                chat_id=Config.MONITOR_GROUP_ID,
+                chat_id=chat_id,
                 text=message,
             )
             match["last_event_id"] = event["id"]
 
 
 async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
+    chat_id = context.job.data["chat_id"]
     # Get today's fixtures
     fixtures = await get_daily_fixtures()
 
@@ -210,10 +212,13 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
                     callback=monitor_live_events,
                     interval=30,
                     first=30,
-                    data=match_data,
-                    name=f"match_update_{fixture['fixture_id']}_monitor",
+                    data={
+                        "match": match_data,
+                        "chat_id": chat_id,
+                    },
+                    name=f"match_update_{fixture['fixture_id']}_monitor_{chat_id}",
                     job_kwargs={
-                        "id": f"monitor_live_events_{fixture['fixture_id']}",
+                        "id": f"monitor_live_events_{fixture['fixture_id']}_{chat_id}",
                         "replace_existing": True,
                     },
                 )
@@ -229,10 +234,13 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
             context.job_queue.run_once(
                 callback=send_pre_match_lineup,
                 when=(lineup_time - now).total_seconds(),
-                data=match_data,
-                name=f"match_update_{fixture['fixture_id']}_lineup",
+                data={
+                    "match": match_data,
+                    "chat_id": chat_id,
+                },
+                name=f"match_update_{fixture['fixture_id']}_lineup_{chat_id}",
                 job_kwargs={
-                    "id": f"send_pre_match_lineup_{fixture['fixture_id']}",
+                    "id": f"send_pre_match_lineup_{fixture['fixture_id']}_{chat_id}",
                     "replace_existing": True,
                 },
             )
@@ -243,10 +251,13 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
                 callback=monitor_live_events,
                 interval=30,
                 first=(monitor_start - now).total_seconds(),
-                data=match_data,
-                name=f"match_update_{fixture['fixture_id']}_monitor",
+                data={
+                    "match": match_data,
+                    "chat_id": chat_id,
+                },
+                name=f"match_update_{fixture['fixture_id']}_monitor_{chat_id}",
                 job_kwargs={
-                    "id": f"monitor_live_events_{fixture['fixture_id']}",
+                    "id": f"monitor_live_events_{fixture['fixture_id']}_{chat_id}",
                     "replace_existing": True,
                 },
             )
@@ -263,10 +274,13 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
             context.job_queue.run_once(
                 callback=send_post_match_stats,
                 when=(stats_time - now).total_seconds(),
-                data=match_data,
-                name=f"match_update_{fixture['fixture_id']}_stats",
+                data={
+                    "match": match_data,
+                    "chat_id": chat_id,
+                },
+                name=f"match_update_{fixture['fixture_id']}_stats_{chat_id}",
                 job_kwargs={
-                    "id": f"send_post_match_stats_{fixture['fixture_id']}",
+                    "id": f"send_post_match_stats_{fixture['fixture_id']}_{chat_id}",
                     "replace_existing": True,
                 },
             )
@@ -289,7 +303,7 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
         )
 
     await context.bot.send_message(
-        chat_id=Config.MONITOR_GROUP_ID,
+        chat_id=chat_id,
         text=(
             f"📅 <b>Today's Matches:</b>\n\n" + "\n".join(match_list) + "\n\n"
             f"Total matches: {len(fixtures)}\n"
@@ -299,11 +313,16 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def send_pre_match_lineup(context: ContextTypes.DEFAULT_TYPE):
-    match = context.job.data
-    await _send_pre_match_lineup(match=match, context=context)
+    match = context.job.data["match"]
+    chat_id = context.job.data["chat_id"]
+    await _send_pre_match_lineup(match=match, context=context, chat_id=chat_id)
 
 
-async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
+async def _send_pre_match_lineup(
+    match,
+    context: ContextTypes.DEFAULT_TYPE,
+    chat_id: int = Config.UAE_MONITOR_GROUP_ID,
+):
     home_lineup_data, away_lineup_data = await get_fixture_lineups(match["fixture_id"])
 
     if home_lineup_data and away_lineup_data:
@@ -336,7 +355,7 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
         # image_data = requests.get(lineup_img.data[0].url).content
 
         await context.bot.send_photo(
-            chat_id=Config.MONITOR_GROUP_ID,
+            chat_id=chat_id,
             photo=lineup_img,
             caption=f"⚠️ <b>{match['home_team']} vs {match['away_team']} - Confirmed Lineups</b>",
             parse_mode="HTML",
@@ -350,7 +369,7 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
             "Write a short, exciting 3-line analysis for fans that includes:\n"
             "1. Tactical expectations from formations\n"
             "2. Possible impact players\n"
-            "3. End with: 'Want exclusive pre-match insights? Get your MELBET account through us now!'"
+            "3. End with: 'Want exclusive pre-match insights? Get your Player account through us now!'"
         )
 
         response = await openai.chat.completions.create(
@@ -367,21 +386,24 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
         analysis = response.choices[0].message.content.strip()
 
         await context.bot.send_message(
-            chat_id=Config.MONITOR_GROUP_ID,
+            chat_id=chat_id,
             text=f"{analysis}\n\n⏰ Kickoff at <code>{match['start_time'].strftime('%H:%M')}</code>",
             parse_mode="HTML",
         )
 
 
 async def send_post_match_stats(context: ContextTypes.DEFAULT_TYPE):
-    match = context.job.data
-    await _send_post_match_stats(fixture_id=match["fixture_id"], context=context)
+    match = context.job.data["match"]
+    chat_id = context.job.data["chat_id"]
+    await _send_post_match_stats(
+        fixture_id=match["fixture_id"], context=context, chat_id=chat_id
+    )
 
 
 async def _send_post_match_stats(
     fixture_id: int,
     context: ContextTypes.DEFAULT_TYPE,
-    chat_id: int = Config.MONITOR_GROUP_ID,
+    chat_id: int = Config.UAE_MONITOR_GROUP_ID,
 ):
     fix_data = await get_fixture(fixture_id)
     stats_data = await get_fixture_stats(fixture_id)
@@ -408,7 +430,7 @@ async def _send_post_match_stats(
                 team1=team1,
                 team2=team2,
                 league=fix_data[0]["league"],
-                d=fix_data[0]['fixture']["date"],
+                d=fix_data[0]["fixture"]["date"],
                 infographic=infographic,
                 stats=summary_stats,
             )
@@ -552,11 +574,11 @@ async def generate_match_summary(team1: str, team2: str, summary_stats: list):
             prompt = prompt.value
         else:
             prompt = (
-                "You're a smart football analyst writing a short match summary on behalf of MELBET.\n\n"
+                "You're a smart football analyst writing a short match summary.\n\n"
                 "Write a concise, stylish summary in English (max 4 lines) that:\n"
                 "- Starts with storytelling (not just stats)\n"
                 "- Weaves in some of the stats smoothly\n"
-                "- Ends with a soft CTA inviting the reader to create a MELBET account to access pre-match insights and analysis\n\n"
+                "- Ends with a soft CTA inviting the reader to create a Player account to access pre-match insights and analysis\n\n"
                 "Avoid exaggeration or direct 'betting' words. Use a confident, professional tone."
             )
 
@@ -578,7 +600,7 @@ async def generate_match_summary(team1: str, team2: str, summary_stats: list):
     cta = (
         "\n\n"
         "Want to see the full picture before kickoff?\n"
-        "Request your <b>MELBET</b> account through us and receive:\n"
+        "Request your Player account through us and receive:\n"
         "— Pre-match insights\n"
         "— Tactical breakdowns\n"
         "— Exclusive strategic advantages\n"

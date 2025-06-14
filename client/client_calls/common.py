@@ -20,11 +20,19 @@ from openai import AsyncOpenAI
 from Config import Config
 import json
 import asyncio
+from datetime import datetime
 from sqlalchemy.orm import Session
+from common.constants import *
 from client.client_calls.lang_dicts import *
-from client.client_calls.functions import now_iso, clear_session_data, session_data
-from client.client_calls.constants import SessionState
+from client.client_calls.functions import (
+    now_iso,
+    clear_session_data,
+    initialize_user_session_data,
+    session_data,
+)
+import common.lang_dicts
 import logging
+import utils.mobi_cash as mobi
 
 log = logging.getLogger(__name__)
 
@@ -80,7 +88,7 @@ async def extract_text_from_photo(event, lang, payment_methods):
                         "- amount (string/float)\n"
                         "- currency (string)\n"
                         f"- payment_method from our list of payment methods {payment_methods}\n"
-                        "- date (string, if detected)\n"
+                        "- date (in iso format)\n"
                         "- warnings (array of strings, if any field is suspicious or missing, else empty array)\n"
                         "- summary_ar (string, clear summary in Arabic)\n"
                         "- summary_en (string, clear summary in English)\n\n"
@@ -103,9 +111,7 @@ async def extract_text_from_photo(event, lang, payment_methods):
 
     except Exception as e:
         log.error(f"خطأ في OCR (Google Vision): {e}")
-        await event.reply(
-            "عذرًا، حدث خطأ أثناء معالجة الصورة (Google OCR). يرجى إرسال صورة أوضح أو التأكد من جودة الصورة."
-        )
+        await event.reply(TEXTS[lang]["google_vision_error"])
         return None, None
 
     finally:
@@ -219,25 +225,59 @@ async def resume_timers_on_startup():
                 log.info(f"session timer {timer} triggered.")
 
 
-async def start_session(uid: int, st: str):
+async def start_session(uid: int, cid: int, st: str):
     tg_user = await TeleClientSingleton().get_entity(uid)
     with models.session_scope() as s:
         user = s.get(models.User, uid)
-        default_prompt = s.get(models.Setting, "gpt_prompt")
-        session_prompt = s.get(models.Setting, f"gpt_prompt_{st}")
-        try:
-            if not user:
-                user = models.User(
-                    user_id=tg_user.id,
-                    username=tg_user.username if tg_user.username else "",
-                    name=(
-                        (tg_user.first_name + tg_user.last_name)
-                        if tg_user.last_name
-                        else tg_user.first_name
+        if not user:
+            user = models.User(
+                user_id=tg_user.id,
+                username=tg_user.username if tg_user.username else "",
+                name=(
+                    (tg_user.first_name + tg_user.last_name)
+                    if tg_user.last_name
+                    else tg_user.first_name
+                ),
+            )
+            s.add(user)
+            s.commit()
+        user_account = s.query(models.PlayerAccount).filter_by(user_id=uid).first()
+        if not user_account:
+            try:
+                await TeleClientSingleton().send_message(
+                    entity=user.user_id,
+                    message=common.lang_dicts.TEXTS[user.lang][
+                        "create_account_group_reply"
+                    ].format(
+                        user.name,
+                        CREATE_ACCOUNT_LINKS[cid]["wlcm"].format(
+                            user.user_id, user.user_id
+                        ),
+                        CREATE_ACCOUNT_LINKS[cid]["apk"].format(
+                            user.user_id, user.user_id
+                        ),
+                        CREATE_ACCOUNT_LINKS[cid]["reg"].format(
+                            user.user_id, user.user_id
+                        ),
                     ),
+                    link_preview=False,
+                    parse_mode="html",
                 )
-                s.add(user)
-                s.commit()
+            except Exception as e:
+                await TeleClientSingleton().send_message(
+                    entity=cid,
+                    message=common.lang_dicts.TEXTS[user.lang]["start_chat_first"],
+                )
+                return
+            await TeleClientSingleton().send_message(
+                entity=cid,
+                message=(
+                    "You don't have an account with us yet ❗️\n\n"
+                    + common.lang_dicts.TEXTS[user.lang]["link_sent_in_private"]
+                ),
+            )
+            return
+        try:
             is_user_blacklisted = s.get(models.Blacklist, uid)
             if is_user_blacklisted:
                 await TeleClientSingleton().send_message(
@@ -247,6 +287,8 @@ async def start_session(uid: int, st: str):
                 return
             gid, is_new = await get_or_create_session(uid, st, s)
             peer = await TeleClientSingleton().get_entity(gid)
+            default_prompt = s.get(models.Setting, "gpt_prompt")
+            session_prompt = s.get(models.Setting, f"gpt_prompt_{st}")
             if is_new:
                 resp = await openai.chat.completions.create(
                     model=Config.GPT_MODEL,
@@ -312,6 +354,8 @@ async def start_session(uid: int, st: str):
                         models.SessionTimer.uid == uid, models.SessionTimer.gid == gid
                     ).delete()
                     s.commit()
+            if uid not in session_data or st not in session_data[uid]:
+                initialize_user_session_data(user_id=uid, st=st)
         except ValueError as e:
             log.error(f"فشل في بدء الجلسة للمستخدم {uid} بسبب خطأ في الكيان: {e}")
             await TeleClientSingleton().send_message(
@@ -326,57 +370,145 @@ async def start_session(uid: int, st: str):
             )
 
 
-async def submit_to_admin(user: models.User, s: Session):
-    st = session_data[user.user_id]["type"]
-    data = session_data[user.user_id]["data"]
+async def auto_deposit(user: models.User, s: Session):
+    st = "deposit"
+    data = session_data[user.id][st]["data"]
     payment_method = (
         s.query(models.PaymentMethod).filter_by(name=data["payment_method"]).first()
     )
-    player_account = (
-        s.query(models.MelbetAccount).filter_by(user_id=user.user_id).first()
+    transaction = add_transaction(
+        data=data, user_id=user.id, st=st, payment_method_id=payment_method.id, s=s
     )
-    transaction = models.Transaction(
-        user_id=user.user_id,
-        payment_method_id=payment_method.id,
-        type=st,
-        amount=data["amount"],
-        receipt_id=data["transaction_id"],
-        player_account=player_account.account_number,
-        status="pending",
-        date=data.get("date"),
-        timestamp=now_iso(),
+    if payment_method.mode == "auto":
+        # TODO auto check if deposit arrived
+        res = mobi.deposit(
+            user_id=user.player_account.account_number, amount=data["amount"]
+        )
+        if res["Success"]:
+            await TeleBotSingleton().send_message(
+                entity=Config.ADMIN_ID,
+                message=str(transaction),
+                parse_mode="html",
+            )
+            return transaction.id
+        return res["Message"]
+    elif payment_method.name.lower() in ["e & money", "paydu", "payby"]:
+        receipt = s.query(models.Receipt).filter_by(id=transaction.receipt_id).first()
+        if receipt and not receipt.user_id:
+            receipt.user_id = user.user_id
+            s.commit()
+            await TeleBotSingleton().send_message(
+                entity=Config.ADMIN_ID,
+                message=str(transaction),
+                parse_mode="html",
+            )
+            return transaction.id
+        return "Duplicate Receipt Id"
+    else:
+        await TeleBotSingleton().send_message(
+            entity=Config.ADMIN_ID,
+            message=str(transaction),
+            parse_mode="html",
+            buttons=(
+                [
+                    [
+                        Button.inline(
+                            text="موافقة ✅",
+                            data=f"approve_{st}_{transaction.id}",
+                        ),
+                        Button.inline(
+                            text="رفض ❌",
+                            data=f"decline_{st}_{transaction.id}",
+                        ),
+                    ]
+                ]
+            ),
+        )
+        return transaction.id
+
+
+async def auto_withdraw(user: models.User, s: Session):
+    st = "withdraw"
+    data = session_data[user.id][st]["data"]
+    payment_method = (
+        s.query(models.PaymentMethod).filter_by(name=data["payment_method"]).first()
     )
+    transaction = add_transaction(
+        data=data, user_id=user.id, st=st, payment_method_id=payment_method.id, s=s
+    )
+    res = mobi.withdraw(
+        user_id=user.player_account.account_number,
+        code=data["withdrawal_code"],
+    )
+    if res["Success"]:
+        await TeleBotSingleton().send_message(
+            entity=Config.ADMIN_ID,
+            message=str(transaction),
+            parse_mode="html",
+            buttons=(
+                [
+                    [
+                        Button.inline(
+                            text="موافقة ✅",
+                            data=f"approve_{st}_{transaction.id}",
+                        ),
+                        Button.inline(
+                            text="رفض ❌",
+                            data=f"decline_{st}_{transaction.id}",
+                        ),
+                    ]
+                ]
+            ),
+        )
+        return transaction.id
+    return res["Message"]
+
+
+def add_transaction(
+    data: dict, user_id: int, st: str, payment_method_id: int, s: Session
+):
+    player_account = s.query(models.PlayerAccount).filter_by(user_id=user_id).first()
+    if st == "deposit":
+        transaction = models.Transaction(
+            user_id=user_id,
+            payment_method_id=payment_method_id,
+            type=st,
+            amount=data["amount"],
+            currency=data["currency"],
+            receipt_id=data["transaction_id"],
+            player_account=player_account.account_number,
+            status="pending",
+            date=datetime.fromisoformat(data["date"]) if data["date"] else None,
+            timestamp=now_iso(),
+        )
+    else:
+        transaction = models.Transaction(
+            user_id=user_id,
+            payment_method_id=payment_method_id,
+            type=st,
+            withdrawal_code=data["withdrawal_code"],
+            payment_info=data["payment_info"],
+            player_account=player_account.account_number,
+            status="pending",
+            timestamp=now_iso(),
+        )
+
     s.add(transaction)
     s.commit()
-
-    await TeleBotSingleton().send_message(
-        entity=Config.ADMIN_ID,
-        message=str(transaction),
-        parse_mode="html",
-        buttons=[
-            [
-                Button.inline(
-                    text="تأكيد ✅",
-                    data=f"confirm_{st}_{transaction.id}",
-                ),
-                Button.inline(
-                    text="إلغاء ❌",
-                    data=f"decline_{st}_{transaction.id}",
-                ),
-            ]
-        ],
-    )
+    return transaction
 
 
 async def handle_fraud(
     uid: int,
     cid: int,
+    st: str,
     user: models.User,
-    duplicate: models.PaymentText,
+    duplicate: models.Receipt,
     extracted: str,
     transaction_id: int,
     s: Session,
 ):
+    from_user = s.get(models.User, duplicate.user_id)
     s.add(
         models.FraudLog(
             user_id=uid,
@@ -405,7 +537,7 @@ async def handle_fraud(
         admin_msg = (
             f"المستخدم @{user.username} (<code>{uid}</code>) في القائمة السوداء عدد المحاولات {count} ⚠️\n"
             f"رقم العملية الذي تمت المحاولة فيه: <code>{transaction_id}</code>\n"
-            f"عائد للمستخدم @{duplicate.user.username} (<code>{duplicate.user_id}</code>)"
+            f"عائد للمستخدم @{from_user.username} (<code>{duplicate.user_id}</code>)"
         )
     else:
         user_msg = (
@@ -417,43 +549,11 @@ async def handle_fraud(
         admin_msg = (
             f"محاولة احتيال رقم {count} للمستخدم @{user.username} (<code>{uid}</code>) ⚠️\n"
             f"رقم العملية الذي تمت المحاولة فيه: <code>{transaction_id}</code>\n"
-            f"عائد للمستخدم @{duplicate.user.username} (<code>{duplicate.user_id}</code>)"
+            f"عائد للمستخدم @{from_user.username} (<code>{duplicate.user_id}</code>)"
         )
     await TeleClientSingleton().send_message(entity=cid, message=user_msg)
     await TeleClientSingleton().send_message(entity=Config.ADMIN_ID, message=admin_msg)
     if count >= 5:
         await kick_user_and_admin(gid=cid, uid=uid)
-        clear_session_data(user_id=uid)
+        clear_session_data(user_id=uid, st=st)
 
-
-async def save_payment_text(
-    uid: int,
-    cid: int,
-    st: str,
-    extracted: str,
-    parsed_details: dict,
-    transaction_id: int,
-    s: Session,
-):
-    s.add(
-        models.PaymentText(
-            user_id=uid,
-            session_type=st,
-            text=extracted,
-            transaction_id=transaction_id,
-            timestamp=now_iso(),
-        )
-    )
-    s.commit()
-    details_str = "".join([f"{k}: {v}\n" for k, v in parsed_details.items() if v])
-    user_msg = (
-        f"Receipt verified successfully, all required fields {session_data[uid]['metadata']['required_fields']} were extracted:\n"
-        f"{details_str}\n"
-    )
-    system_msg = f"User {uid} has provided a receipt containing all required fields {session_data[uid]['metadata']['required_fields']}\n"
-    if "date" not in parsed_details:
-        user_msg += "optional fields ['date'] are missing, please provide them manually if they're present."
-        system_msg += "but missed optional fields ['date']"
-    user_msg += "You can send OK if all the information are correct."
-    await TeleClientSingleton().send_message(entity=cid, message=user_msg)
-    session_data[uid]["state"] = SessionState.AWAITING_CONFIRMATION.name

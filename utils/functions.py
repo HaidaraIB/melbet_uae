@@ -185,11 +185,11 @@ def draw_double_lineup_image(
         rotation=270,
     )
 
-    # شعار MELBET بشكل واضح (centered)
+    # شعار 888STARZ بشكل واضح (centered)
     ax.text(
         x=15 + pitch_width / 2,
         y=pitch_height / 2,
-        s="MELBET",
+        s="888STARZ",
         ha="center",
         va="center",
         fontsize=50,
@@ -297,15 +297,6 @@ def draw_double_lineup_image(
     return buf
 
 
-def filter_fixtures(fixtures: list, sport: str = "football"):
-    league_ids = [l["id"] for l in LEAGUES[sport].values()]
-    return [
-        fix
-        for fix in fixtures
-        if fix["league_id"] in league_ids
-    ]
-
-
 def build_enhanced_poster_prompt(
     match_title: str,
     league_name: str,
@@ -357,3 +348,244 @@ def build_enhanced_poster_prompt(
         "\n💡 Keep overall layout premium, bold, and ready for sports Telegram groups."
     )
     return base_prompt
+
+
+def filter_fixtures(fixtures: list, sport: str = "football"):
+    league_ids = [l["id"] for l in LEAGUES[sport].values()]
+    return [fix for fix in fixtures if fix["league_id"] in league_ids]
+
+
+def format_basketball_stats(stats):
+    return (
+        f"Record: {stats['games']['wins']['all']['total']}-{stats['games']['loses']['all']['total']} | "
+        f"PPG: {stats['points']['for']['average']['all']} | "
+        f"PAPG: {stats['points']['against']['average']['all']} | "
+        f"Home: {stats['games']['wins']['home']['total']}-{stats['games']['loses']['home']['total']} | "
+        f"Away: {stats['games']['wins']['away']['total']}-{stats['games']['loses']['away']['total']}"
+    )
+
+
+def format_football_stats(stats):
+    return (
+        f"Form: {stats['form']} | "
+        f"Record: {stats['fixtures']['wins']['total']}-{stats['fixtures']['draws']['total']}-{stats['fixtures']['loses']['total']} | "
+        f"GF: {stats['goals']['for']['total']['total']} ({stats['goals']['for']['average']['total']}/game) | "
+        f"GA: {stats['goals']['against']['total']['total']} ({stats['goals']['against']['average']['total']}/game) | "
+        f"CS: {stats['clean_sheet']['total']}"
+    )
+
+
+def format_american_football_stats(stats):
+    team_stats = stats[0]["statistics"]
+    return (
+        f"Yards: {team_stats['yards']['total']} | "
+        f"Pass: {team_stats['passing']['comp_att']} | "
+        f"Rush: {team_stats['rushings']['attempts']} for {team_stats['rushings']['total']} | "
+        f"3rd Down: {team_stats['first_downs']['third_down_efficiency']} | "
+        f"TO: {team_stats['turnovers']['total']} | "
+        f"Poss: {team_stats['posession']['total']}"
+    )
+
+
+def format_hockey_stats(stats):
+    return (
+        f"Record: {stats['games']['wins']['all']['total']}-{stats['games']['loses']['all']['total']} | "
+        f"GF: {stats['goals']['for']['total']['all']} ({stats['goals']['for']['average']['all']}/game) | "
+        f"GA: {stats['goals']['against']['total']['all']} ({stats['goals']['against']['average']['all']}/game) | "
+        f"Home: {stats['games']['wins']['home']['total']}-{stats['games']['loses']['home']['total']} | "
+        f"Away: {stats['games']['wins']['away']['total']}-{stats['games']['loses']['away']['total']}"
+    )
+
+
+def format_last_matches(matches, team_id, sport):
+    if not matches or not isinstance(matches, list) or len(matches) == 0:
+        return "No recent matches"
+
+    last_5 = matches[:5]
+    results = []
+    goals_for = 0
+    goals_against = 0
+    overtime_games = 0
+
+    for match in last_5:
+        if sport == "football":
+            # Football specific handling
+            is_home = match["teams"]["home"]["id"] == team_id
+            team_goals = match["goals"]["home"] if is_home else match["goals"]["away"]
+            opp_goals = match["goals"]["away"] if is_home else match["goals"]["home"]
+
+        elif sport == "basketball":
+            # Basketball specific handling
+            is_home = match["teams"]["home"]["id"] == team_id
+            team_goals = match["scores"]["home" if is_home else "away"]["total"]
+            opp_goals = match["scores"]["away" if is_home else "home"]["total"]
+            if (
+                match["scores"]["home"]["over_time"]
+                or match["scores"]["away"]["over_time"]
+            ):
+                overtime_games += 1
+
+        elif sport == "american-football":
+            # American football specific handling
+            is_home = match["teams"]["home"]["id"] == team_id
+            team_goals = match["scores"]["home" if is_home else "away"]["total"]
+            opp_goals = match["scores"]["away" if is_home else "home"]["total"]
+            if match["status"]["short"] in ["AOT", "OT"]:
+                overtime_games += 1
+
+        elif sport == "hockey":
+            # Hockey specific handling
+            is_home = match["teams"]["home"]["id"] == team_id
+            team_goals = match["scores"]["home"] if is_home else match["scores"]["away"]
+            opp_goals = match["scores"]["away"] if is_home else match["scores"]["home"]
+            if match["periods"]["overtime"]:
+                overtime_games += 1
+        if team_goals is not None and opp_goals is not None:
+            # Determine result
+            if team_goals > opp_goals:
+                result = "W"
+            elif team_goals == opp_goals:
+                result = "D"
+            else:
+                result = "L"
+
+            results.append(result)
+            goals_for += team_goals
+            goals_against += opp_goals
+
+    # Build summary string
+    summary = f"Form: {' '.join(results)} | GF: {goals_for} | GA: {goals_against}"
+
+    # Add averages if we have matches
+    if len(last_5) > 0:
+        avg_for = goals_for / len(last_5)
+        avg_against = goals_against / len(last_5)
+        summary += f" | Avg: {avg_for:.1f}-{avg_against:.1f}"
+
+    # Add overtime info if any games went to OT
+    if overtime_games > 0:
+        summary += f" | OT: {overtime_games}"
+
+    return summary
+
+
+def structure_team_standing(data: dict, sport: str):
+    if not data:
+        return {}
+    team_standing = {}
+    if sport == "football":
+        team_standing["rank"] = data[0]["league"]["standings"][0][0]["rank"]
+        team_standing["points"] = data[0]["league"]["standings"][0][0]["points"]
+    elif sport == "basketball":
+        team_standing["rank"] = data[0][0]["position"]
+        team_standing["points"] = data[0][0]["points"]["for"]
+    elif sport == "american_football":
+        team_standing["rank"] = data[0]["position"]
+        team_standing["points"] = data[0]["points"]["for"]
+    elif sport == "hockey":
+        team_standing["rank"] = data[0][0]["position"]
+        team_standing["points"] = data[0][0]["points"]
+    return team_standing
+
+
+def structure_fixtures(sport: str, data: list[dict], fix_num: int = None):
+    data = data[:fix_num] if fix_num else data
+    fixtures = []
+    if sport == "football":
+        for item in data:
+            fixture = item["fixture"]
+            teams = item["teams"]
+            fixtures.append(
+                {
+                    "fixture_id": fixture["id"],
+                    "home_id": teams["home"]["id"],
+                    "away_id": teams["away"]["id"],
+                    "home_name": teams["home"]["name"],
+                    "away_name": teams["away"]["name"],
+                    "season": item["league"]["season"],
+                    "league_id": item["league"]["id"],
+                    "league_name": item["league"]["name"],
+                    "venue": fixture["venue"]["name"],
+                    "date": fixture["date"],
+                    "sport": sport,
+                    "goals": item.get("goals", None),
+                }
+            )
+
+    elif sport == "basketball":
+        for item in data:
+            teams = item["teams"]
+            fixtures.append(
+                {
+                    "fixture_id": item["id"],
+                    "home_id": teams["home"]["id"],
+                    "away_id": teams["away"]["id"],
+                    "home_name": teams["home"]["name"],
+                    "away_name": teams["away"]["name"],
+                    "season": item["league"]["season"],
+                    "league_id": item["league"]["id"],
+                    "league_name": item["league"]["name"],
+                    "venue": item["venue"],
+                    "date": item["date"],
+                    "sport": sport,
+                    "goals": item.get("scores", None),
+                }
+            )
+
+    elif sport == "american_football":
+        for item in data:
+            teams = item["teams"]
+            fixture = item["game"]
+            fixtures.append(
+                {
+                    "fixture_id": fixture["id"],
+                    "home_id": teams["home"]["id"],
+                    "away_id": teams["away"]["id"],
+                    "home_name": teams["home"]["name"],
+                    "away_name": teams["away"]["name"],
+                    "season": item["league"]["season"],
+                    "league_id": item["league"]["id"],
+                    "league_name": item["league"]["name"],
+                    "venue": fixture["venue"]["name"],
+                    "date": item["date"],
+                    "goals": item.get("scores", None),
+                }
+            )
+
+    elif sport == "hockey":
+        for item in data:
+            teams = item["teams"]
+            fixtures.append(
+                {
+                    "fixture_id": item["id"],
+                    "home_id": teams["home"]["id"],
+                    "away_id": teams["away"]["id"],
+                    "home_name": teams["home"]["name"],
+                    "away_name": teams["away"]["name"],
+                    "season": item["league"]["season"],
+                    "league_id": item["league"]["id"],
+                    "league_name": item["league"]["name"],
+                    "venue": "N/A",
+                    "date": item["date"],
+                    "sport": sport,
+                    "goals": item.get("scores", None),
+                }
+            )
+    return fixtures
+
+
+def summarize_odds(odds: list[dict]):
+    summaries = []
+    printed = set()
+    for provider in odds:
+        for bet in provider.get("bookmakers", []):
+            for market in bet.get("bets", []):
+                name = market.get("name", "")
+                if name not in printed:
+                    printed.add(name)
+                    values = " | ".join(
+                        [f"{o['value']}: {o['odd']}" for o in market.get("values", [])]
+                    )
+                    summaries.append(f"{name}: {values}")
+    result = "\n".join(summaries)
+    return result

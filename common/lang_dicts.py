@@ -95,8 +95,10 @@ TEXTS = {
             "👋 مرحباً <b>{}</b>!\n\n"
             "🔗 رابطك الشخصي للتسجيل: <a href={}>رابط التسجيل</a>\n"
             "⬇️ لتحميل التطبيق: <a href={}>رابط التحميل</a>\n"
+            "⚽️ تسجيل الرياضة: <a href={}>رابط الرياضة</a>\n"
             "استخدم هذا الرابط حتى نتمكّن من تتبع مكافآتك 🎁\n\n"
-            "<i><b>بعد التسجيل، قم بإرسال رقم الحساب</b></i>"
+            "<i><b>سيتم ربط الحساب مع معرفك في أقرب وقت ممكن.\n"
+            "يمكنك أن ترسل رقم الحساب مباشرة بعد التسجيل للمحاولة لربط الحساب بشكل فوري.</b></i>"
         ),
         "start_chat_first": "يرجى فتح محادثة خاصة معي أولاً ثم إعادة إرسال كلمة حساب ❗️",
         "link_sent_in_private": "📩 تم إرسال الرابط في الخاص ✅",
@@ -204,8 +206,10 @@ TEXTS = {
             "👋 Hello <b>{}</b>!\n\n"
             "🔗 Your Personal link to register: <a href={}>Registeration Link</a>\n"
             "⬇️ Download the app: <a href={}>Download Link</a>\n"
+            "⚽️ Sport registration: <a href={}>Sport Registration Link</a>\n"
             "🎁 Use This link to be able to keep track of your rewards\n\n"
-            "<i><b>After registeration, send me the account number</b></i>"
+            "<i><b>The account will be linked with your telegram account automatically soon.\n"
+            "you can try to link it immediately by sending me your player id after registration.</b></i>"
         ),
         "start_chat_first": "Please start a chat with me first and then resend the last message you sent ❗️",
         "link_sent_in_private": "📩 Registeration link was sent in private, check your inbox ✅",

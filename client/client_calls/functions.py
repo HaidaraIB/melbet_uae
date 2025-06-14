@@ -6,6 +6,8 @@ import logging
 
 log = logging.getLogger(__name__)
 
+session_data = {}
+
 
 def save_session_data():
     global session_data
@@ -26,29 +28,53 @@ def load_session_data():
             session_data = {}
 
 
-def clear_session_data(user_id: int):
+def clear_session_data(user_id: int, st: str):
     global session_data
-    del session_data[user_id]
+    del session_data[user_id][st]
+    save_session_data()
 
 
-def initialize_user_session_data(user_id: int, session_type: str):
+def initialize_user_session_data(user_id: int, st: str):
     global session_data
     session_data[user_id] = {
-        "state": SessionState.AWAITING_RECEIPT.name,
-        "type": session_type,
-        "data": {
-            "amount": None,
-            "transaction_id": None,
-            "payment_method": None,
-            "date": None,
-            "extracted_text": None,
-        },
         "metadata": {
-            "required_fields": ["amount", "transaction_id", "payment_method"],
-            "optional_fields": ["date"],
-            "missing_fields": [],
+            "required_deposit_fields": [
+                "amount",
+                "transaction_id",
+                "payment_method",
+                "currency",
+            ],
+            "optional_deposit_fields": ["date"],
+            "required_withdraw_fields": [
+                "withdrawal_code",
+                "payment_method",
+                "payment_info",
+            ],
+            "optional_withdraw_fields": [],
         },
     }
+    if st == "deposit":
+        session_data[user_id]["deposit"] = {
+            "state": SessionState.AWAITING_MISSING_FIELDS.name,
+            "data": {
+                "amount": None,
+                "transaction_id": None,
+                "payment_method": None,
+                "date": None,
+                "extracted_text": None,
+                "currency": None,
+                "stripe_link": None,
+            },
+        }
+    else:
+        session_data[user_id]["withdraw"] = {
+            "state": SessionState.AWAITING_MISSING_FIELDS.name,
+            "data": {
+                "withdrawal_code": None,
+                "payment_method": None,
+                "payment_info": None,
+            },
+        }
     save_session_data()
 
 
@@ -63,7 +89,3 @@ def classify_intent(text: str):
     if any(k in t for k in ("wd", "withdraw", "سحب")):
         return "withdraw"
     return None
-
-
-session_data = {}
-load_session_data()

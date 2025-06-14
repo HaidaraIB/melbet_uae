@@ -1,7 +1,5 @@
 from Config import Config
 from client.client_calls.common import openai
-from telegram import InlineKeyboardButton
-import models
 from common.lang_dicts import *
 
 
@@ -31,23 +29,6 @@ def summarize_injuries(injuries: list[dict], sport: str):
                 for i in injuries
             ]
         )
-
-
-def summarize_odds(odds: list[dict]):
-    summaries = []
-    printed = set()
-    for book in odds:
-        for bet in book.get("bookmakers", []):
-            for market in bet.get("bets", []):
-                name = market.get("name", "")
-                if name not in printed:
-                    printed.add(name)
-                    outcomes = [
-                        f"{o['value']}: {o['odd']}" for o in market.get("values", [])
-                    ]
-                    summaries.append(f"{name}:\n{" | ".join(outcomes)}\n\n")
-    result = "\n".join(summaries)
-    return result
 
 
 async def generate_gpt_analysis(match_info: dict):
@@ -99,50 +80,28 @@ async def generate_gpt_analysis(match_info: dict):
         "- Bold the suggestion titles\n"
         "- Use bullet points for: Market, Probability, Odds, Value, Reason\n"
     )
-
     response = await openai.chat.completions.create(
         model=Config.GPT_MODEL,
-        messages=[{"role": "user", "content": prompt}],
+        messages=[
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
         temperature=0.7,
     )
     return response.choices[0].message.content.strip()
-
-
-def build_matches_keyboard(matches: list[dict], lang, page=0, per_page=5):
-    start = page * per_page
-    end = start + per_page
-    sliced = matches[start:end]
-
-    keyboard = []
-    for match in sliced:
-        keyboard.append(
-            [
-                InlineKeyboardButton(
-                    text=f"{match['home_name']} vs {match['away_name']}",
-                    callback_data=f"analyze_match_{match['fixture_id']}",
-                )
-            ]
-        )
-
-    nav_buttons = []
-    if page > 0:
-        nav_buttons.append(
-            InlineKeyboardButton(
-                text=BUTTONS[lang]["prev"],
-                callback_data=f"analyze_match_page_{page-1}",
-            )
-        )
-    if end < len(matches):
-        nav_buttons.append(
-            InlineKeyboardButton(
-                text=BUTTONS[lang]["next"],
-                callback_data=f"analyze_match_page_{page+1}",
-            )
-        )
-
-    if nav_buttons:
-        keyboard.append(nav_buttons)
-    return keyboard
+    # response = await openai.responses.create(
+    #     model="o3-pro",
+    #     input=[
+    #         {
+    #             "role": "user",
+    #             "content": prompt,
+    #         }
+    #     ],
+    #     temperature=0.7,
+    # )
+    # return response.output_text
 
 
 async def ask_gpt_about_match(teams: str, sport: str):
@@ -158,32 +117,3 @@ async def ask_gpt_about_match(teams: str, sport: str):
         temperature=0,
     )
     return response.choices[0].message.content.replace("json", "").replace("```", "")
-
-
-def build_sports_keyboard(lang: models.Language, prefix: str):
-    return [
-        [
-            InlineKeyboardButton(
-                text=BUTTONS[lang]["football"],
-                callback_data=f"{prefix}_football",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=BUTTONS[lang]["basketball"],
-                callback_data=f"{prefix}_basketball",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=BUTTONS[lang]["american_football"],
-                callback_data=f"{prefix}_american_football",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text=BUTTONS[lang]["hockey"],
-                callback_data=f"{prefix}_hockey",
-            )
-        ],
-    ]

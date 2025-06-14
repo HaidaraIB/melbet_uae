@@ -12,7 +12,10 @@ class Config:
     BOT_SESSION = os.getenv("BOT_SESSION")
     OWNER_ID = int(os.getenv("OWNER_ID"))
     ADMIN_ID = int(os.getenv("ADMIN_ID"))
-    MONITOR_GROUP_ID = int(os.getenv("MONITOR_GROUP_ID"))
+    UAE_MONITOR_GROUP_ID = int(os.getenv("UAE_MONITOR_GROUP_ID"))
+    SYR_MONITOR_GROUP_ID = int(os.getenv("SYR_MONITOR_GROUP_ID"))
+    ACCOUNTS_GROUP_ID = int(os.getenv("ACCOUNTS_GROUP_ID"))
+    RECEIPTS_GROUP_ID = int(os.getenv("RECEIPTS_GROUP_ID"))
     PHONE = os.getenv("PHONE")
     ERRORS_CHANNEL = int(os.getenv("ERRORS_CHANNEL"))
     FORCE_JOIN_CHANNEL_ID = int(os.getenv("FORCE_JOIN_CHANNEL_ID"))
@@ -35,3 +38,7 @@ class Config:
 
     WEBHOOK_API_KEY = os.getenv("WEBHOOK_API_KEY")
     WEBHOOK_TOKEN = os.getenv("WEBHOOK_TOKEN")
+
+    MOBI_CASH_CASHDESKID = os.getenv("MOBI_CASH_CASHDESKID")
+    MOBI_CASH_CASHIERPASS = os.getenv("MOBI_CASH_CASHIERPASS")
+    MOBI_CASH_HASH_VALUE = os.getenv("MOBI_CASH_HASH_VALUE")

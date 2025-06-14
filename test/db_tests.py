@@ -14,9 +14,22 @@ async def main():
     load_dotenv()
     models.init_db()
     with models.session_scope() as s:
-        pref = s.query(models.GroupPreferences).first()
-        print(type(pref.sports))
-        print(type(pref.brands))
+        s.add(models.Receipt(id=1, payment_method_id=1))
+        s.commit()
+        s.add(
+            models.Transaction(
+                user_id=755501092,
+                payment_method_id=1,
+                type="deposit",
+                amount=1,
+                currency="aed",
+                receipt_id=1,
+                player_account=1,
+            )
+        )
+        s.commit()
+        r = s.get(models.Receipt, 1)
+        print(r.payment_method)
 
 
 asyncio.run(main())

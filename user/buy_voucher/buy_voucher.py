@@ -19,15 +19,17 @@ from common.back_to_home_page import back_to_user_home_page_handler
 from user.buy_voucher.common import (
     summarize_fixtures_with_odds_stats,
     generate_multimatch_coupon,
-    build_preferences_keyboard,
     parse_user_request,
-    build_get_voucher_confirmation_keyboard,
 )
-from user.buy_voucher.api_calls import get_fixtures
+from user.buy_voucher.keyboards import (
+    build_get_voucher_confirmation_keyboard,
+    build_preferences_keyboard,
+)
 from user.buy_voucher.functions import calc_from_to_dates_and_duration_in_days
-from user.analyze_game.common import build_sports_keyboard
-import models
+from user.analyze_game.keyboards import build_sports_keyboard
+from utils.api_calls_by_sport import get_fixtures_by_sport
 from utils.functions import filter_fixtures
+import models
 
 (
     DURATION_TYPE,
@@ -271,7 +273,7 @@ async def get_league(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 duration_type=context.user_data["duration_type"],
                 duration_value=context.user_data["duration_value"],
             )
-            all_fixtures = await get_fixtures(
+            all_fixtures = await get_fixtures_by_sport(
                 from_date=now,
                 duration_in_days=duration_in_days,
                 sport=sport_pref,
@@ -344,7 +346,7 @@ async def get_matches(update: Update, context: ContextTypes.DEFAULT_TYPE):
             sports = set([match["sport"].lower() for match in matches_list])
             all_fixtures = []
             for s in sports:
-                all_fixtures += await get_fixtures(
+                all_fixtures += await get_fixtures_by_sport(
                     from_date=now,
                     duration_in_days=duration_in_days,
                     sport=s,
@@ -361,7 +363,7 @@ async def get_matches(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text=TEXTS[lang]["gpt_buy_voucher_reply_empty"]
                 )
                 return
-            context.user_data['buy_voucher_matches_pref_fixtures'] = fixtures
+            context.user_data["buy_voucher_matches_pref_fixtures"] = fixtures
             context.user_data["matches_pref"] = matches_list
             await wait_msg.edit_text(
                 text=TEXTS[lang]["voucher_summary"].format(
@@ -421,25 +423,25 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if pref == "sport":
             fixtures = context.user_data["buy_voucher_sport_pref_fixtures"]
         elif pref == "matches":
-            fixtures = context.user_data['buy_voucher_matches_pref_fixtures']
+            fixtures = context.user_data["buy_voucher_matches_pref_fixtures"]
         else:
             odds = [odds * 0.5, odds * 0.3, odds * 0.1, odds * 0.1]
-            football_fixtures = await get_fixtures(
+            football_fixtures = await get_fixtures_by_sport(
                 from_date=now,
                 duration_in_days=duration_in_days,
                 sport="football",
             )
-            basketball_fixtures = await get_fixtures(
+            basketball_fixtures = await get_fixtures_by_sport(
                 from_date=now,
                 duration_in_days=duration_in_days,
                 sport="basketball",
             )
-            american_football_fixtures = await get_fixtures(
+            american_football_fixtures = await get_fixtures_by_sport(
                 from_date=now,
                 duration_in_days=duration_in_days,
                 sport="american_football",
             )
-            hockey_fixtures = await get_fixtures(
+            hockey_fixtures = await get_fixtures_by_sport(
                 from_date=now,
                 duration_in_days=duration_in_days,
                 sport="hockey",
@@ -447,7 +449,9 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
             fixtures = [
                 *filter_fixtures(fixtures=football_fixtures, sport="football"),
                 *filter_fixtures(fixtures=basketball_fixtures, sport="basketball"),
-                *filter_fixtures(fixtures=american_football_fixtures, sport="american football"),
+                *filter_fixtures(
+                    fixtures=american_football_fixtures, sport="american football"
+                ),
                 *filter_fixtures(fixtures=hockey_fixtures, sport="hockey"),
             ]
 

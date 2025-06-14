@@ -57,6 +57,12 @@ def build_admin_keyboard():
         ],
         [
             InlineKeyboardButton(
+                text="إعدادات وسائل الدفع",
+                callback_data="payment_method_settings",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
                 text="حظر/فك حظر 🔓🔒",
                 callback_data="ban_unban",
             )
