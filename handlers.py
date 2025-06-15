@@ -305,11 +305,6 @@ def setup_and_run():
         respond_in_private,
         events.NewMessage(incoming=True),
     )
-    # session
-    tele_client.add_event_handler(
-        send_transaction_to_proccess,
-        events.NewMessage(pattern=r"^[oO][kK]$", incoming=True),
-    )
     tele_client.add_event_handler(
         end_session,
         events.NewMessage(pattern="/end", outgoing=True),
@@ -324,6 +319,10 @@ def setup_and_run():
     )
 
     tele_bot = TeleBotSingleton()
+    tele_bot.add_event_handler(
+        send_transaction_to_proccess,
+        events.CallbackQuery(pattern=r"^send_transaction_to_proccess$"),
+    )
     tele_bot.add_event_handler(
         handle_link_account_request,
         events.CallbackQuery(pattern=r"^((confirm)|(decline))_link_account"),

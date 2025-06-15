@@ -63,7 +63,7 @@ async def choose_payment_method(event: events.CallbackQuery.Event):
             if payment_method.name == STRIPE and st == "deposit":
                 from_group_id = session_data[uid]["metadata"]["from_group_id"]
                 currency = CURRENCIES[from_group_id]["currency"]
-                stripe_link = generate_stripe_payment_link(uid=uid)
+                stripe_link = generate_stripe_payment_link(uid=uid, currency=currency)
                 session_data[uid]["metadata"]["stripe_link"] = stripe_link
                 await TeleBotSingleton().send_message(
                     entity=group.id,
@@ -223,6 +223,13 @@ async def get_receipt(event: events.NewMessage.Event):
                         if v and k in session_data[uid][st]["data"]
                     ]
                 )
+
+                if "date" not in parsed_details:
+                    log.info(f"تفاصيل اختيارية مفقودة: ['date']")
+                    msg += "optional fields (date) are missing, please provide them manually if they're present."
+                else:
+                    session_data[uid][st]["data"]["date"] = parsed_details["date"]
+
                 if not all(
                     parsed_details[f]
                     for f in session_data[uid]["metadata"]["required_deposit_fields"]
@@ -238,6 +245,9 @@ async def get_receipt(event: events.NewMessage.Event):
                         f"<code>{details_str}</code>\n"
                         f"but we have a missing details: ({', '.join(missing)}). Please provide them manually"
                     )
+                    await TeleClientSingleton().send_message(
+                        entity=cid, message=msg, parse_mode="html"
+                    )
                     session_data[uid][st][
                         "state"
                     ] = SessionState.AWAITING_MISSING_FIELDS.name
@@ -248,18 +258,18 @@ async def get_receipt(event: events.NewMessage.Event):
                         f"Receipt verified successfully, required fields extracted:\n\n"
                         f"<code>{details_str}</code>\n\n"
                     )
-                    msg += "You can send OK if all the information are correct."
+                    msg += "You can Press OK if all the information are correct."
+                    await TeleBotSingleton().send_message(
+                        entity=cid,
+                        message=msg,
+                        parse_mode="html",
+                        buttons=Button.inline(
+                            text="OK", data="send_transaction_to_proccess"
+                        ),
+                    )
                     session_data[uid][st][
                         "state"
                     ] = SessionState.AWAITING_CONFIRMATION.name
-                if "date" not in parsed_details:
-                    log.info(f"تفاصيل اختيارية مفقودة: ['date']")
-                    msg += "optional fields (date) are missing, please provide them manually if they're present."
-                else:
-                    session_data[uid][st]["data"]["date"] = parsed_details["date"]
-                await TeleClientSingleton().send_message(
-                    entity=cid, message=msg, parse_mode="html"
-                )
 
             save_session_data()
     raise events.StopPropagation
@@ -376,8 +386,17 @@ async def get_missing(event: events.NewMessage.Event):
                     user_msg += (
                         "Required data completed:\n\n"
                         f"<code>{completed_data}</code>\n"
-                        "you can send OK if all the information are correct.\n\n"
-                        "Note that withdrawal take <b>from 1 up to 24 hours</b> to complete"
+                        "you can Press OK if all the information are correct."
+                    )
+                    if st == "withdraw":
+                        user_msg += "\n\nNote that withdrawal take <b>from 1 up to 24 hours</b> to complete"
+                    await TeleBotSingleton().send_message(
+                        entity=cid,
+                        message=user_msg,
+                        parse_mode="html",
+                        buttons=Button.inline(
+                            text="OK", data="send_transaction_to_proccess"
+                        ),
                     )
                     session_data[uid][st][
                         "state"
@@ -394,6 +413,11 @@ async def get_missing(event: events.NewMessage.Event):
                         "Required fields not yet provided:\n\n"
                         f"<code>{missing_data}</code>\n"
                         "Please provide them manualy."
+                    )
+                    await TeleClientSingleton().send_message(
+                        entity=cid,
+                        message=user_msg,
+                        parse_mode="html",
                     )
 
             except json.decoder.JSONDecodeError:
@@ -415,21 +439,21 @@ async def get_missing(event: events.NewMessage.Event):
                     )
                     return
                 user_msg = reply
-            await TeleClientSingleton().send_message(
-                entity=cid,
-                message=user_msg,
-                parse_mode="html",
-            )
+                await TeleClientSingleton().send_message(
+                    entity=cid,
+                    message=user_msg,
+                    parse_mode="html",
+                )
             save_session_data()
     raise events.StopPropagation
 
 
-async def send_transaction_to_proccess(event: events.NewMessage.Event):
-    uid = event.sender_id
-    if not event.is_group or not event.raw_text:
+async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
+    if not event.is_group:
         return
+    uid = event.sender_id
     cid = event.chat_id
-    ent = await TeleClientSingleton().get_entity(cid)
+    ent = await TeleClientSingleton().get_entity(entity=cid)
     with models.session_scope() as s:
         user_session = s.query(models.UserSession).filter_by(group_id=ent.id).first()
         user = s.get(models.User, uid)
