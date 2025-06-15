@@ -40,7 +40,11 @@ from TeleClientSingleton import TeleClientSingleton
 from Config import Config
 
 from MyApp import MyApp
-from jobs import check_suspicious_users, send_periodic_messages
+from jobs import (
+    check_suspicious_users,
+    send_periodic_messages,
+    match_recipts_with_transaction,
+)
 
 from datetime import time
 import re
@@ -113,6 +117,15 @@ def setup_and_run():
     app.add_handler(back_to_admin_home_page_handler)
 
     app.add_error_handler(error_handler)
+
+    app.job_queue.run_repeating(
+        callback=match_recipts_with_transaction,
+        interval=600,
+        job_kwargs={
+            "id": "match_recipts_with_transaction",
+            "replace_existing": True,
+        },
+    )
 
     # app.job_queue.run_repeating(
     #     callback=check_suspicious_users,

@@ -7,6 +7,7 @@ from telethon.tl.types import (
     ChannelParticipantCreator,
     ChatParticipantCreator,
 )
+import utils.mobi_cash as mobi
 from telethon.tl.functions.channels import EditBannedRequest
 from telethon.tl.types import ChatBannedRights
 from client.client_calls.common import openai
@@ -97,3 +98,32 @@ def contains_restricted_word(text: str):
     pattern = r"(?:" + "|".join(restricted_words) + r")"
     match = re.search(pattern, text, re.IGNORECASE)
     return match is not None
+
+
+async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
+    with models.session_scope() as s:
+        receipts = s.query(models.Receipt).all()
+        for receipt in receipts:
+            if receipt.user_id:
+                continue
+            transaction = (
+                s.query(models.Transaction).filter_by(receipt_id=receipt.id).first()
+            )
+            if transaction and transaction.status == "pending":
+                res = await mobi.deposit(
+                    user_id=transaction.user.player_account.account_number,
+                    amount=receipt.amount,
+                )
+                if res["Success"]:
+                    message = f"Deposit number <code>{transaction.id}</code> is done"
+                else:
+                    message = f"Deposit number <code>{transaction.id}</code> failed, reason: {res['Message']}"
+                receipt.user_id = transaction.user_id
+                transaction.status = "approved"
+                transaction.amount = receipt.amount
+                await TeleClientSingleton().send_message(
+                    entity=transaction.user_id,
+                    message=message,
+                    parse_mode="html",
+                )
+                s.commit()
