@@ -46,7 +46,7 @@ def build_payment_method_modes_keyboard():
             ),
             InlineKeyboardButton(
                 text="آلي",
-                callback_data="auto_payemnt_method",
+                callback_data="auto_payment_method",
             ),
         ]
     ]

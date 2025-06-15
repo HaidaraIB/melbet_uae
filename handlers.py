@@ -114,122 +114,122 @@ def setup_and_run():
 
     app.add_error_handler(error_handler)
 
-    app.job_queue.run_repeating(
-        callback=check_suspicious_users,
-        interval=2 * 60 * 60,
-        data={
-            "chat_id": Config.UAE_MONITOR_GROUP_ID,
-        },
-        job_kwargs={
-            "id": "check_suspicious_users_uae",
-            "replace_existing": True,
-        },
-    )
-    app.job_queue.run_repeating(
-        callback=check_suspicious_users,
-        interval=2 * 60 * 60,
-        data={
-            "chat_id": Config.SYR_MONITOR_GROUP_ID,
-        },
-        job_kwargs={
-            "id": "check_suspicious_users_syr",
-            "replace_existing": True,
-        },
-    )
+    # app.job_queue.run_repeating(
+    #     callback=check_suspicious_users,
+    #     interval=2 * 60 * 60,
+    #     data={
+    #         "chat_id": Config.UAE_MONITOR_GROUP_ID,
+    #     },
+    #     job_kwargs={
+    #         "id": "check_suspicious_users_uae",
+    #         "replace_existing": True,
+    #     },
+    # )
+    # app.job_queue.run_repeating(
+    #     callback=check_suspicious_users,
+    #     interval=2 * 60 * 60,
+    #     data={
+    #         "chat_id": Config.SYR_MONITOR_GROUP_ID,
+    #     },
+    #     job_kwargs={
+    #         "id": "check_suspicious_users_syr",
+    #         "replace_existing": True,
+    #     },
+    # )
 
-    app.job_queue.run_repeating(
-        callback=send_periodic_messages,
-        interval=3 * 60 * 60,
-        data={
-            "topic": "security_messages",
-            "chat_id": Config.UAE_MONITOR_GROUP_ID,
-        },
-        job_kwargs={
-            "id": "send_periodic_security_messages_uae",
-            "replace_existing": True,
-        },
-    )
-    app.job_queue.run_repeating(
-        callback=send_periodic_messages,
-        interval=3 * 60 * 60,
-        data={
-            "topic": "security_messages",
-            "chat_id": Config.SYR_MONITOR_GROUP_ID,
-        },
-        job_kwargs={
-            "id": "send_periodic_security_messages_syr",
-            "replace_existing": True,
-        },
-    )
+    # app.job_queue.run_repeating(
+    #     callback=send_periodic_messages,
+    #     interval=3 * 60 * 60,
+    #     data={
+    #         "topic": "security_messages",
+    #         "chat_id": Config.UAE_MONITOR_GROUP_ID,
+    #     },
+    #     job_kwargs={
+    #         "id": "send_periodic_security_messages_uae",
+    #         "replace_existing": True,
+    #     },
+    # )
+    # app.job_queue.run_repeating(
+    #     callback=send_periodic_messages,
+    #     interval=3 * 60 * 60,
+    #     data={
+    #         "topic": "security_messages",
+    #         "chat_id": Config.SYR_MONITOR_GROUP_ID,
+    #     },
+    #     job_kwargs={
+    #         "id": "send_periodic_security_messages_syr",
+    #         "replace_existing": True,
+    #     },
+    # )
 
-    app.job_queue.run_repeating(
-        callback=send_periodic_messages,
-        interval=3 * 60 * 60,
-        data={
-            "topic": "promotional",
-            "chat_id": Config.UAE_MONITOR_GROUP_ID,
-        },
-        job_kwargs={
-            "id": "send_periodic_promotional_uae",
-            "replace_existing": True,
-        },
-    )
-    app.job_queue.run_repeating(
-        callback=send_periodic_messages,
-        interval=3 * 60 * 60,
-        data={
-            "topic": "promotional",
-            "chat_id": Config.SYR_MONITOR_GROUP_ID,
-        },
-        job_kwargs={
-            "id": "send_periodic_promotional_syr",
-            "replace_existing": True,
-        },
-    )
+    # app.job_queue.run_repeating(
+    #     callback=send_periodic_messages,
+    #     interval=3 * 60 * 60,
+    #     data={
+    #         "topic": "promotional",
+    #         "chat_id": Config.UAE_MONITOR_GROUP_ID,
+    #     },
+    #     job_kwargs={
+    #         "id": "send_periodic_promotional_uae",
+    #         "replace_existing": True,
+    #     },
+    # )
+    # app.job_queue.run_repeating(
+    #     callback=send_periodic_messages,
+    #     interval=3 * 60 * 60,
+    #     data={
+    #         "topic": "promotional",
+    #         "chat_id": Config.SYR_MONITOR_GROUP_ID,
+    #     },
+    #     job_kwargs={
+    #         "id": "send_periodic_promotional_syr",
+    #         "replace_existing": True,
+    #     },
+    # )
 
-    app.job_queue.run_repeating(
-        callback=send_periodic_messages,
-        interval=3 * 60 * 60,
-        data={
-            "topic": "dp_wd_instructions",
-            "chat_id": Config.UAE_MONITOR_GROUP_ID,
-        },
-        job_kwargs={
-            "id": "send_periodic_dp_wd_instructions_uae",
-            "replace_existing": True,
-        },
-    )
-    app.job_queue.run_repeating(
-        callback=send_periodic_messages,
-        interval=3 * 60 * 60,
-        data={
-            "topic": "dp_wd_instructions",
-            "chat_id": Config.SYR_MONITOR_GROUP_ID,
-        },
-        job_kwargs={
-            "id": "send_periodic_dp_wd_instructions_syr",
-            "replace_existing": True,
-        },
-    )
+    # app.job_queue.run_repeating(
+    #     callback=send_periodic_messages,
+    #     interval=3 * 60 * 60,
+    #     data={
+    #         "topic": "dp_wd_instructions",
+    #         "chat_id": Config.UAE_MONITOR_GROUP_ID,
+    #     },
+    #     job_kwargs={
+    #         "id": "send_periodic_dp_wd_instructions_uae",
+    #         "replace_existing": True,
+    #     },
+    # )
+    # app.job_queue.run_repeating(
+    #     callback=send_periodic_messages,
+    #     interval=3 * 60 * 60,
+    #     data={
+    #         "topic": "dp_wd_instructions",
+    #         "chat_id": Config.SYR_MONITOR_GROUP_ID,
+    #     },
+    #     job_kwargs={
+    #         "id": "send_periodic_dp_wd_instructions_syr",
+    #         "replace_existing": True,
+    #     },
+    # )
 
-    app.job_queue.run_daily(
-        callback=schedule_daily_fixtures,
-        time=time(hour=0, minute=0, tzinfo=TIMEZONE),
-        data={"chat_id": Config.UAE_MONITOR_GROUP_ID},
-        job_kwargs={
-            "id": "schedule_daily_fixtures_uae",
-            "replace_existing": True,
-        },
-    )
-    app.job_queue.run_daily(
-        callback=schedule_daily_fixtures,
-        time=time(hour=0, minute=0, tzinfo=TIMEZONE),
-        data={"chat_id": Config.SYR_MONITOR_GROUP_ID},
-        job_kwargs={
-            "id": "schedule_daily_fixtures_syr",
-            "replace_existing": True,
-        },
-    )
+    # app.job_queue.run_daily(
+    #     callback=schedule_daily_fixtures,
+    #     time=time(hour=0, minute=0, tzinfo=TIMEZONE),
+    #     data={"chat_id": Config.UAE_MONITOR_GROUP_ID},
+    #     job_kwargs={
+    #         "id": "schedule_daily_fixtures_uae",
+    #         "replace_existing": True,
+    #     },
+    # )
+    # app.job_queue.run_daily(
+    #     callback=schedule_daily_fixtures,
+    #     time=time(hour=0, minute=0, tzinfo=TIMEZONE),
+    #     data={"chat_id": Config.SYR_MONITOR_GROUP_ID},
+    #     job_kwargs={
+    #         "id": "schedule_daily_fixtures_syr",
+    #         "replace_existing": True,
+    #     },
+    # )
 
     # app.job_queue.run_daily(
     #     callback=update_team_results,
@@ -318,6 +318,16 @@ def setup_and_run():
     tele_bot.add_event_handler(
         paste_receipte,
         events.NewMessage(chats=Config.RECEIPTS_GROUP_ID),
+    )
+    tele_bot.add_event_handler(
+        choose_payment_method,
+        events.CallbackQuery(
+            pattern=r"^((deposit)|(withdraw))_session_payment_method_"
+        ),
+    )
+    tele_bot.add_event_handler(
+        check_payment,
+        events.CallbackQuery(pattern=r"^payment_done$"),
     )
 
     app.run_polling(allowed_updates=Update.ALL_TYPES, close_loop=False)

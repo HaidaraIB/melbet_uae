@@ -35,6 +35,8 @@ TEXTS = {
         "withdraw_failed": (
             "فشلت عملية السحب، رسالة الخطأ: {}\n" "تحقق من صحة كود السحب وأعد المحاولة"
         ),
+        "deposit_failed": "فشل الإيداع، رسالة الخطأ: {}",
+        "unexpected_session_error": "حدث خطأ غير متوقع",
     },
     Language.ENGLISH: {
         "blacklisted_user": "Sorry, you have been blacklisted due to repeated fraud attempts.",
@@ -60,6 +62,8 @@ TEXTS = {
             "Withdrawal failed with error message: {}\n"
             "check if your withdrawal code is correct and try again"
         ),
+        "deposit_failed": "Deposit failed, error message: {}",
+        "unexpected_session_error": "Unexpected Error",
     },
 }
 

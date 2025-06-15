@@ -1,6 +1,7 @@
 import os
 import models
 import re
+import stripe
 from google.cloud import vision
 from PIL import Image, ImageEnhance, ImageFilter
 import time
@@ -12,9 +13,10 @@ from telethon.tl.functions.channels import (
     EditTitleRequest,
     EditBannedRequest,
     LeaveChannelRequest,
+    EditAdminRequest,
 )
 from telethon.tl.functions.messages import ExportChatInviteRequest
-from telethon.tl.types import ChatBannedRights
+from telethon.tl.types import ChatBannedRights, ChatAdminRights
 from telethon import Button
 from openai import AsyncOpenAI
 from Config import Config
@@ -22,8 +24,10 @@ import json
 import asyncio
 from datetime import datetime
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 from common.constants import *
 from client.client_calls.lang_dicts import *
+from client.client_calls.constants import *
 from client.client_calls.functions import (
     now_iso,
     clear_session_data,
@@ -37,6 +41,7 @@ import utils.mobi_cash as mobi
 log = logging.getLogger(__name__)
 
 openai = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
+stripe.api_key = Config.STRIPE_API_KEY
 
 
 async def extract_text_from_photo(event, lang, payment_methods):
@@ -82,7 +87,7 @@ async def extract_text_from_photo(event, lang, payment_methods):
                         f"You are a professional financial assistant.\n\n"
                         "Given the following payment or bank receipt text, analyze and extract all relevant fields.\n"
                         "Return your full response as a single JSON object with these fields:\n"
-                        "- transaction_id (string)\n"
+                        "- receipt_id (string)\n"
                         "- from (sender name, string)\n"
                         "- to (recipient name, string)\n"
                         "- amount (string/float)\n"
@@ -123,7 +128,7 @@ async def get_or_create_session(uid: int, st: str, s: Session):
     user_session = s.get(models.UserSession, uid)
     if user_session:
         try:
-            await TeleClientSingleton().get_entity(user_session.group_id)
+            await TeleClientSingleton().get_entity(entity=user_session.group_id)
             if user_session.session_type != st:
                 try:
                     user: models.User = user_session.user
@@ -226,7 +231,8 @@ async def resume_timers_on_startup():
 
 
 async def start_session(uid: int, cid: int, st: str):
-    tg_user = await TeleClientSingleton().get_entity(uid)
+    tg_user = await TeleClientSingleton().get_entity(entity=uid)
+    bot = await TeleBotSingleton().get_me()
     with models.session_scope() as s:
         user = s.get(models.User, uid)
         if not user:
@@ -285,59 +291,58 @@ async def start_session(uid: int, cid: int, st: str):
                     message=TEXTS[user.lang]["blacklisted_user"],
                 )
                 return
-            gid, is_new = await get_or_create_session(uid, st, s)
-            peer = await TeleClientSingleton().get_entity(gid)
-            default_prompt = s.get(models.Setting, "gpt_prompt")
-            session_prompt = s.get(models.Setting, f"gpt_prompt_{st}")
-            if is_new:
-                resp = await openai.chat.completions.create(
-                    model=Config.GPT_MODEL,
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": (
-                                session_prompt.value
-                                if session_prompt
-                                else default_prompt.value
-                            ),
-                        },
-                        {
-                            "role": "user",
-                            "content": f"A {st} session is opened with user {user.name}, welcome him.",
-                        },
-                    ],
-                    temperature=0.7,
-                )
-                welcome = resp.choices[0].message.content.strip()
-                msg = await TeleClientSingleton().send_message(peer, welcome)
-                end_cmd = await TeleClientSingleton().send_message(peer, "/end")
-                try:
-                    await TeleClientSingleton().pin_message(peer, msg, notify=False)
-                    await TeleClientSingleton().pin_message(peer, end_cmd, notify=False)
-                except Exception as e:
-                    log.error(f"خطأ في تثبيت الرسالة: {e}")
+            gid, is_new = await get_or_create_session(uid=uid, st=st, s=s)
+            group = await TeleClientSingleton().get_entity(entity=gid)
             try:
                 await TeleClientSingleton()(
                     EditBannedRequest(
-                        peer,
-                        tg_user,
-                        ChatBannedRights(until_date=0, view_messages=False),
+                        channel=group,
+                        participant=tg_user,
+                        banned_rights=ChatBannedRights(
+                            until_date=0, view_messages=False
+                        ),
                     )
                 )
             except Exception as e:
                 log.error(f"خطأ في تعديل الأذونات: {e}")
             await TeleClientSingleton()(
                 InviteToChannelRequest(
-                    channel=peer,
+                    channel=group,
                     users=[
                         tg_user,
-                        await TeleClientSingleton().get_entity(Config.ADMIN_ID),
+                        await TeleClientSingleton().get_me(),
+                        await TeleClientSingleton().get_entity(entity=bot.id),
                     ],
                 )
             )
+            await TeleClientSingleton()(
+                EditAdminRequest(
+                    channel=group,
+                    user_id=bot.id,
+                    admin_rights=ChatAdminRights(
+                        post_messages=True,
+                        add_admins=False,
+                        invite_users=True,
+                        change_info=False,
+                        ban_users=True,
+                        delete_messages=True,
+                        pin_messages=True,
+                        edit_messages=True,
+                    ),
+                    rank="Bot Admin",
+                )
+            )
+            if is_new:
+                end_cmd = await TeleClientSingleton().send_message(
+                    entity=group, message="/end"
+                )
+                await TeleClientSingleton().pin_message(
+                    entity=group, message=end_cmd, notify=False
+                )
+            await send_and_pin_payment_methods_keyboard(s=s, st=st, group=gid)
             inv = await TeleClientSingleton()(
                 ExportChatInviteRequest(
-                    peer=peer,
+                    peer=group,
                     expire_date=int(time.time()) + 3600,
                     usage_limit=1,
                 )
@@ -355,7 +360,7 @@ async def start_session(uid: int, cid: int, st: str):
                     ).delete()
                     s.commit()
             if uid not in session_data or st not in session_data[uid]:
-                initialize_user_session_data(user_id=uid, st=st)
+                initialize_user_session_data(user_id=uid, from_group_id=cid, st=st)
         except ValueError as e:
             log.error(f"فشل في بدء الجلسة للمستخدم {uid} بسبب خطأ في الكيان: {e}")
             await TeleClientSingleton().send_message(
@@ -370,40 +375,107 @@ async def start_session(uid: int, cid: int, st: str):
             )
 
 
-async def auto_deposit(user: models.User, s: Session):
+async def send_and_pin_payment_methods_keyboard(s: Session, st: str, group):
+    payment_methods = (
+        s.query(models.PaymentMethod)
+        .filter(
+            and_(
+                models.PaymentMethod.type.in_([st, "both"]),
+                models.PaymentMethod.is_active == True,
+            )
+        )
+        .all()
+    )
+    payment_methods_keyboard_msg = await TeleBotSingleton().send_message(
+        entity=group,
+        message="Choose a payment method",
+        buttons=[
+            [
+                Button.inline(
+                    text=p.name,
+                    data=f"{st}_session_payment_method_{p.name}",
+                )
+            ]
+            for p in payment_methods
+        ],
+    )
+    await TeleClientSingleton().pin_message(
+        entity=group, message=payment_methods_keyboard_msg, notify=False
+    )
+
+
+async def auto_deposit(data: dict, user: models.User, s: Session):
     st = "deposit"
-    data = session_data[user.id][st]["data"]
+    currency = data["data"]["object"]["currency"]
+    amount = float(
+        data["data"]["object"]["amount"] / 100
+        if currency == "aed"
+        else data["data"]["object"]["amount"]
+    )
+    data = {
+        "amount": amount,
+        "receipt_id": data["data"]["object"]["id"],
+        "currency": currency,
+        "date": str(datetime.fromtimestamp(data["created"])),
+        "status": "approved",
+    }
     payment_method = (
-        s.query(models.PaymentMethod).filter_by(name=data["payment_method"]).first()
+        s.query(models.PaymentMethod)
+        .filter_by(name=session_data[user.user_id]["metadata"]["payment_method"])
+        .first()
     )
     transaction = add_transaction(
-        data=data, user_id=user.id, st=st, payment_method_id=payment_method.id, s=s
+        data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
     )
-    if payment_method.mode == "auto":
-        # TODO auto check if deposit arrived
-        res = mobi.deposit(
-            user_id=user.player_account.account_number, amount=data["amount"]
+    res = await mobi.deposit(user_id=user.player_account.account_number, amount=amount)
+    if res["Success"]:
+        await TeleBotSingleton().send_message(
+            entity=Config.ADMIN_ID,
+            message=str(transaction),
+            parse_mode="html",
         )
-        if res["Success"]:
-            await TeleBotSingleton().send_message(
-                entity=Config.ADMIN_ID,
-                message=str(transaction),
-                parse_mode="html",
-            )
-            return transaction.id
-        return res["Message"]
-    elif payment_method.name.lower() in ["e & money", "paydu", "payby"]:
+        return transaction.id
+    return ["Message"]
+
+
+async def process_deposit(user: models.User, s: Session):
+    st = "deposit"
+    data = session_data[user.user_id][st]["data"]
+    payment_method = (
+        s.query(models.PaymentMethod)
+        .filter_by(name=session_data[user.user_id]["metadata"]["payment_method"])
+        .first()
+    )
+    transaction = add_transaction(
+        data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
+    )
+    if payment_method.name.lower() in ["e-money", "paydu", "payby"]:
         receipt = s.query(models.Receipt).filter_by(id=transaction.receipt_id).first()
         if receipt and not receipt.user_id:
-            receipt.user_id = user.user_id
-            s.commit()
+            res = await mobi.deposit(
+                user_id=user.player_account.account_number,
+                amount=receipt.amount,
+            )
+            if res["Success"]:
+                receipt.user_id = user.user_id
+                s.commit()
+                await TeleBotSingleton().send_message(
+                    entity=Config.ADMIN_ID,
+                    message=str(transaction),
+                    parse_mode="html",
+                )
+                return transaction.id
+            return ["Message"]
+        elif receipt and receipt.user_id:
+            return "Duplicate Receipt Id"
+        elif not receipt:
             await TeleBotSingleton().send_message(
                 entity=Config.ADMIN_ID,
                 message=str(transaction),
                 parse_mode="html",
             )
             return transaction.id
-        return "Duplicate Receipt Id"
+
     else:
         await TeleBotSingleton().send_message(
             entity=Config.ADMIN_ID,
@@ -427,16 +499,18 @@ async def auto_deposit(user: models.User, s: Session):
         return transaction.id
 
 
-async def auto_withdraw(user: models.User, s: Session):
+async def process_withdraw(user: models.User, s: Session):
     st = "withdraw"
-    data = session_data[user.id][st]["data"]
+    data = session_data[user.user_id][st]["data"]
     payment_method = (
-        s.query(models.PaymentMethod).filter_by(name=data["payment_method"]).first()
+        s.query(models.PaymentMethod)
+        .filter_by(name=session_data[user.user_id]["metadata"]["payment_method"])
+        .first()
     )
     transaction = add_transaction(
-        data=data, user_id=user.id, st=st, payment_method_id=payment_method.id, s=s
+        data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
     )
-    res = mobi.withdraw(
+    res = await mobi.withdraw(
         user_id=user.player_account.account_number,
         code=data["withdrawal_code"],
     )
@@ -474,10 +548,10 @@ def add_transaction(
             payment_method_id=payment_method_id,
             type=st,
             amount=data["amount"],
-            currency=data["currency"],
-            receipt_id=data["transaction_id"],
+            currency=data["currency"].lower(),
+            receipt_id=data.get("receipt_id", None),
             player_account=player_account.account_number,
-            status="pending",
+            status=data.get("status", "pending"),
             date=datetime.fromisoformat(data["date"]) if data["date"] else None,
             timestamp=now_iso(),
         )
@@ -489,7 +563,7 @@ def add_transaction(
             withdrawal_code=data["withdrawal_code"],
             payment_info=data["payment_info"],
             player_account=player_account.account_number,
-            status="pending",
+            status=data.get("status", "pending"),
             timestamp=now_iso(),
         )
 
@@ -498,10 +572,44 @@ def add_transaction(
     return transaction
 
 
+def generate_stripe_payment_link(uid: int, currency: str = "aed"):
+    stripe.PaymentIntent.create(
+        amount=1000,
+        currency=currency,
+        metadata={"telegram_id": str(uid)},
+    )
+    payment_link = stripe.PaymentLink.create(
+        line_items=[
+            {
+                "price": stripe.Price.create(
+                    currency=currency,
+                    product_data={
+                        "name": "Custom Payment",
+                    },
+                    unit_amount=1000,
+                ).id,
+                "quantity": 1,
+                "adjustable_quantity": {
+                    "enabled": True,
+                    "minimum": 1,
+                },
+            }
+        ],
+        payment_intent_data={
+            "metadata": {"telegram_id": str(uid)},
+        },
+    )
+
+    log.info(f"Payment link created: {payment_link.url}")
+    return {
+        "url": payment_link.url,
+        "id": payment_link.id,
+    }
+
+
 async def handle_fraud(
     uid: int,
     cid: int,
-    st: str,
     user: models.User,
     duplicate: models.Receipt,
     extracted: str,
@@ -555,5 +663,4 @@ async def handle_fraud(
     await TeleClientSingleton().send_message(entity=Config.ADMIN_ID, message=admin_msg)
     if count >= 5:
         await kick_user_and_admin(gid=cid, uid=uid)
-        clear_session_data(user_id=uid, st=st)
-
+        clear_session_data(user_id=uid)

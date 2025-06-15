@@ -5,6 +5,8 @@ from client.client_calls.client_calls import (
     get_receipt,
     get_missing,
     send_transaction_to_proccess,
+    choose_payment_method,
+    check_payment
 )
 from client.client_calls.process_transaction import (
     approve_transaction_handler,

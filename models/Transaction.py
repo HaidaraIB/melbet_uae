@@ -84,13 +84,7 @@ class Transaction(Base):
     payment_info = sa.Column(sa.String, nullable=True)
     withdrawal_code = sa.Column(sa.String, nullable=True)
 
-    receipt_id = sa.Column(
-        sa.String,
-        sa.ForeignKey("receipts.id"),
-        unique=True,
-        index=True,
-        nullable=True,
-    )
+    receipt_id = sa.Column(sa.String, unique=True, index=True, nullable=True)
     player_account = sa.Column(sa.String, nullable=True)
 
     status = sa.Column(sa.String, default="pending", index=True)
@@ -101,6 +95,7 @@ class Transaction(Base):
     payment_method = relationship("PaymentMethod", back_populates="transactions")
     user = relationship("User", back_populates="transactions")
     proof = relationship("Proof", back_populates="transaction")
+    receipt = relationship("Receipt", back_populates="transaction", uselist=False)
 
     def __str__(self):
         if self.type == "deposit":
@@ -127,10 +122,12 @@ class Receipt(Base):
 
     id = sa.Column(sa.String, primary_key=True)
     user_id = sa.Column(sa.Integer, nullable=True)
-    payment_method_id = sa.Column(sa.String, sa.ForeignKey("payment_methods.id"))
+    amount = sa.Column(sa.Float, nullable=True)
+    payment_method_id = sa.Column(sa.Integer, sa.ForeignKey("payment_methods.id"))
+    transaction_id = sa.Column(sa.Integer, sa.ForeignKey("transactions.id"))
 
     available_balance_at_the_time = sa.Column(sa.Float, nullable=True)
     timestamp = sa.Column(sa.DateTime, default=datetime.now(TIMEZONE))
 
-    transaction = relationship("Transaction", uselist=False)
+    transaction = relationship("Transaction", back_populates="receipt", uselist=False)
     payment_method = relationship("PaymentMethod", back_populates="receipts")

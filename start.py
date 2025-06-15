@@ -47,7 +47,6 @@ async def inits(app: Application):
             )
             s.add(models.Setting(key="gpt_prompt", value=default_prompt))
     await resume_timers_on_startup()
-    load_session_data()
 
 
 async def set_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -36,7 +36,7 @@ async def deposit(user_id: int, amount: float):
     }
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, json=j, headers=headers) as response:
+            async with session.post(url, json=j, headers=headers) as response:
                 data = await response.json()
                 return data
 
@@ -62,7 +62,7 @@ async def withdraw(user_id: int, code: str):
     }
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get(url, json=j, headers=headers) as response:
+            async with session.post(url, json=j, headers=headers) as response:
                 data = await response.json()
                 return data
 

@@ -3,8 +3,11 @@ from client.client_calls.common import (
     extract_text_from_photo,
     kick_user_and_admin,
     handle_fraud,
-    auto_withdraw,
+    process_withdraw,
+    process_deposit,
     auto_deposit,
+    send_and_pin_payment_methods_keyboard,
+    generate_stripe_payment_link,
     openai,
     session_data,
 )
@@ -12,17 +15,132 @@ from client.client_calls.functions import (
     save_session_data,
     classify_intent,
     clear_session_data,
+    check_stripe_payment_webhook,
 )
-from client.client_calls.constants import SessionState
+from client.client_calls.constants import *
 from client.client_calls.lang_dicts import *
 from TeleClientSingleton import TeleClientSingleton
-from telethon import events
+from TeleBotSingleton import TeleBotSingleton
+from telethon import events, Button
+from sqlalchemy import and_
+from sqlalchemy.orm import joinedload
 from Config import Config
 import models
 import json
+import asyncio
+import stripe
 import logging
 
 log = logging.getLogger(__name__)
+
+
+async def choose_payment_method(event: events.CallbackQuery.Event):
+    if not event.is_group:
+        return
+    cid = event.chat_id
+    uid = event.sender_id
+    group = await TeleBotSingleton().get_entity(entity=cid)
+    with models.session_scope() as s:
+        user = s.get(models.User, uid)
+        user_session = s.query(models.UserSession).filter_by(group_id=group.id).first()
+        st = user_session.session_type
+        if user_session and uid == user_session.user_id:
+            user_account = s.query(models.PlayerAccount).filter_by(user_id=uid).first()
+            if not user_account:
+                await TeleClientSingleton().send_message(
+                    entity=cid,
+                    message=TEXTS[user.lang]["no_account"],
+                )
+                return
+            payment_method_name = event.data.decode("utf-8").split("_")[-1]
+            session_data[uid]["metadata"]["payment_method"] = payment_method_name
+            payment_method = (
+                s.query(models.PaymentMethod)
+                .filter_by(name=payment_method_name)
+                .first()
+            )
+            await event.answer(message="Payment Method Set", alert=True)
+            if payment_method.name == STRIPE and st == "deposit":
+                from_group_id = session_data[uid]["metadata"]["from_group_id"]
+                currency = CURRENCIES[from_group_id]["currency"]
+                stripe_link = generate_stripe_payment_link(uid=uid)
+                session_data[uid]["metadata"]["stripe_link"] = stripe_link
+                await TeleBotSingleton().send_message(
+                    entity=group.id,
+                    message=f"Please pay through the link below and press <b>Done ✅</b> when the payment is done",
+                    buttons=[
+                        [Button.url(text="Link 🔗", url=stripe_link["url"])],
+                        [Button.inline(text="Done ✅", data="payment_done")],
+                    ],
+                    parse_mode="html",
+                )
+                session_data[uid][st]["state"] = SessionState.AWAITING_PAYMENT.name
+            elif st == "deposit":
+                await TeleBotSingleton().send_message(
+                    entity=group.id,
+                    message=(
+                        f"The Payment info of <b>{payment_method.name}</b> is <code>{payment_method.details}</code>\n"
+                        "Please send a photo of the receipt after completing the transaction."
+                    ),
+                    parse_mode="html",
+                )
+                session_data[uid][st]["state"] = SessionState.AWAITING_RECEIPT.name
+            else:
+                await TeleBotSingleton().send_message(
+                    entity=group.id,
+                    message="Please Provide the <b>withdrawal code</b> and your <b>payment info</b>",
+                    parse_mode="html",
+                )
+                session_data[uid][st][
+                    "state"
+                ] = SessionState.AWAITING_MISSING_FIELDS.name
+            save_session_data()
+    raise events.StopPropagation
+
+
+async def check_payment(event: events.CallbackQuery.Event):
+    if not event.is_group:
+        return
+    cid = event.chat_id
+    uid = event.sender_id
+    group = await TeleBotSingleton().get_entity(entity=cid)
+    with models.session_scope() as s:
+        user = (
+            s.query(models.User)
+            .options(joinedload(models.User.player_account))
+            .get(uid)
+        )
+        user_session = s.query(models.UserSession).filter_by(group_id=group.id).first()
+        if user_session and uid == user_session.user_id:
+            if (
+                session_data[uid]["deposit"]["state"]
+                != SessionState.AWAITING_PAYMENT.name
+            ):
+                await event.answer("You're not at this state yet")
+                return
+            stripe_link = session_data[uid]["metadata"]["stripe_link"]
+            data = await check_stripe_payment_webhook(uid=uid)
+            if data:
+                res = await auto_deposit(data=data, user=user, s=s)
+                stripe.PaymentLink.modify(id=stripe_link["id"], active=False)
+                if not isinstance(res, int):
+                    await TeleClientSingleton().send_message(
+                        entity=cid,
+                        message=TEXTS[user.lang][f"deposit_failed"].format(res),
+                    )
+                    return
+                await event.edit(
+                    "Successful deposit, we'll close this session after 5 seconds"
+                )
+                await asyncio.sleep(5)
+                await kick_user_and_admin(gid=user_session.group_id, uid=uid)
+                clear_session_data(user_id=uid)
+            else:
+                await TeleBotSingleton().send_message(
+                    entity=user_session.group_id,
+                    message="Payment not successful, check and try again",
+                )
+    raise events.StopPropagation
 
 
 async def get_receipt(event: events.NewMessage.Event):
@@ -30,9 +148,9 @@ async def get_receipt(event: events.NewMessage.Event):
         return
     cid = event.chat_id
     uid = event.sender_id
-    ent = await TeleClientSingleton().get_entity(cid)
+    group = await TeleClientSingleton().get_entity(entity=cid)
     with models.session_scope() as s:
-        user_session = s.query(models.UserSession).filter_by(group_id=ent.id).first()
+        user_session = s.query(models.UserSession).filter_by(group_id=group.id).first()
         user = s.get(models.User, uid)
         if user_session and uid == user_session.user_id:
             user_account = s.query(models.PlayerAccount).filter_by(user_id=uid).first()
@@ -49,7 +167,15 @@ async def get_receipt(event: events.NewMessage.Event):
                     message=f"Receipts can only be send in deposit sessions, withdraw info must be provided manualy.",
                 )
                 return
-
+            elif session_data[uid][st]["state"] not in [
+                SessionState.AWAITING_RECEIPT.name,
+                SessionState.AWAITING_MISSING_FIELDS.name,
+            ]:
+                await TeleClientSingleton().send_message(
+                    entity=cid,
+                    message=f"Please select a payment method first or complete the payment through the link if one was sent",
+                )
+                return
             extracted, parsed_details = await extract_text_from_photo(
                 event=event,
                 lang=user.lang,
@@ -57,28 +183,36 @@ async def get_receipt(event: events.NewMessage.Event):
                     map(
                         str,
                         s.query(models.PaymentMethod)
-                        .filter(models.PaymentMethod.type.in_([st, "both"]))
+                        .filter(
+                            and_(
+                                models.PaymentMethod.type.in_([st, "both"]),
+                                models.PaymentMethod.is_active == True,
+                            )
+                        )
                         .all(),
                     )
                 ),
             )
             if extracted:
-                if parsed_details["transaction_id"]:
-                    transaction_id = parsed_details["transaction_id"]
+                if parsed_details["receipt_id"]:
+                    receipt_id = parsed_details["receipt_id"]
                     duplicate = (
                         s.query(models.Receipt)
-                        .filter(models.Receipt.id == transaction_id)
+                        .filter(models.Receipt.id == receipt_id)
                         .first()
                     )
-                    if duplicate and duplicate.user_id is not None and duplicate.user_id != uid:
+                    if (
+                        duplicate
+                        and duplicate.user_id is not None
+                        and duplicate.user_id != uid
+                    ):
                         await handle_fraud(
                             uid=uid,
                             cid=cid,
-                            st=st,
                             user=user,
                             duplicate=duplicate,
                             extracted=extracted,
-                            transaction_id=transaction_id,
+                            transaction_id=receipt_id,
                             s=s,
                         )
                         return
@@ -104,6 +238,9 @@ async def get_receipt(event: events.NewMessage.Event):
                         f"<code>{details_str}</code>\n"
                         f"but we have a missing details: ({', '.join(missing)}). Please provide them manually"
                     )
+                    session_data[uid][st][
+                        "state"
+                    ] = SessionState.AWAITING_MISSING_FIELDS.name
                 else:
                     for f in session_data[uid]["metadata"]["required_deposit_fields"]:
                         session_data[uid][st]["data"][f] = parsed_details[f]
@@ -112,6 +249,9 @@ async def get_receipt(event: events.NewMessage.Event):
                         f"<code>{details_str}</code>\n\n"
                     )
                     msg += "You can send OK if all the information are correct."
+                    session_data[uid][st][
+                        "state"
+                    ] = SessionState.AWAITING_CONFIRMATION.name
                 if "date" not in parsed_details:
                     log.info(f"تفاصيل اختيارية مفقودة: ['date']")
                     msg += "optional fields (date) are missing, please provide them manually if they're present."
@@ -130,10 +270,9 @@ async def get_missing(event: events.NewMessage.Event):
         return
     cid = event.chat_id
     uid = event.sender_id
-    ent = await TeleClientSingleton().get_entity(cid)
+    group = await TeleClientSingleton().get_entity(entity=cid)
     with models.session_scope() as s:
-        default_prompt = s.get(models.Setting, "gpt_prompt")
-        user_session = s.query(models.UserSession).filter_by(group_id=ent.id).first()
+        user_session = s.query(models.UserSession).filter_by(group_id=group.id).first()
         user = s.get(models.User, uid)
         if user_session and uid == user_session.user_id:
             user_account = s.query(models.PlayerAccount).filter_by(user_id=uid).first()
@@ -144,29 +283,35 @@ async def get_missing(event: events.NewMessage.Event):
                 )
                 return
             st = user_session.session_type
-            session_prompt = s.get(models.Setting, f"gpt_prompt_{st}")
-            payment_methods = list(
-                map(
-                    str,
-                    s.query(models.PaymentMethod)
-                    .filter(models.PaymentMethod.type.in_([st, "both"]))
-                    .all(),
-                )
-            )
             txt: str = event.raw_text
+            default_prompt = s.get(models.Setting, "gpt_prompt")
+            session_prompt = s.get(models.Setting, f"gpt_prompt_{st}")
             system_msg = (
                 f"This message was sent by user {uid} in a {st} session\n"
                 f"the state of the conversation is {session_data[uid][st]['state']} and the data we have is {session_data[uid][st]['data']}\n"
                 f"the user just sent the msg '{txt}' if we're at AWAITING_MISSING_FIELDS state and the msg contains one of the missing fields please extract it and respond only with it in a JSON like the data I previously provided\n"
-                f"the payment methods we have in case the user msg contained one: {payment_methods}\n"
                 "Important Notes:"
                 "- Don't use single quotes\n"
                 "- Dates in ISO format\n"
                 "- Withdrawal codes are mix of numbers and letters with no meaning whatsoever\n"
                 "- Payment info is like a bank account number, a wallet address, an IBAN number or something similar\n"
-                "if the msg was a question or something other than a data just respond to it in its language as the following\n"
+                "if the user was asking a question related to payment methods just respond with 'display_payment_methods_keyboard'\n"
+                "otherwise just respond in the msg language as the following\n"
                 f"{session_prompt.value if session_prompt else default_prompt.value}"
             )
+            if session_data[uid][st]["state"] in [
+                SessionState.AWAITING_PAYMENT.name,
+                SessionState.AWAITING_PAYMENT_METHOD.name,
+            ]:
+                system_msg = (
+                    f"This message was sent by user {uid} in a {st} session\n"
+                    f"the state of the conversation is {session_data[uid][st]['state']}\n"
+                    "if the state is AWAITING_PAYMENT there's a payment link already sent to the user and we're waiting for him to press the Done ✅ button so just respond with 'display_done_button'\n"
+                    "if the user is asking a question related to payment methods or the state is AWAITING_PAYMENT_METHOD just respond with 'display_payment_methods_keyboard'\n"
+                    "otherwise just respond in the msg language as the following\n"
+                    f"{session_prompt.value if session_prompt else default_prompt.value}"
+                )
+
             resp = await openai.chat.completions.create(
                 model=Config.GPT_MODEL,
                 messages=[
@@ -195,22 +340,25 @@ async def get_missing(event: events.NewMessage.Event):
                     f"missing/edited info recieved:\n\n"
                     f"<code>{provided_data}</code>\n"
                 )
-                if parsed_details.get("transaction_id", None):
-                    transaction_id = parsed_details["transaction_id"]
+                if parsed_details.get("receipt_id", None):
+                    receipt_id = parsed_details["receipt_id"]
                     duplicate = (
                         s.query(models.Receipt)
-                        .filter(models.Receipt.id == transaction_id)
+                        .filter(models.Receipt.id == receipt_id)
                         .first()
                     )
-                    if duplicate and duplicate.user_id is not None and duplicate.user_id != uid:
+                    if (
+                        duplicate
+                        and duplicate.user_id is not None
+                        and duplicate.user_id != uid
+                    ):
                         await handle_fraud(
                             uid=uid,
                             cid=cid,
-                            st=st,
                             user=user,
                             duplicate=duplicate,
                             extracted=reply,
-                            transaction_id=transaction_id,
+                            transaction_id=receipt_id,
                             s=s,
                         )
                         return
@@ -249,6 +397,23 @@ async def get_missing(event: events.NewMessage.Event):
                     )
 
             except json.decoder.JSONDecodeError:
+                if reply == "display_payment_methods_keyboard":
+                    await send_and_pin_payment_methods_keyboard(
+                        s=s, st=st, group=group.id
+                    )
+                    return
+                elif reply == "display_done_button":
+                    stripe_link = session_data[uid]["metadata"]["stripe_link"]
+                    await TeleBotSingleton().send_message(
+                        entity=group.id,
+                        message=f"Please pay through the link below and press <b>Done ✅</b> when the payment is done",
+                        buttons=[
+                            [Button.url(text="Link 🔗", url=stripe_link["url"])],
+                            [Button.inline(text="Done ✅", data="payment_done")],
+                        ],
+                        parse_mode="html",
+                    )
+                    return
                 user_msg = reply
             await TeleClientSingleton().send_message(
                 entity=cid,
@@ -283,27 +448,24 @@ async def send_transaction_to_proccess(event: events.NewMessage.Event):
                 )
                 return
             if st == "withdraw":
-                res = await auto_withdraw(user=user, s=s)
+                res = await process_withdraw(user=user, s=s)
             else:
-                res = await auto_deposit(user=user, s=s)
+                res = await process_deposit(user=user, s=s)
             if not isinstance(res, int):
                 await TeleClientSingleton().send_message(
                     entity=cid,
                     message=TEXTS[user.lang][f"{st}_failed"].format(res),
                 )
                 return
+            await TeleClientSingleton().send_message(
+                entity=cid,
+                message="your transaction is under review, we'll close this session after 5 seconds",
+            )
+            await asyncio.sleep(5)
             await kick_user_and_admin(
                 gid=user_session.group_id, uid=user_session.user_id
             )
-            await TeleClientSingleton().send_message(
-                entity=uid,
-                message=(
-                    f"Alright we're processing your transaction number <code>{res}</code>, and we'll catch up with you soon\n\n"
-                    "Note that withdrawal take <b>from 1 up to 24 hours</b> to complete"
-                ),
-                parse_mode="html",
-            )
-            clear_session_data(user_id=uid, st=st)
+            clear_session_data(user_id=uid)
     raise events.StopPropagation
 
 
@@ -406,5 +568,5 @@ async def end_session(event: events.NewMessage.Event):
             await kick_user_and_admin(
                 gid=user_session.group_id, uid=user_session.user_id
             )
-            clear_session_data(user_id=user_session.user_id, st=st)
+            clear_session_data(user_id=user_session.user_id)
     raise events.StopPropagation
