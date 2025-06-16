@@ -429,12 +429,17 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
     )
     res = await mobi.deposit(user_id=user.player_account.account_number, amount=amount)
     if res["Success"]:
+        transaction.status = "approved"
+        transaction.mobi_operation_id = res["OperationId"]
+        s.commit()
         await TeleBotSingleton().send_message(
             entity=Config.ADMIN_ID,
             message=str(transaction),
             parse_mode="html",
         )
         return transaction.id
+    elif "Deposit limit exceeded" in res["Message"]:
+        return "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
     return ["Message"]
 
 
@@ -460,6 +465,7 @@ async def process_deposit(user: models.User, s: Session):
                 receipt.transaction_id = transaction.id
                 transaction.amount = receipt.amount
                 transaction.status = "approved"
+                transaction.mobi_operation_id = res["OperationId"]
                 s.commit()
                 await TeleBotSingleton().send_message(
                     entity=Config.ADMIN_ID,
@@ -525,6 +531,9 @@ async def process_withdraw(user: models.User, s: Session):
         code=data["withdrawal_code"],
     )
     if res["Success"]:
+        transaction.status = "approved"
+        transaction.mobi_operation_id = res["OperationId"]
+        s.commit()
         await TeleBotSingleton().send_message(
             entity=Config.ADMIN_ID,
             message=str(transaction),

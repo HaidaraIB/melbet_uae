@@ -84,10 +84,12 @@ class Transaction(Base):
     amount = sa.Column(sa.Float, nullable=True)
     currency = sa.Column(sa.String(3), nullable=True)
 
+    mobi_operation_id = sa.Column(sa.String, nullabel=True)
+
     receipt_id = sa.Column(sa.String, unique=True, nullable=True)
     withdrawal_code = sa.Column(sa.String(32), unique=True, nullable=True)
     payment_info = sa.Column(sa.Text, nullable=True)
-    
+
     account_number = sa.Column(
         sa.String, sa.ForeignKey("player_accounts.account_number"), nullable=False
     )

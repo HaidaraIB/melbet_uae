@@ -88,6 +88,7 @@ async def paste_receipte(event: events.NewMessage.Event):
                     )
                     if res["Success"]:
                         transaction.status = "approved"
+                        transaction.mobi_operation_id = res['OperationId']
                         message = (
                             f"Deposit number <code>{transaction.id}</code> is done"
                         )
