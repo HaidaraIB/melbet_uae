@@ -25,6 +25,12 @@ async def my_transactions(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 .limit(20)
                 .all()
             )
+            if not transactions:
+                await update.callback_query.answer(
+                    text=TEXTS[lang]["no_transactions_yet"],
+                    show_alert=True,
+                )
+                return ConversationHandler.END
             keyboard = build_keyboard(
                 columns=3,
                 texts=[t.id for t in transactions],

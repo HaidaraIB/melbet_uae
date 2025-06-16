@@ -114,6 +114,7 @@ TEXTS = {
             "اختر رقم المعاملة\n"
             "يمكنك الاختيار من بين آخر 20 معاملة فقط"
         ),
+        "no_transactions_yet": "ليس لديك معاملات بعد ❗️",
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -229,6 +230,7 @@ TEXTS = {
             "Choose the transaction number\n"
             "Note that only the last 20 transactions will be in this list"
         ),
+        "no_transactions_yet": "You don't have any transaction yet ❗️",
     },
 }
 
@@ -260,7 +262,7 @@ BUTTONS = {
         "basketball": "🏀 كرة السلة",
         "american_football": "🏈 كرة القدم الأمريكية",
         "hockey": "🏒 هوكي الجليد",
-        "my_transactions": "معاملاتي 🗂",
+        "my_transactions": "معاملاتي 📂",
     },
     Language.ENGLISH: {
         "check_joined": "Verify ✅",
@@ -289,6 +291,6 @@ BUTTONS = {
         "basketball": "Basketball 🏀",
         "american_football": "American Football 🏈",
         "hockey": "Hockey 🏒",
-        "my_transactions": "My Transactions 🗂",
+        "my_transactions": "My Transactions 📂",
     },
 }
