@@ -16,6 +16,7 @@ class PlayerAccount(Base):
     registration_date = sa.Column(sa.DateTime)
 
     user = relationship("User", back_populates="player_account")
+    transactions = relationship("Transaction", back_populates="player_account")
 
     def __str__(self):
         return (

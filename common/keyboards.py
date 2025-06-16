@@ -29,6 +29,12 @@ def build_user_keyboard(lang: Language):
         ],
         [
             InlineKeyboardButton(
+                text=BUTTONS[lang]["my_transactions"],
+                callback_data="my_transactions",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
                 text=BUTTONS[lang]["settings"],
                 callback_data="user_settings",
             ),

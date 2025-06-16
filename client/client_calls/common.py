@@ -449,7 +449,7 @@ async def process_deposit(user: models.User, s: Session):
     transaction = add_transaction(
         data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
     )
-    if payment_method.name.lower() in ["e-money", "paydu", "payby"]:
+    if payment_method.mode == "auto":
         receipt = s.query(models.Receipt).filter_by(id=transaction.receipt_id).first()
         if receipt and not receipt.transaction_id:
             res = await mobi.deposit(
@@ -550,7 +550,7 @@ def add_transaction(
             amount=float(data["amount"]),
             currency=data["currency"].lower(),
             receipt_id=data.get("receipt_id", None),
-            player_account=player_account.account_number,
+            account_number=player_account.account_number,
             status=data.get("status", "pending"),
             date=datetime.fromisoformat(data["date"]) if data["date"] else None,
         )
@@ -561,7 +561,7 @@ def add_transaction(
             type=st,
             withdrawal_code=data["withdrawal_code"],
             payment_info=data["payment_info"],
-            player_account=player_account.account_number,
+            account_number=player_account.account_number,
             status=data.get("status", "pending"),
         )
 

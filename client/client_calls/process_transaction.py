@@ -133,9 +133,7 @@ async def get_new_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         new_amount = float(update.message.text)
         with models.session_scope() as s:
-            transaction = (
-                s.query(models.Transaction).filter_by(id=transaction_id).first()
-            )
+            transaction = s.get(models.Transaction, transaction_id)
             transaction.amount = new_amount
             s.commit()
             await update.message.reply_to_message.delete()

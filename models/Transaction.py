@@ -3,6 +3,7 @@ from models.DB import Base
 from datetime import datetime
 from common.constants import TIMEZONE
 from sqlalchemy.orm import relationship
+from models.Language import Language
 
 
 class Proof(Base):
@@ -18,7 +19,7 @@ class Proof(Base):
 class PaymentMethod(Base):
     __tablename__ = "payment_methods"
 
-    id = sa.Column(sa.Integer, primary_key=True)
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     name = sa.Column(
         sa.String, unique=True, nullable=False
     )  # e.g., "Bank Transfer", "Crypto USDT"
@@ -45,7 +46,7 @@ class Transaction(Base):
         amount,
         currency,
         receipt_id,
-        player_account,
+        account_number,
         status,
         date
 
@@ -55,14 +56,14 @@ class Transaction(Base):
         type,
         withdrawal_code,
         payment_info,
-        player_account,
+        account_number,
         status
 
     """
 
     __tablename__ = "transactions"
 
-    id = sa.Column(sa.Integer, primary_key=True)
+    id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     user_id = sa.Column(
         sa.BigInteger,
         sa.ForeignKey("users.user_id", ondelete="CASCADE"),
@@ -86,7 +87,9 @@ class Transaction(Base):
     receipt_id = sa.Column(sa.String, unique=True, nullable=True)
     withdrawal_code = sa.Column(sa.String(32), unique=True, nullable=True)
     payment_info = sa.Column(sa.Text, nullable=True)
-    player_account = sa.Column(sa.String(64), nullable=False)
+    account_number = sa.Column(
+        sa.String, sa.ForeignKey("player_accounts.account_number"), nullable=False
+    )
 
     # Status and timestamps
     status = sa.Column(
@@ -99,13 +102,48 @@ class Transaction(Base):
         sa.DateTime, default=datetime.now(TIMEZONE), onupdate=datetime.now(TIMEZONE)
     )
     completed_at = sa.Column(sa.DateTime, nullable=True)
-    decline_reason = sa.Column(sa.String(255), nullable=True)
+    decline_reason = sa.Column(sa.TEXT, nullable=True)
 
     # Relationships
     payment_method = relationship("PaymentMethod", back_populates="transactions")
     user = relationship("User", back_populates="transactions")
     proof = relationship("Proof", back_populates="transaction")
     receipt = relationship("Receipt", back_populates="transaction", uselist=False)
+    player_account = relationship("PlayerAccount", back_populates="transactions")
+
+    def stringify(self, lang: Language):
+        if lang == Language.ENGLISH.name:
+            base_str = (
+                f"Transaction ID: <code>{self.id}</code>\n"
+                f"Amount: <code>{self.amount:.2f}</code> {self.currency}\n"
+                f"Payment Method: <b>{self.payment_method.name}</b>\n"
+                f"Account: <code>{self.account_number}</code>\n"
+                f"Status: {self.status}"
+            )
+
+            if self.type == "deposit":
+                return (
+                    base_str + f"\nDate: {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+                )
+            else:
+                return (
+                    base_str + f"\nWithdrawal Code: <code>{self.withdrawal_code}</code>"
+                )
+        else:
+            base_str = (
+                f"رقم المعاملة: <code>{self.id}</code>\n"
+                f"المبلغ: <code>{self.amount:.2f}</code> {self.currency}\n"
+                f"وسيلة الدفع: <b>{self.payment_method.name}</b>\n"
+                f"رقم الحساب: <code>{self.account_number}</code>\n"
+                f"الحالة: {self.status}\n"
+            )
+
+            if self.type == "deposit":
+                return (
+                    base_str + f"التاريخ:\n{self.created_at.strftime('%Y-%m-%d %H:%M')}"
+                )
+            else:
+                return base_str + f"كود السحب: <code>{self.withdrawal_code}</code>"
 
     def __str__(self):
         base_str = (
@@ -113,19 +151,19 @@ class Transaction(Base):
             f"Amount: <code>{self.amount:.2f}</code> {self.currency}\n"
             f"Payment Method: <b>{self.payment_method.name}</b>\n"
             f"Account: <code>{self.player_account}</code>\n"
-            f"Status: {self.status}"
+            f"Status: {self.status}\n"
         )
 
         if self.type == "deposit":
-            return base_str + f"\nDate: {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+            return base_str + f"Date: {self.created_at.strftime('%Y-%m-%d %H:%M')}"
         else:
-            return base_str + f"\nWithdrawal Code: <code>{self.withdrawal_code}</code>"
+            return base_str + f"Withdrawal Code: <code>{self.withdrawal_code}</code>"
 
 
 class Receipt(Base):
     __tablename__ = "receipts"
 
-    id = sa.Column(sa.String, primary_key=True)  # Using UUID
+    id = sa.Column(sa.String, primary_key=True)
     amount = sa.Column(sa.Float, nullable=False)
     payment_method_id = sa.Column(
         sa.Integer, sa.ForeignKey("payment_methods.id", ondelete="SET NULL")

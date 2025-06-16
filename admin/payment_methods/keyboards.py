@@ -49,4 +49,10 @@ def build_payment_method_modes_keyboard():
                 callback_data="auto_payment_method",
             ),
         ]
+        [
+            InlineKeyboardButton(
+                text="stripe",
+                callback_data="stripe_payment_method",
+            ),
+        ]
     ]

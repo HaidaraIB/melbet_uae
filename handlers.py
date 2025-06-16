@@ -18,6 +18,7 @@ from user.analyze_game import *
 from user.buy_voucher import *
 from user.our_plans import *
 from user.account_settings import *
+from user.my_transactions import *
 
 from admin.admin_calls import *
 from admin.admin_settings import *
@@ -55,6 +56,8 @@ def setup_and_run():
     init_db()
 
     app = MyApp.build_app()
+
+    app.add_handler(my_transactions_handler)
 
     app.add_handler(handle_excel_handler)
 

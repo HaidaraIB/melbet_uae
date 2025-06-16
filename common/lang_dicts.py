@@ -110,6 +110,10 @@ TEXTS = {
         ),
         "link_account_request_submited": "تم إرسال طلبك للمراجعة، ستصلك رسالة عند اكتمال العملية",
         "soon": "قريباً 🔜",
+        "choose_my_transaction": (
+            "اختر رقم المعاملة\n"
+            "يمكنك الاختيار من بين آخر 20 معاملة فقط"
+        ),
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -221,7 +225,10 @@ TEXTS = {
         ),
         "link_account_request_submited": "Request submited successfully, you'll recieve a message when it's done",
         "soon": "Soon 🔜",
-
+        "choose_my_transaction": (
+            "Choose the transaction number\n"
+            "Note that only the last 20 transactions will be in this list"
+        ),
     },
 }
 
@@ -253,6 +260,7 @@ BUTTONS = {
         "basketball": "🏀 كرة السلة",
         "american_football": "🏈 كرة القدم الأمريكية",
         "hockey": "🏒 هوكي الجليد",
+        "my_transactions": "معاملاتي 🗂",
     },
     Language.ENGLISH: {
         "check_joined": "Verify ✅",
@@ -281,5 +289,6 @@ BUTTONS = {
         "basketball": "Basketball 🏀",
         "american_football": "American Football 🏈",
         "hockey": "Hockey 🏒",
+        "my_transactions": "My Transactions 🗂",
     },
 }
