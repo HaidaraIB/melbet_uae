@@ -104,7 +104,7 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
     with models.session_scope() as s:
         receipts = s.query(models.Receipt).all()
         for receipt in receipts:
-            if receipt.user_id:
+            if receipt.transaction_id:
                 continue
             transaction = (
                 s.query(models.Transaction).filter_by(receipt_id=receipt.id).first()
@@ -118,7 +118,7 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
                     message = f"Deposit number <code>{transaction.id}</code> is done"
                 else:
                     message = f"Deposit number <code>{transaction.id}</code> failed, reason: {res['Message']}"
-                receipt.user_id = transaction.user_id
+                receipt.transaction_id = transaction.id
                 transaction.status = "approved"
                 transaction.amount = receipt.amount
                 await TeleClientSingleton().send_message(

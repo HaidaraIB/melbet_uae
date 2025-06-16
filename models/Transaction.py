@@ -47,8 +47,7 @@ class Transaction(Base):
         receipt_id,
         player_account,
         status,
-        date,
-        timestamp
+        date
 
     Withdraw:
         user_id,
@@ -57,8 +56,7 @@ class Transaction(Base):
         withdrawal_code,
         payment_info,
         player_account,
-        status,
-        timestamp
+        status
 
     """
 
@@ -67,67 +65,86 @@ class Transaction(Base):
     id = sa.Column(sa.Integer, primary_key=True)
     user_id = sa.Column(
         sa.BigInteger,
-        sa.ForeignKey("users.user_id"),
+        sa.ForeignKey("users.user_id", ondelete="CASCADE"),
         index=True,
         nullable=False,
     )
 
     payment_method_id = sa.Column(
         sa.Integer,
-        sa.ForeignKey("payment_methods.id"),
+        sa.ForeignKey("payment_methods.id", ondelete="SET NULL"),
         nullable=True,
     )
 
-    type = sa.Column(sa.String, nullable=False)  # 'deposit' or 'withdraw'
-    amount = sa.Column(sa.String, nullable=True)
-    currency = sa.Column(sa.String)
-    payment_info = sa.Column(sa.String, nullable=True)
-    withdrawal_code = sa.Column(sa.String, nullable=True)
+    # Transaction type and amount details
+    type = sa.Column(
+        sa.Enum("deposit", "withdraw", name="transaction_type"), nullable=False
+    )
+    amount = sa.Column(sa.Float, nullable=False)
+    currency = sa.Column(sa.String(3), nullable=False)
 
-    receipt_id = sa.Column(sa.String, unique=True, index=True, nullable=True)
-    player_account = sa.Column(sa.String, nullable=True)
+    receipt_id = sa.Column(sa.String, unique=True, nullable=True)
+    withdrawal_code = sa.Column(sa.String(32), unique=True, nullable=True)
+    payment_info = sa.Column(sa.Text, nullable=True)
+    player_account = sa.Column(sa.String(64), nullable=False)
 
-    status = sa.Column(sa.String, default="pending", index=True)
-    date = sa.Column(sa.DateTime, nullable=True)
-    timestamp = sa.Column(sa.DateTime, default=datetime.now(TIMEZONE))
-    decline_reason = sa.Column(sa.String)
+    # Status and timestamps
+    status = sa.Column(
+        sa.Enum("pending", "approved", "failed", "declined", name="transaction_status"),
+        default="pending",
+        index=True,
+    )
+    created_at = sa.Column(sa.DateTime, default=datetime.now(TIMEZONE), index=True)
+    updated_at = sa.Column(
+        sa.DateTime, default=datetime.now(TIMEZONE), onupdate=datetime.now(TIMEZONE)
+    )
+    completed_at = sa.Column(sa.DateTime, nullable=True)
+    decline_reason = sa.Column(sa.String(255), nullable=True)
 
+    # Relationships
     payment_method = relationship("PaymentMethod", back_populates="transactions")
     user = relationship("User", back_populates="transactions")
     proof = relationship("Proof", back_populates="transaction")
     receipt = relationship("Receipt", back_populates="transaction", uselist=False)
 
     def __str__(self):
+        base_str = (
+            f"New {self.type.capitalize()} request from @{self.user.username}:\n"
+            f"Amount: <code>{self.amount:.2f}</code> {self.currency}\n"
+            f"Payment Method: <b>{self.payment_method.name}</b>\n"
+            f"Account: <code>{self.player_account}</code>\n"
+            f"Status: {self.status}"
+        )
+
         if self.type == "deposit":
-            return (
-                f"New Deposit request from @{self.user.username}:\n"
-                f"Amount: <code>{self.amount}</code> {self.currency or ""}\n"
-                f"Transaction ID: <code>{self.receipt_id}</code>\n"
-                f"Payment Method: <b>{self.payment_method.name}</b>\n"
-                f"Date: {self.date or "N/A"}\n"
-                f"Account Number: <code>{self.player_account}</code>"
-            )
+            return base_str + f"\nDate: {self.created_at.strftime('%Y-%m-%d %H:%M')}"
         else:
-            return (
-                f"New Withdrawal request from @{self.user.username}:\n"
-                f"Withdrawal Code: <code>{self.withdrawal_code}</code>\n"
-                f"Payment Method: <b>{self.payment_method.name}</b>\n"
-                f"Payment Info: {self.payment_info}\n"
-                f"Account Number: <code>{self.player_account}</code>"
-            )
+            return base_str + f"\nWithdrawal Code: <code>{self.withdrawal_code}</code>"
 
 
 class Receipt(Base):
     __tablename__ = "receipts"
 
-    id = sa.Column(sa.String, primary_key=True)
-    user_id = sa.Column(sa.Integer, nullable=True)
-    amount = sa.Column(sa.Float, nullable=True)
-    payment_method_id = sa.Column(sa.Integer, sa.ForeignKey("payment_methods.id"))
-    transaction_id = sa.Column(sa.Integer, sa.ForeignKey("transactions.id"))
+    id = sa.Column(sa.String, primary_key=True)  # Using UUID
+    amount = sa.Column(sa.Float, nullable=False)
+    payment_method_id = sa.Column(
+        sa.Integer, sa.ForeignKey("payment_methods.id", ondelete="SET NULL")
+    )
 
-    available_balance_at_the_time = sa.Column(sa.Float, nullable=True)
-    timestamp = sa.Column(sa.DateTime, default=datetime.now(TIMEZONE))
+    # Financial details
+    available_balance_at_the_time = sa.Column(sa.Float, nullable=False)
 
+    # Timestamps
+    issued_at = sa.Column(sa.DateTime, default=datetime.now(TIMEZONE), index=True)
+
+    # Make transaction_id nullable for initial creation
+    transaction_id = sa.Column(
+        sa.Integer,
+        sa.ForeignKey("transactions.id", ondelete="SET NULL"),
+        unique=True,
+        nullable=True,
+    )
+
+    # Relationship with uselist=False for one-to-one
     transaction = relationship("Transaction", back_populates="receipt", uselist=False)
     payment_method = relationship("PaymentMethod", back_populates="receipts")

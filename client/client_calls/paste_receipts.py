@@ -92,7 +92,7 @@ async def paste_receipte(event: events.NewMessage.Event):
                         )
                     else:
                         message = f"Deposit number <code>{transaction.id}</code> failed, reason: {res['Message']}"
-                    new_receipt.user_id = transaction.user_id
+                    new_receipt.transaction_id = transaction.id
                     transaction.status = "approved"
                     transaction.amount = amount
                     await TeleClientSingleton().send_message(

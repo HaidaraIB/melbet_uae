@@ -451,13 +451,13 @@ async def process_deposit(user: models.User, s: Session):
     )
     if payment_method.name.lower() in ["e-money", "paydu", "payby"]:
         receipt = s.query(models.Receipt).filter_by(id=transaction.receipt_id).first()
-        if receipt and not receipt.user_id:
+        if receipt and not receipt.transaction_id:
             res = await mobi.deposit(
                 user_id=user.player_account.account_number,
                 amount=receipt.amount,
             )
             if res["Success"]:
-                receipt.user_id = user.user_id
+                receipt.transaction_id = transaction.id
                 s.commit()
                 await TeleBotSingleton().send_message(
                     entity=Config.ADMIN_ID,
@@ -466,7 +466,7 @@ async def process_deposit(user: models.User, s: Session):
                 )
                 return transaction.id
             return ["Message"]
-        elif receipt and receipt.user_id:
+        elif receipt and receipt.transaction_id:
             return "Duplicate Receipt Id"
         elif not receipt:
             await TeleBotSingleton().send_message(
@@ -547,13 +547,12 @@ def add_transaction(
             user_id=user_id,
             payment_method_id=payment_method_id,
             type=st,
-            amount=data["amount"],
+            amount=float(data["amount"]),
             currency=data["currency"].lower(),
             receipt_id=data.get("receipt_id", None),
             player_account=player_account.account_number,
             status=data.get("status", "pending"),
             date=datetime.fromisoformat(data["date"]) if data["date"] else None,
-            timestamp=now_iso(),
         )
     else:
         transaction = models.Transaction(
@@ -564,7 +563,6 @@ def add_transaction(
             payment_info=data["payment_info"],
             player_account=player_account.account_number,
             status=data.get("status", "pending"),
-            timestamp=now_iso(),
         )
 
     s.add(transaction)

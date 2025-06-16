@@ -523,7 +523,7 @@ async def listen_to_dp_and_wd_requests(event: events.NewMessage.Event):
                                     if monitor_prompt
                                     else default_prompt.value
                                 )
-                                + f"User {user.name} wants to {intent}",
+                                + f"\nsome user wants to {intent}",
                             },
                         ],
                         temperature=0.3,
