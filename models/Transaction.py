@@ -81,12 +81,13 @@ class Transaction(Base):
     type = sa.Column(
         sa.Enum("deposit", "withdraw", name="transaction_type"), nullable=False
     )
-    amount = sa.Column(sa.Float, nullable=False)
-    currency = sa.Column(sa.String(3), nullable=False)
+    amount = sa.Column(sa.Float, nullable=True)
+    currency = sa.Column(sa.String(3), nullable=True)
 
     receipt_id = sa.Column(sa.String, unique=True, nullable=True)
     withdrawal_code = sa.Column(sa.String(32), unique=True, nullable=True)
     payment_info = sa.Column(sa.Text, nullable=True)
+    
     account_number = sa.Column(
         sa.String, sa.ForeignKey("player_accounts.account_number"), nullable=False
     )
@@ -97,6 +98,7 @@ class Transaction(Base):
         default="pending",
         index=True,
     )
+    date = sa.Column(sa.DateTime, nullable=True)
     created_at = sa.Column(sa.DateTime, default=datetime.now(TIMEZONE), index=True)
     updated_at = sa.Column(
         sa.DateTime, default=datetime.now(TIMEZONE), onupdate=datetime.now(TIMEZONE)
@@ -150,14 +152,20 @@ class Transaction(Base):
             f"New {self.type.capitalize()} request from @{self.user.username}:\n"
             f"Amount: <code>{self.amount:.2f}</code> {self.currency}\n"
             f"Payment Method: <b>{self.payment_method.name}</b>\n"
-            f"Account: <code>{self.player_account}</code>\n"
+            f"Account: <code>{self.account_number}</code>\n"
             f"Status: {self.status}\n"
         )
 
         if self.type == "deposit":
-            return base_str + f"Date: {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+            return base_str + (
+                f"Receipt ID: <code>{self.receipt_id}</code>\n"
+                f"Date: {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+            )
         else:
-            return base_str + f"Withdrawal Code: <code>{self.withdrawal_code}</code>"
+            return base_str + (
+                f"Withdrawal Code: <code>{self.withdrawal_code}</code>\n"
+                f"Payment Info: {self.payment_info}"
+            )
 
 
 class Receipt(Base):

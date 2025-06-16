@@ -458,14 +458,24 @@ async def process_deposit(user: models.User, s: Session):
             )
             if res["Success"]:
                 receipt.transaction_id = transaction.id
+                transaction.amount = receipt.amount
+                transaction.status = "approved"
                 s.commit()
                 await TeleBotSingleton().send_message(
                     entity=Config.ADMIN_ID,
                     message=str(transaction),
                     parse_mode="html",
                 )
+                await TeleBotSingleton().send_message(
+                    entity=user.user_id,
+                    message=f"Deposit number <code>{transaction.id}</code> is done",
+                    parse_mode="html",
+                )
                 return transaction.id
-            return ["Message"]
+            elif "Deposit limit exceeded" in res["Message"]:
+                return "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
+            transaction.status = "failed"
+            return res["Message"]
         elif receipt and receipt.transaction_id:
             return "Duplicate Receipt Id"
         elif not receipt:

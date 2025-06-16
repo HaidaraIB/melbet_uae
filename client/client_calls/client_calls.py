@@ -306,6 +306,7 @@ async def get_missing(event: events.NewMessage.Event):
                 "- Withdrawal codes are mix of numbers and letters with no meaning whatsoever\n"
                 "- Payment info is like a bank account number, a wallet address, an IBAN number or something similar\n"
                 "if the user was asking a question related to payment methods just respond with 'display_payment_methods_keyboard'\n"
+                "if the user at AWAITING_CONFIRMATION and asking about the next step respond with 'display_ok_button'\n"
                 "otherwise just respond in the msg language as the following\n"
                 f"{session_prompt.value if session_prompt else default_prompt.value}"
             )
@@ -438,6 +439,28 @@ async def get_missing(event: events.NewMessage.Event):
                         parse_mode="html",
                     )
                     return
+                elif reply == "display_ok_button":
+                    completed_data = "".join(
+                        [
+                            f"{k}: {v}\n"
+                            for k, v in session_data[uid][st]["data"].items()
+                            if v
+                        ]
+                    )
+                    user_msg = (
+                        "Required data completed:\n\n"
+                        f"<code>{completed_data}</code>\n"
+                        "you can Press OK if all the information are correct."
+                    )
+                    await TeleBotSingleton().send_message(
+                        entity=cid,
+                        message=user_msg,
+                        parse_mode="html",
+                        buttons=Button.inline(
+                            text="OK", data="send_transaction_to_proccess"
+                        ),
+                    )
+                    return
                 user_msg = reply
                 await TeleClientSingleton().send_message(
                     entity=cid,
@@ -451,6 +474,7 @@ async def get_missing(event: events.NewMessage.Event):
 async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
     if not event.is_group:
         return
+    await event.answer()
     uid = event.sender_id
     cid = event.chat_id
     ent = await TeleClientSingleton().get_entity(entity=cid)
