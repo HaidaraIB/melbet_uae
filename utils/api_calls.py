@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from Config import Config
 from telegram.ext import ContextTypes
 from telegram import InputMediaPhoto
-from common.constants import TIMEZONE, TIMEZONE_NAME
+from common.constants import *
 from client.client_calls.common import openai
 from utils.functions import (
     generate_infographic,
@@ -146,7 +146,6 @@ async def get_fixture(fixture_id: int):
 async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
     """Enhanced monitoring with match completion detection"""
     match = context.job.data["match"]
-    chat_id = context.job.data["chat_id"]
 
     # First check if match has ended
     status = await get_fixture_status(match["fixture_id"])
@@ -176,16 +175,15 @@ async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
                 f"<b>{event['player']['name']}</b> ({event['team']['name']})\n"
                 f"⏱️ Minute: <code>{event['time']['elapsed']}'</code>"
             )
-
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=message,
-            )
+            for chat_id in MONITOR_GROUPS:
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=message,
+                )
             match["last_event_id"] = event["id"]
 
 
 async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
-    chat_id = context.job.data["chat_id"]
     # Get today's fixtures
     fixtures = await get_daily_fixtures()
 
@@ -214,11 +212,10 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
                     first=10,
                     data={
                         "match": match_data,
-                        "chat_id": chat_id,
                     },
-                    name=f"match_update_{fixture['fixture_id']}_monitor_{chat_id}",
+                    name=f"match_update_{fixture['fixture_id']}_monitor",
                     job_kwargs={
-                        "id": f"monitor_live_events_{fixture['fixture_id']}_{chat_id}",
+                        "id": f"monitor_live_events_{fixture['fixture_id']}",
                         "replace_existing": True,
                     },
                 )
@@ -236,11 +233,10 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
                 when=(lineup_time - now).total_seconds(),
                 data={
                     "match": match_data,
-                    "chat_id": chat_id,
                 },
-                name=f"match_update_{fixture['fixture_id']}_lineup_{chat_id}",
+                name=f"match_update_{fixture['fixture_id']}_lineup",
                 job_kwargs={
-                    "id": f"send_pre_match_lineup_{fixture['fixture_id']}_{chat_id}",
+                    "id": f"send_pre_match_lineup_{fixture['fixture_id']}",
                     "replace_existing": True,
                 },
             )
@@ -253,11 +249,10 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
                 first=(monitor_start - now).total_seconds(),
                 data={
                     "match": match_data,
-                    "chat_id": chat_id,
                 },
-                name=f"match_update_{fixture['fixture_id']}_monitor_{chat_id}",
+                name=f"match_update_{fixture['fixture_id']}_monitor",
                 job_kwargs={
-                    "id": f"monitor_live_events_{fixture['fixture_id']}_{chat_id}",
+                    "id": f"monitor_live_events_{fixture['fixture_id']}",
                     "replace_existing": True,
                 },
             )
@@ -276,11 +271,10 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
                 when=(stats_time - now).total_seconds(),
                 data={
                     "match": match_data,
-                    "chat_id": chat_id,
                 },
-                name=f"match_update_{fixture['fixture_id']}_stats_{chat_id}",
+                name=f"match_update_{fixture['fixture_id']}_stats",
                 job_kwargs={
-                    "id": f"send_post_match_stats_{fixture['fixture_id']}_{chat_id}",
+                    "id": f"send_post_match_stats_{fixture['fixture_id']}",
                     "replace_existing": True,
                 },
             )
@@ -302,27 +296,23 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
             f"({fixture['league_name']}) at {fixture['start_time'].strftime('%H:%M')}"
         )
 
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=(
-            f"📅 <b>Today's Matches:</b>\n\n" + "\n".join(match_list) + "\n\n"
-            f"Total matches: {len(fixtures)}\n"
-            f"⏰ Last update: {now.strftime('%H:%M')}"
-        ),
-    )
+    for chat_id in MONITOR_GROUPS:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=(
+                f"📅 <b>Today's Matches:</b>\n\n" + "\n".join(match_list) + "\n\n"
+                f"Total matches: {len(fixtures)}\n"
+                f"⏰ Last update: {now.strftime('%H:%M')}"
+            ),
+        )
 
 
 async def send_pre_match_lineup(context: ContextTypes.DEFAULT_TYPE):
     match = context.job.data["match"]
-    chat_id = context.job.data["chat_id"]
-    await _send_pre_match_lineup(match=match, context=context, chat_id=chat_id)
+    await _send_pre_match_lineup(match=match, context=context)
 
 
-async def _send_pre_match_lineup(
-    match,
-    context: ContextTypes.DEFAULT_TYPE,
-    chat_id: int = Config.UAE_MONITOR_GROUP_ID,
-):
+async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
     home_lineup_data, away_lineup_data = await get_fixture_lineups(match["fixture_id"])
 
     if home_lineup_data and away_lineup_data:
@@ -353,13 +343,13 @@ async def _send_pre_match_lineup(
         #     size="1024x1024",
         # )
         # image_data = requests.get(lineup_img.data[0].url).content
-
-        await context.bot.send_photo(
-            chat_id=chat_id,
-            photo=lineup_img,
-            caption=f"⚠️ <b>{match['home_team']} vs {match['away_team']} - Confirmed Lineups</b>",
-            parse_mode="HTML",
-        )
+        for chat_id in MONITOR_GROUPS:
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=lineup_img,
+                caption=f"⚠️ <b>{match['home_team']} vs {match['away_team']} - Confirmed Lineups</b>",
+                parse_mode="HTML",
+            )
 
         # GPT analysis prompt
         prompt = (
@@ -385,27 +375,20 @@ async def _send_pre_match_lineup(
 
         analysis = response.choices[0].message.content.strip()
 
-        await context.bot.send_message(
-            chat_id=chat_id,
-            text=f"{analysis}\n\n⏰ Kickoff at <code>{match['start_time'].strftime('%H:%M')}</code>",
-            parse_mode="HTML",
-        )
+        for chat_id in MONITOR_GROUPS:
+            await context.bot.send_message(
+                chat_id=chat_id,
+                text=f"{analysis}\n\n⏰ Kickoff at <code>{match['start_time'].strftime('%H:%M')}</code>",
+                parse_mode="HTML",
+            )
 
 
 async def send_post_match_stats(context: ContextTypes.DEFAULT_TYPE):
     match = context.job.data["match"]
-    chat_id = context.job.data["chat_id"]
-    await _send_post_match_stats(
-        fixture_id=match["fixture_id"], context=context, chat_id=chat_id
-    )
+    await _send_post_match_stats(fixture_id=match["fixture_id"], context=context)
 
 
-async def _send_post_match_stats(
-    fixture_id: int,
-    context: ContextTypes.DEFAULT_TYPE,
-    chat_id: int = Config.UAE_MONITOR_GROUP_ID,
-):
-    fix_data = await get_fixture(fixture_id)
+async def _send_post_match_stats(fixture_id: int, context: ContextTypes.DEFAULT_TYPE):
     stats_data = await get_fixture_stats(fixture_id)
 
     if stats_data:
@@ -419,11 +402,12 @@ async def _send_post_match_stats(
         infographic = generate_infographic(
             team1=team1, stats1=stats1, team2=team2, stats2=stats2
         )
-        await context.bot.send_photo(
-            chat_id=chat_id,
-            photo=infographic,
-            caption=summary,
-        )
+        for chat_id in MONITOR_GROUPS:
+            await context.bot.send_photo(
+                chat_id=chat_id,
+                photo=infographic,
+                caption=summary,
+            )
 
 
 async def post_in_groups(

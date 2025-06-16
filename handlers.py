@@ -228,18 +228,8 @@ def setup_and_run():
     app.job_queue.run_daily(
         callback=schedule_daily_fixtures,
         time=time(hour=0, minute=0, tzinfo=TIMEZONE),
-        data={"chat_id": Config.UAE_MONITOR_GROUP_ID},
         job_kwargs={
             "id": "schedule_daily_fixtures_uae",
-            "replace_existing": True,
-        },
-    )
-    app.job_queue.run_daily(
-        callback=schedule_daily_fixtures,
-        time=time(hour=0, minute=0, tzinfo=TIMEZONE),
-        data={"chat_id": Config.SYR_MONITOR_GROUP_ID},
-        job_kwargs={
-            "id": "schedule_daily_fixtures_syr",
             "replace_existing": True,
         },
     )

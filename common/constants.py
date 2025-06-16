@@ -25,3 +25,6 @@ CREATE_ACCOUNT_LINKS = {
         "reg": "https://buy785.online/L?tag=d_4468867m_64133c_{}&pb=a49b407b60cd42b895270d6d8b10b1ed&click_id={}",
     },
 }
+
+
+MONITOR_GROUPS = [Config.UAE_MONITOR_GROUP_ID, Config.SYR_MONITOR_GROUP_ID]
