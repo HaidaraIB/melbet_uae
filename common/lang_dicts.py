@@ -109,6 +109,7 @@ TEXTS = {
             "طلب ربط حساب:\n" "{}" "تحقق من التسجيلات وقم بتأكيد الطلب"
         ),
         "link_account_request_submited": "تم إرسال طلبك للمراجعة، ستصلك رسالة عند اكتمال العملية",
+        "soon": "قريباً 🔜",
     },
     Language.ENGLISH: {
         "welcome_msg": "Welcome...",
@@ -219,6 +220,7 @@ TEXTS = {
             "Link account request:\n" "{}" "Check the registeration and confirm"
         ),
         "link_account_request_submited": "Request submited successfully, you'll recieve a message when it's done",
+        "soon": "Soon 🔜",
 
     },
 }

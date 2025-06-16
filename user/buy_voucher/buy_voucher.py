@@ -46,6 +46,10 @@ import models
 async def buy_voucher(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
+
+        await update.callback_query.answer(text=TEXTS[lang]["soon"], show_alert=True)
+        return ConversationHandler.END
+
         await update.callback_query.edit_message_text(
             text=TEXTS[lang]["send_voucher_odd_number"],
             reply_markup=InlineKeyboardMarkup(

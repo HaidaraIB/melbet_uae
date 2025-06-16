@@ -210,8 +210,8 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
                 # Match is in progress, schedule immediate monitoring
                 context.job_queue.run_repeating(
                     callback=monitor_live_events,
-                    interval=30,
-                    first=30,
+                    interval=600,
+                    first=10,
                     data={
                         "match": match_data,
                         "chat_id": chat_id,
@@ -249,7 +249,7 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
             monitor_start: datetime = start_time - timedelta(minutes=5)
             context.job_queue.run_repeating(
                 callback=monitor_live_events,
-                interval=30,
+                interval=600,
                 first=(monitor_start - now).total_seconds(),
                 data={
                     "match": match_data,
@@ -423,17 +423,6 @@ async def _send_post_match_stats(
             chat_id=chat_id,
             photo=infographic,
             caption=summary,
-        )
-        asyncio.create_task(
-            post_in_groups(
-                context=context,
-                team1=team1,
-                team2=team2,
-                league=fix_data[0]["league"],
-                d=fix_data[0]["fixture"]["date"],
-                infographic=infographic,
-                stats=summary_stats,
-            )
         )
 
 

@@ -30,6 +30,10 @@ PLAN, MULTIPLIER, DAYS, PAY, PAYMENT_DONE = range(5)
 async def our_plans(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
+
+        await update.callback_query.answer(text=TEXTS[lang]["soon"], show_alert=True)
+        return ConversationHandler.END
+
         with models.session_scope() as s:
             user = s.get(models.User, update.effective_user.id)
             if user.plan_code:
