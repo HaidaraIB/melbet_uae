@@ -84,7 +84,7 @@ class Transaction(Base):
     amount = sa.Column(sa.Float, nullable=True)
     currency = sa.Column(sa.String(3), nullable=True)
 
-    mobi_operation_id = sa.Column(sa.String, nullabel=True)
+    mobi_operation_id = sa.Column(sa.String, nullable=True)
 
     receipt_id = sa.Column(sa.String, unique=True, nullable=True)
     withdrawal_code = sa.Column(sa.String(32), unique=True, nullable=True)
