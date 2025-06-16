@@ -9,6 +9,7 @@ from telethon.tl.types import (
 )
 import utils.mobi_cash as mobi
 from telethon.tl.functions.channels import EditBannedRequest
+from common.constants import *
 from telethon.tl.types import ChatBannedRights
 from client.client_calls.common import openai
 from Config import Config
@@ -20,7 +21,6 @@ log = logging.getLogger(__name__)
 
 
 async def send_periodic_messages(context: ContextTypes.DEFAULT_TYPE):
-    chat_id = context.job.data["chat_id"]
     topic = context.job.data["topic"]
     with models.session_scope() as s:
         prompt = s.get(models.Setting, f"gpt_prompt_{topic}")
@@ -37,11 +37,12 @@ async def send_periodic_messages(context: ContextTypes.DEFAULT_TYPE):
         .choices[0]
         .message.content.strip()
     )
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=note,
-        parse_mode=ParseMode.MARKDOWN,
-    )
+    for chat_id in MONITOR_GROUPS:
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=note,
+            parse_mode=ParseMode.MARKDOWN,
+        )
 
 
 async def check_suspicious_users(context: ContextTypes.DEFAULT_TYPE):

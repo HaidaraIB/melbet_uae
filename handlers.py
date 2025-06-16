@@ -155,35 +155,9 @@ def setup_and_run():
         interval=3 * 60 * 60,
         data={
             "topic": "security_messages",
-            "chat_id": Config.UAE_MONITOR_GROUP_ID,
         },
         job_kwargs={
-            "id": "send_periodic_security_messages_uae",
-            "replace_existing": True,
-        },
-    )
-    app.job_queue.run_repeating(
-        callback=send_periodic_messages,
-        interval=3 * 60 * 60,
-        data={
-            "topic": "security_messages",
-            "chat_id": Config.SYR_MONITOR_GROUP_ID,
-        },
-        job_kwargs={
-            "id": "send_periodic_security_messages_syr",
-            "replace_existing": True,
-        },
-    )
-
-    app.job_queue.run_repeating(
-        callback=send_periodic_messages,
-        interval=3 * 60 * 60,
-        data={
-            "topic": "promotional",
-            "chat_id": Config.UAE_MONITOR_GROUP_ID,
-        },
-        job_kwargs={
-            "id": "send_periodic_promotional_uae",
+            "id": "send_periodic_security_messages",
             "replace_existing": True,
         },
     )
@@ -192,23 +166,9 @@ def setup_and_run():
         interval=3 * 60 * 60,
         data={
             "topic": "promotional",
-            "chat_id": Config.SYR_MONITOR_GROUP_ID,
         },
         job_kwargs={
-            "id": "send_periodic_promotional_syr",
-            "replace_existing": True,
-        },
-    )
-
-    app.job_queue.run_repeating(
-        callback=send_periodic_messages,
-        interval=3 * 60 * 60,
-        data={
-            "topic": "dp_wd_instructions",
-            "chat_id": Config.UAE_MONITOR_GROUP_ID,
-        },
-        job_kwargs={
-            "id": "send_periodic_dp_wd_instructions_uae",
+            "id": "send_periodic_promotional",
             "replace_existing": True,
         },
     )
@@ -217,10 +177,9 @@ def setup_and_run():
         interval=3 * 60 * 60,
         data={
             "topic": "dp_wd_instructions",
-            "chat_id": Config.SYR_MONITOR_GROUP_ID,
         },
         job_kwargs={
-            "id": "send_periodic_dp_wd_instructions_syr",
+            "id": "send_periodic_dp_wd_instructions",
             "replace_existing": True,
         },
     )
@@ -229,7 +188,7 @@ def setup_and_run():
         callback=schedule_daily_fixtures,
         time=time(hour=0, minute=0, tzinfo=TIMEZONE),
         job_kwargs={
-            "id": "schedule_daily_fixtures_uae",
+            "id": "schedule_daily_fixtures",
             "replace_existing": True,
         },
     )
