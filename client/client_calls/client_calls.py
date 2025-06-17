@@ -67,7 +67,11 @@ async def choose_payment_method(event: events.CallbackQuery.Event):
                 session_data[uid]["metadata"]["stripe_link"] = stripe_link
                 await TeleBotSingleton().send_message(
                     entity=group.id,
-                    message=f"Please pay through the link below and press <b>Done ✅</b> when the payment is done",
+                    message=(
+                        f"Please pay through the link below and press <b>Done ✅</b> when the payment is done\n"
+                        "Note that there's a fee of <b>3% plus 1 AED</b> on the total amount you'll transfer\n"
+                        "for example transferring 10 AED will give you <b>10 - (10 * 0.03 -1) = 8.7 AED</b>"
+                    ),
                     buttons=[
                         [Button.url(text="Link 🔗", url=stripe_link["url"])],
                         [Button.inline(text="Done ✅", data="payment_done")],
@@ -431,7 +435,11 @@ async def get_missing(event: events.NewMessage.Event):
                     stripe_link = session_data[uid]["metadata"]["stripe_link"]
                     await TeleBotSingleton().send_message(
                         entity=group.id,
-                        message=f"Please pay through the link below and press <b>Done ✅</b> when the payment is done",
+                        message=(
+                            f"Please pay through the link below and press <b>Done ✅</b> when the payment is done\n"
+                            "Note that there's a fee of <b>3% plus 1 AED</b> on the total amount you'll transfer\n"
+                            "for example transferring 10 AED will give you <b>10 - (10 * 0.03 -1) = 8.7 AED</b>"
+                        ),
                         buttons=[
                             [Button.url(text="Link 🔗", url=stripe_link["url"])],
                             [Button.inline(text="Done ✅", data="payment_done")],

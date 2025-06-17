@@ -82,6 +82,7 @@ class Transaction(Base):
         sa.Enum("deposit", "withdraw", name="transaction_type"), nullable=False
     )
     amount = sa.Column(sa.Float, nullable=True)
+    tax = sa.Column(sa.Float, nullable=True)
     currency = sa.Column(sa.String(3), nullable=True)
 
     mobi_operation_id = sa.Column(sa.String, nullable=True)

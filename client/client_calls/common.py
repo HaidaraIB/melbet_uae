@@ -406,18 +406,21 @@ async def send_and_pin_payment_methods_keyboard(s: Session, st: str, group):
 
 async def auto_deposit(data: dict, user: models.User, s: Session):
     st = "deposit"
-    currency = data["data"]["object"]["currency"]
-    amount = float(
-        data["data"]["object"]["amount"] / 100
-        if currency == "aed"
-        else data["data"]["object"]["amount"]
-    )
+    currency = data["data"]["object"]["currency"].lower()
+    if currency == "aed":
+        total_amount = float(data["data"]["object"]["amount"] / 100)
+        tax = total_amount * 0.03 + 1
+    else:
+        total_amount = data["data"]["object"]["amount"]
+        tax = 0
+    amount = total_amount - tax
     data = {
         "amount": amount,
         "receipt_id": data["data"]["object"]["id"],
         "currency": currency,
         "date": str(datetime.fromtimestamp(data["created"])),
         "status": "approved",
+        "tax": tax,
     }
     payment_method = (
         s.query(models.PaymentMethod)
@@ -567,6 +570,7 @@ def add_transaction(
             payment_method_id=payment_method_id,
             type=st,
             amount=float(data["amount"]),
+            tax=float(data.get("tax", None)),
             currency=data["currency"].lower(),
             receipt_id=data.get("receipt_id", None),
             account_number=player_account.account_number,
