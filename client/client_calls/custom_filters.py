@@ -1,6 +1,5 @@
 from telegram import Update
 from telegram.ext.filters import UpdateFilter
-import models
 
 
 class NewAmount(UpdateFilter):
@@ -16,12 +15,9 @@ class NewAmount(UpdateFilter):
 class Proof(UpdateFilter):
     def filter(self, update: Update):
         try:
-            data = update.message.reply_to_message.reply_markup.inline_keyboard[0][
+            return update.message.reply_to_message.reply_markup.inline_keyboard[0][
                 0
-            ].callback_data
-            return data.startswith("edit_amount_") or data.startswith(
-                "back_to_handle_withdraw"
-            )
+            ].callback_data.startswith("back_to_handle_withdraw_")
         except:
             return False
 

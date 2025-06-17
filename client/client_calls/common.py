@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 from common.constants import *
 from client.client_calls.lang_dicts import *
+from client.client_calls.keyboards import build_process_transaction_keyboard
 from client.client_calls.constants import *
 from client.client_calls.functions import (
     now_iso,
@@ -525,19 +526,8 @@ async def process_deposit(user: models.User, s: Session):
             entity=Config.ADMIN_ID,
             message=str(transaction),
             parse_mode="html",
-            buttons=(
-                [
-                    [
-                        Button.inline(
-                            text="موافقة ✅",
-                            data=f"approve_{st}_{transaction.id}",
-                        ),
-                        Button.inline(
-                            text="رفض ❌",
-                            data=f"decline_{st}_{transaction.id}",
-                        ),
-                    ]
-                ]
+            buttons=build_process_transaction_keyboard(
+                transaction_type=st, transaction_id=transaction.id, lib="telethon"
             ),
         )
         return transaction.id
@@ -566,19 +556,8 @@ async def process_withdraw(user: models.User, s: Session):
             entity=Config.ADMIN_ID,
             message=str(transaction),
             parse_mode="html",
-            buttons=(
-                [
-                    [
-                        Button.inline(
-                            text="موافقة ✅",
-                            data=f"approve_{st}_{transaction.id}",
-                        ),
-                        Button.inline(
-                            text="رفض ❌",
-                            data=f"decline_{st}_{transaction.id}",
-                        ),
-                    ]
-                ]
+            buttons=build_process_transaction_keyboard(
+                transaction_type=st, transaction_id=transaction.id, lib="telethon"
             ),
         )
         return transaction.id

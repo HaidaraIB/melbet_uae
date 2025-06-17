@@ -11,7 +11,7 @@ from client.client_calls.client_calls import (
 )
 from client.client_calls.process_transaction import (
     approve_transaction_handler,
-    get_deposit_proof_handler,
+    get_proof_handler,
     edit_amount_handler,
     get_new_amount_handler,
     decline_transaction_handler,

@@ -5,8 +5,13 @@ from common.keyboards import build_back_button
 import models
 from client.client_calls.lang_dicts import *
 from client.client_calls.custom_filters import DeclineReason, NewAmount, Proof
+from client.client_calls.keyboards import (
+    build_process_deposit_options_keyboard,
+    build_process_transaction_keyboard,
+)
 from TeleClientSingleton import TeleClientSingleton
 import os
+import utils.mobi_cash as mobi
 
 
 async def approve_transaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -24,23 +29,65 @@ async def approve_transaction(update: Update, context: ContextTypes.DEFAULT_TYPE
         if transaction_type == "deposit":
             keyboard.insert(
                 0,
-                [
-                    InlineKeyboardButton(
-                        text="تعديل المبلغ",
-                        callback_data=f"edit_amount_{transaction_type}_{transaction_id}",
-                    )
-                ],
+                build_process_deposit_options_keyboard(transaction_id=transaction_id),
             )
-        await update.callback_query.answer(
-            text="قم بالرد على هذه الرسالة بصورة لتأكيد العملية",
-            show_alert=True,
-        )
+        else:
+            await update.callback_query.answer(
+                text="قم بالرد على هذه الرسالة بصورة لتأكيد العملية",
+                show_alert=True,
+            )
         await update.callback_query.edit_message_reply_markup(
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
 
-async def get_deposit_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if (
+        update.effective_chat.type == Chat.PRIVATE
+        and update.effective_user.id == Config.ADMIN_ID
+    ):
+        transaction_id = int(update.callback_query.data.split("_")[-1])
+        with models.session_scope() as s:
+            transaction = s.get(models.Transaction, transaction_id)
+            user = s.get(models.User, transaction.user_id)
+            res = await mobi.deposit(
+                user_id=user.player_account.account_number,
+                amount=transaction.amount,
+            )
+            if res["Success"]:
+                transaction.status = "approved"
+                transaction.mobi_operation_id = res["OperationId"]
+                s.commit()
+                await TeleClientSingleton().send_message(
+                    entity=transaction.user_id,
+                    message=TEXTS[user.lang]["deposit_approved"].format(
+                        transaction.id,
+                        transaction.amount,
+                        transaction.currency,
+                        transaction.player_account,
+                    ),
+                    parse_mode="html",
+                )
+                await update.message.reply_to_message.edit_reply_markup(
+                    reply_markup=InlineKeyboardMarkup.from_button(
+                        InlineKeyboardButton(
+                            text="تمت الموافقة ✅",
+                            callback_data="✅✅✅",
+                        )
+                    )
+                )
+                await update.message.reply_text(
+                    text="تمت الموافقة ✅",
+                    reply_to_message_id=update.message.reply_to_message.id,
+                )
+            else:
+                await update.callback_query.answer(
+                    text=res["Message"],
+                    show_alert=True,
+                )
+
+
+async def get_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if (
         update.effective_chat.type == Chat.PRIVATE
         and update.effective_user.id == Config.ADMIN_ID
@@ -65,31 +112,23 @@ async def get_deposit_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
             s.commit()
             user = s.get(models.User, transaction.user_id)
             photo_path = await photo_file.download_to_drive()
-            transaction_approved_text = ""
-            if transaction.type == "deposit":
-                transaction_approved_text = TEXTS[user.lang]["deposit_approved"].format(
-                    transaction.id,
-                    transaction.amount,
-                    transaction.currency,
-                    transaction.player_account,
-                )
-            else:
-                transaction_approved_text = TEXTS[user.lang]["withdraw_approved"].format(
-                    transaction.id,
-                    transaction.withdrawal_code,
-                    transaction.player_account
-                )
-
             await TeleClientSingleton().send_file(
                 entity=transaction.user_id,
                 file=photo_path,
-                caption=transaction_approved_text,
+                caption=TEXTS[user.lang]["withdraw_approved"].format(
+                    transaction.id,
+                    transaction.withdrawal_code,
+                    transaction.player_account,
+                ),
                 parse_mode="html",
             )
             os.remove(photo_path)
             await update.message.reply_to_message.edit_reply_markup(
                 reply_markup=InlineKeyboardMarkup.from_button(
-                    InlineKeyboardButton(text="تمت الموافقة ✅", callback_data="✅✅✅")
+                    InlineKeyboardButton(
+                        text="تمت الموافقة ✅",
+                        callback_data="✅✅✅",
+                    )
                 )
             )
             await update.message.reply_text(
@@ -144,12 +183,9 @@ async def get_new_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=str(transaction),
                 reply_markup=InlineKeyboardMarkup(
                     [
-                        [
-                            InlineKeyboardButton(
-                                text="تعديل المبلغ",
-                                callback_data=f"edit_amount_{transaction.type}_{transaction_id}",
-                            )
-                        ],
+                        build_process_deposit_options_keyboard(
+                            transaction_id=transaction_id
+                        ),
                         build_back_button(
                             data=f"back_to_handle_{transaction.type}_{transaction_id}"
                         ),
@@ -206,13 +242,17 @@ async def get_decline_reason(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             await update.message.reply_to_message.edit_reply_markup(
                 reply_markup=InlineKeyboardMarkup.from_button(
-                    InlineKeyboardButton(text="تمت الرفض ❌", callback_data="❌❌❌")
+                    InlineKeyboardButton(
+                        text="تم الرفض ❌",
+                        callback_data="❌❌❌",
+                    )
                 )
             )
             await update.message.reply_text(
-                text="تمت الرفض ❌",
+                text="تم الرفض ❌",
                 reply_to_message_id=update.message.reply_to_message.id,
             )
+
 
 async def back_to_handle_transaction(
     update: Update, context: ContextTypes.DEFAULT_TYPE
@@ -227,23 +267,12 @@ async def back_to_handle_transaction(
             transaction = s.get(models.Transaction, transaction_id)
             await update.callback_query.edit_message_text(
                 text=str(transaction),
-                reply_markup=(
-                    InlineKeyboardMarkup(
-                        [
-                            [
-                                InlineKeyboardButton(
-                                    text="موافقة ✅",
-                                    callback_data=f"approve_{transaction_type}_{transaction.id}",
-                                ),
-                                InlineKeyboardButton(
-                                    text="رفض ❌",
-                                    callback_data=f"decline_{transaction_type}_{transaction.id}",
-                                ),
-                            ]
-                        ]
+                reply_markup=InlineKeyboardMarkup(
+                    build_process_transaction_keyboard(
+                        transaction_type=transaction_type,
+                        transaction_id=transaction_id,
+                        lib='ptb'
                     )
-                    if transaction.payment_method.mode == "manual"
-                    else None
                 ),
             )
 
@@ -252,9 +281,12 @@ approve_transaction_handler = CallbackQueryHandler(
     approve_transaction,
     r"^approve_((deposit)|(withdraw))_",
 )
-get_deposit_proof_handler = MessageHandler(
+confirm_approve_handler = CallbackQueryHandler(
+    confirm_approve, r"^confirm_approve_deposit_"
+)
+get_proof_handler = MessageHandler(
     filters=filters.REPLY & filters.PHOTO & Proof(),
-    callback=get_deposit_proof,
+    callback=get_proof,
 )
 edit_amount_handler = CallbackQueryHandler(
     edit_amount,
