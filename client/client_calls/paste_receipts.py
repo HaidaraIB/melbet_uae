@@ -107,6 +107,7 @@ async def paste_receipte(event: events.NewMessage.Event):
                 s.add(new_receipt)
                 s.commit()
                 await event.reply("تم ✅")
+                return
             await event.reply("مكرر ❗️")
         except json.decoder.JSONDecodeError:
             await event.reply("خطأ ❌")
