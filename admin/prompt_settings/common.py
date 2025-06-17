@@ -41,18 +41,6 @@ def prompt_panel():
         ],
         [
             InlineKeyboardButton(
-                "برومبت تغيير الحساب ✏️",
-                callback_data="edit_prompt_change_account",
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                "برومبت القسيمة 🎫",
-                callback_data="edit_prompt_voucher",
-            )
-        ],
-        [
-            InlineKeyboardButton(
                 "تعليمات الإيداع والسحب",
                 callback_data="edit_prompt_dp_wd_instructions",
             )

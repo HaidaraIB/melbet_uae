@@ -38,13 +38,11 @@ async def choose_prompt_type(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "monitor": "المراقبة",
             "session": "الجلسات",
             "manager": "المدير",
-            "change_account": "تغيير الحساب",
             "deposit": "الإيداع",
             "withdraw": "السحب",
             "security_messages": "رسائل الأمان",
             "promotional": "الترويج",
             "match_summary": "ملخص المباريات",
-            "voucher": "القسائم",
             "dp_wd_instructions": "تعليمات الإيداع والسحب"
         }
         back_buttons = [
