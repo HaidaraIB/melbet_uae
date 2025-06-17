@@ -102,7 +102,7 @@ TEXTS = {
         "start_chat_first": "يرجى فتح محادثة خاصة معي أولاً ثم إعادة إرسال كلمة حساب ❗️",
         "link_sent_in_private": "📩 تم إرسال الرابط في الخاص ✅",
         "duplicate_account_not_yours": "رقم حساب مكرر ❗️",
-        "account_link_success": "تم ربط الحساب بمعرفك بنجاح ✅",
+        "account_link_success": "تم ربط الحساب <code>{}</code> بمعرفك بنجاح ✅",
         "account_not_reg": "هذا الحساب غير مسجل بعد، الرجاء المحاولة لاحقاً ❗️",
         "already_have_an_account": "لديك حساب مسجل بالفعل <code>{}</code> ❗️",
         "link_account_request": (
@@ -111,8 +111,7 @@ TEXTS = {
         "link_account_request_submited": "تم إرسال طلبك للمراجعة، ستصلك رسالة عند اكتمال العملية",
         "soon": "قريباً 🔜",
         "choose_my_transaction": (
-            "اختر رقم المعاملة\n"
-            "يمكنك الاختيار من بين آخر 20 معاملة فقط"
+            "اختر رقم المعاملة\n" "يمكنك الاختيار من بين آخر 20 معاملة فقط"
         ),
         "no_transactions_yet": "ليس لديك معاملات بعد ❗️",
     },
@@ -218,7 +217,7 @@ TEXTS = {
         "start_chat_first": "Please start a chat with me first and then resend the last message you sent ❗️",
         "link_sent_in_private": "📩 Registeration link was sent in private, check your inbox ✅",
         "duplicate_account_not_yours": "Duplicate account number ❗️",
-        "account_link_success": "Account link success ✅",
+        "account_link_success": "Account <code>{}</code> link success ✅",
         "account_not_reg": "This account is not registered yet, try again later ❗️",
         "already_have_an_account": "You already have an account <code>{}</code> ❗️",
         "link_account_request": (

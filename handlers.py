@@ -237,10 +237,6 @@ def setup_and_run():
         events.CallbackQuery(pattern=r"^send_transaction_to_proccess$"),
     )
     tele_bot.add_event_handler(
-        handle_link_account_request,
-        events.CallbackQuery(pattern=r"^((confirm)|(decline))_link_account"),
-    )
-    tele_bot.add_event_handler(
         paste_receipte,
         events.NewMessage(chats=Config.RECEIPTS_GROUP_ID),
     )

@@ -576,7 +576,7 @@ def add_transaction(
             payment_method_id=payment_method_id,
             type=st,
             amount=float(data["amount"]),
-            tax=float(data.get("tax", None)),
+            tax=float(data.get("tax", 0)),
             currency=data["currency"].lower(),
             receipt_id=data.get("receipt_id", None),
             account_number=session_data[user_id]["metadata"]["account_number"],

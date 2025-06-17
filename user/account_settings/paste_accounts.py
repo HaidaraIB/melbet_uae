@@ -172,7 +172,9 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             s.commit()
                             await TeleClientSingleton().send_message(
                                 entity=player["subid"],
-                                message=TEXTS[user.lang]["account_link_success"],
+                                message=TEXTS[user.lang]["account_link_success"].format(
+                                    player["player_id"]
+                                ),
                             )
         await update.message.reply_text(text="تم ✅")
     except Exception as e:

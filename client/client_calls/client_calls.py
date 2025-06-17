@@ -501,7 +501,7 @@ async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
             ):
                 await event.answer(message="You're not at this state yet", alert=True)
                 return
-            if not session_data[uid][st]["metadata"]["account_number"]:
+            if not session_data[uid]["metadata"]["account_number"]:
                 await send_and_pin_player_accounts_keyboard(
                     group=cid,
                     player_accounts=s.query(models.PlayerAccount)
