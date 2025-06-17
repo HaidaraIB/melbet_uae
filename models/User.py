@@ -23,8 +23,7 @@ class User(Base):
 
     # Relationships (one-to-many)
     sessions = relationship("UserSession", back_populates="user")
-    player_account = relationship("PlayerAccount", back_populates="user", uselist=False)
-    account_changes = relationship("PlayerAccountChange", back_populates="user")
+    player_accounts = relationship("PlayerAccount", back_populates="user")
     recommendations = relationship("FixtureRecommendation", back_populates="user")
     subscriptions = relationship("Subscription", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")

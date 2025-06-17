@@ -3,7 +3,6 @@ from models.User import User, Subscription
 from models.Language import Language
 from models.Blacklist import Blacklist
 from models.PlayerAccount import PlayerAccount
-from models.PlayerAccountChange import PlayerAccountChange
 from models.Setting import Setting
 from models.UserSession import UserSession
 from models.FraudLog import FraudLog

@@ -213,11 +213,6 @@ def setup_and_run():
             incoming=True,
         ),
     )
-    # account
-    tele_client.add_event_handler(
-        get_account_number,
-        events.NewMessage(pattern=r"^\d+$", incoming=True),
-    )
     # private
     tele_client.add_event_handler(
         respond_in_private,

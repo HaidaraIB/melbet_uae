@@ -112,7 +112,7 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
             )
             if transaction and transaction.status == "pending":
                 res = await mobi.deposit(
-                    user_id=transaction.user.player_account.account_number,
+                    user_id=transaction.account_number,
                     amount=receipt.amount,
                 )
                 if res["Success"]:

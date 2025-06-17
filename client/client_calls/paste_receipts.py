@@ -83,12 +83,12 @@ async def paste_receipte(event: events.NewMessage.Event):
                 )
                 if transaction and transaction.status == "pending":
                     res = await mobi.deposit(
-                        user_id=transaction.user.player_account.account_number,
+                        user_id=transaction.account_number,
                         amount=amount,
                     )
                     if res["Success"]:
                         transaction.status = "approved"
-                        transaction.mobi_operation_id = res['OperationId']
+                        transaction.mobi_operation_id = res["OperationId"]
                         message = (
                             f"Deposit number <code>{transaction.id}</code> is done"
                         )

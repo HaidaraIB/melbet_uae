@@ -456,7 +456,10 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
     transaction = add_transaction(
         data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
     )
-    res = await mobi.deposit(user_id=user.player_account.account_number, amount=amount)
+    res = await mobi.deposit(
+        user_id=session_data[user.user_id]["metadata"]["account_number"],
+        amount=amount,
+    )
     if res["Success"]:
         transaction.status = "approved"
         transaction.mobi_operation_id = res["OperationId"]
@@ -487,7 +490,7 @@ async def process_deposit(user: models.User, s: Session):
         receipt = s.query(models.Receipt).filter_by(id=transaction.receipt_id).first()
         if receipt and not receipt.transaction_id:
             res = await mobi.deposit(
-                user_id=user.player_account.account_number,
+                user_id=session_data[user.user_id]["metadata"]["account_number"],
                 amount=receipt.amount,
             )
             if res["Success"]:
@@ -545,7 +548,7 @@ async def process_withdraw(user: models.User, s: Session):
         data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
     )
     res = await mobi.withdraw(
-        user_id=user.player_account.account_number,
+        user_id=session_data[user.user_id]["metadata"]["account_number"],
         code=data["withdrawal_code"],
     )
     if res["Success"]:
@@ -567,7 +570,6 @@ async def process_withdraw(user: models.User, s: Session):
 def add_transaction(
     data: dict, user_id: int, st: str, payment_method_id: int, s: Session
 ):
-    player_account = s.query(models.PlayerAccount).filter_by(user_id=user_id).first()
     if st == "deposit":
         transaction = models.Transaction(
             user_id=user_id,
@@ -577,7 +579,7 @@ def add_transaction(
             tax=float(data.get("tax", None)),
             currency=data["currency"].lower(),
             receipt_id=data.get("receipt_id", None),
-            account_number=player_account.account_number,
+            account_number=session_data[user_id]["metadata"]["account_number"],
             status=data.get("status", "pending"),
             date=datetime.fromisoformat(data["date"]) if data["date"] else None,
         )
@@ -588,7 +590,7 @@ def add_transaction(
             type=st,
             withdrawal_code=data["withdrawal_code"],
             payment_info=data["payment_info"],
-            account_number=player_account.account_number,
+            account_number=session_data[user_id]["metadata"]["account_number"],
             status=data.get("status", "pending"),
         )
 

@@ -50,6 +50,7 @@ async def choose_account_number(event: events.CallbackQuery.Event):
             save_session_data()
     raise events.StopPropagation
 
+
 async def choose_payment_method(event: events.CallbackQuery.Event):
     if not event.is_group:
         return
@@ -121,11 +122,7 @@ async def check_payment(event: events.CallbackQuery.Event):
     uid = event.sender_id
     group = await TeleBotSingleton().get_entity(entity=cid)
     with models.session_scope() as s:
-        user = (
-            s.query(models.User)
-            .options(joinedload(models.User.player_account))
-            .get(uid)
-        )
+        user = s.get(models.User, uid)
         user_session = s.query(models.UserSession).filter_by(group_id=group.id).first()
         if user_session and uid == user_session.user_id:
             if (

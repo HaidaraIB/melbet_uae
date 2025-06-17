@@ -16,7 +16,7 @@ class PlayerAccount(Base):
     is_points = sa.Column(sa.Boolean, default=False)
     registration_date = sa.Column(sa.DateTime)
 
-    user = relationship("User", back_populates="player_account")
+    user = relationship("User", back_populates="player_accounts")
     transactions = relationship("Transaction", back_populates="player_account")
 
     def __str__(self):

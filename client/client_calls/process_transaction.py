@@ -51,7 +51,7 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
             transaction = s.get(models.Transaction, transaction_id)
             user = s.get(models.User, transaction.user_id)
             res = await mobi.deposit(
-                user_id=user.player_account.account_number,
+                user_id=transaction.account_number,
                 amount=transaction.amount,
             )
             if res["Success"]:
@@ -271,7 +271,7 @@ async def back_to_handle_transaction(
                     build_process_transaction_keyboard(
                         transaction_type=transaction_type,
                         transaction_id=transaction_id,
-                        lib='ptb'
+                        lib="ptb",
                     )
                 ),
             )

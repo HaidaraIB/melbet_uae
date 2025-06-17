@@ -128,8 +128,18 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         if (
                             len(user_accounts) == 0
                             or len(user_accounts) == 1
-                            and not user_accounts[0].is_points
-                            and is_points
+                            and (
+                                (
+                                    not user_accounts[0].is_points
+                                    and user_accounts[0].country == "Syria"
+                                    and is_points
+                                )
+                                or (
+                                    user_accounts[0].is_points
+                                    and player["country"] == "Syria"
+                                    and not is_points
+                                )
+                            )
                         ):
                             user = s.get(models.User, player["subid"])
                             if not user:
