@@ -45,7 +45,9 @@ async def create_account(event: events.newmessage.NewMessage.Event):
                     user.user_id, user.user_id
                 ),
             )
-            if event.chat_id == Config.SYR_MONITOR_GROUP_ID and "نقاط" in msg.raw_text:
+            if event.chat_id == Config.SYR_MONITOR_GROUP_ID and any(
+                kw in msg.raw_text.lower() for kw in ["نقاط", "points", "point"]
+            ):
                 message = TEXTS[user.lang]["create_account_group_reply"].format(
                     user.name,
                     CREATE_ACCOUNT_LINKS[Config.UAE_MONITOR_GROUP_ID]["wlcm"].format(

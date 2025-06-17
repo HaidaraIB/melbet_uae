@@ -202,7 +202,7 @@ def setup_and_run():
         create_account,
         events.NewMessage(
             chats=[Config.UAE_MONITOR_GROUP_ID, Config.SYR_MONITOR_GROUP_ID],
-            pattern=r".*?([اإ]نشاء\s+حساب|حساب|[aA]ccount|[cC]reate\s+[aA]ccount)",
+            pattern=r".*?([اإ]نشاء\s+حساب|حساب|[aA]ccount|[cC]reate\s+[aA]ccount|[Pp]oints?|نقاط)",
             incoming=True,
         ),
     )
