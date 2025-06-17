@@ -35,7 +35,9 @@ def clear_session_data(user_id: int):
     save_session_data()
 
 
-def initialize_user_session_data(user_id: int, from_group_id: int, st: str):
+def initialize_user_session_data(
+    user_id: int, from_group_id: int, user_accounts: list[models.PlayerAccount], st: str
+):
     global session_data
     session_data[user_id] = {
         "metadata": {
@@ -53,6 +55,9 @@ def initialize_user_session_data(user_id: int, from_group_id: int, st: str):
             "payment_method": None,
             "stripe_link": None,
             "from_group_id": from_group_id,
+            "account_number": (
+                user_accounts[0].account_number if len(user_accounts) == 1 else None
+            ),
         },
     }
     if st == "deposit":
@@ -116,7 +121,9 @@ async def check_stripe_payment_webhook(uid: int):
                                 with models.session_scope() as s:
                                     transaction = (
                                         s.query(models.Transaction)
-                                        .filter_by(receipt_id=body["data"]["object"]["id"])
+                                        .filter_by(
+                                            receipt_id=body["data"]["object"]["id"]
+                                        )
                                         .first()
                                     )
                                     if not transaction:

@@ -247,8 +247,8 @@ async def start_session(uid: int, cid: int, st: str):
             )
             s.add(user)
             s.commit()
-        user_account = s.query(models.PlayerAccount).filter_by(user_id=uid).first()
-        if not user_account:
+        user_accounts = s.query(models.PlayerAccount).filter_by(user_id=uid).all()
+        if not user_accounts:
             try:
                 await TeleClientSingleton().send_message(
                     entity=user.user_id,
@@ -360,7 +360,9 @@ async def start_session(uid: int, cid: int, st: str):
                     ).delete()
                     s.commit()
             if uid not in session_data or st not in session_data[uid]:
-                initialize_user_session_data(user_id=uid, from_group_id=cid, st=st)
+                initialize_user_session_data(
+                    user_id=uid, from_group_id=cid, user_accounts=user_accounts, st=st
+                )
         except ValueError as e:
             log.error(f"فشل في بدء الجلسة للمستخدم {uid} بسبب خطأ في الكيان: {e}")
             await TeleClientSingleton().send_message(
@@ -375,7 +377,30 @@ async def start_session(uid: int, cid: int, st: str):
             )
 
 
-async def send_and_pin_payment_methods_keyboard(s: Session, st: str, group):
+async def send_and_pin_player_accounts_keyboard(
+    player_accounts: list[models.PlayerAccount],
+    group: int,
+    st: str,
+):
+    player_accounts_keyboard_msg = await TeleBotSingleton().send_message(
+        entity=group,
+        message="Choose the player account id",
+        buttons=[
+            [
+                Button.inline(
+                    text=p.account_number,
+                    data=f"{st}_session_player_account_{p.account_number}",
+                )
+            ]
+            for p in player_accounts
+        ],
+    )
+    await TeleClientSingleton().pin_message(
+        entity=group, message=player_accounts_keyboard_msg, notify=False
+    )
+
+
+async def send_and_pin_payment_methods_keyboard(s: Session, st: str, group: int):
     payment_methods = (
         s.query(models.PaymentMethod)
         .filter(

@@ -33,20 +33,35 @@ async def create_account(event: events.newmessage.NewMessage.Event):
             s.add(user)
             s.commit()
         try:
+            message = TEXTS[user.lang]["create_account_group_reply"].format(
+                user.name,
+                CREATE_ACCOUNT_LINKS[event.chat_id]["wlcm"].format(
+                    user.user_id, user.user_id
+                ),
+                CREATE_ACCOUNT_LINKS[event.chat_id]["apk"].format(
+                    user.user_id, user.user_id
+                ),
+                CREATE_ACCOUNT_LINKS[event.chat_id]["reg"].format(
+                    user.user_id, user.user_id
+                ),
+            )
+            if event.chat_id == Config.SYR_MONITOR_GROUP_ID and "نقاط" in msg.raw_text:
+                message = TEXTS[user.lang]["create_account_group_reply"].format(
+                    user.name,
+                    CREATE_ACCOUNT_LINKS[Config.UAE_MONITOR_GROUP_ID]["wlcm"].format(
+                        -user.user_id, -user.user_id
+                    ),
+                    CREATE_ACCOUNT_LINKS[Config.UAE_MONITOR_GROUP_ID]["apk"].format(
+                        -user.user_id, -user.user_id
+                    ),
+                    CREATE_ACCOUNT_LINKS[Config.UAE_MONITOR_GROUP_ID]["reg"].format(
+                        -user.user_id, -user.user_id
+                    ),
+                )
+
             await TeleClientSingleton().send_message(
                 entity=user.user_id,
-                message=TEXTS[user.lang]["create_account_group_reply"].format(
-                    user.name,
-                    CREATE_ACCOUNT_LINKS[event.chat_id]["wlcm"].format(
-                        user.user_id, user.user_id
-                    ),
-                    CREATE_ACCOUNT_LINKS[event.chat_id]["apk"].format(
-                        user.user_id, user.user_id
-                    ),
-                    CREATE_ACCOUNT_LINKS[event.chat_id]["reg"].format(
-                        user.user_id, user.user_id
-                    ),
-                ),
+                message=message,
                 link_preview=False,
                 parse_mode="html",
             )

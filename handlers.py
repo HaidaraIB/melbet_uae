@@ -196,7 +196,6 @@ def setup_and_run():
         },
     )
 
-
     tele_client = TeleClientSingleton()
     # monitor
     tele_client.add_event_handler(
@@ -254,6 +253,12 @@ def setup_and_run():
         choose_payment_method,
         events.CallbackQuery(
             pattern=r"^((deposit)|(withdraw))_session_payment_method_"
+        ),
+    )
+    tele_bot.add_event_handler(
+        choose_account_number,
+        events.CallbackQuery(
+            pattern=r"^((deposit)|(withdraw))_session_player_account_"
         ),
     )
     tele_bot.add_event_handler(

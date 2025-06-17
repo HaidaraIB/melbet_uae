@@ -11,8 +11,9 @@ class PlayerAccount(Base):
 
     user_id = sa.Column(sa.BigInteger, sa.ForeignKey("users.user_id"))
     account_number = sa.Column(sa.String, nullable=False, unique=True)
-    country = sa.Column(sa.String, nullable=False, default="UAE")
-    currency = sa.Column(sa.String, default='AED')
+    country = sa.Column(sa.String, nullable=False, default="United Arab Emirates")
+    currency = sa.Column(sa.String, default="aed")
+    is_points = sa.Column(sa.Boolean, default=False)
     registration_date = sa.Column(sa.DateTime)
 
     user = relationship("User", back_populates="player_account")

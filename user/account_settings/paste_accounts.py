@@ -113,12 +113,24 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         .first()
                     )
                     if not existing_account:
-                        user_accounts_count = (
+                        is_points = False
+                        if (
+                            player["subid"] < 0
+                            and player["country"] == "United Arab Emirates"
+                        ):
+                            is_points = True
+                        player["subid"] = abs(player["subid"])
+                        user_accounts = (
                             s.query(models.PlayerAccount)
                             .filter_by(user_id=player["subid"])
-                            .count()
+                            .all()
                         )
-                        if user_accounts_count < 1:
+                        if (
+                            len(user_accounts) == 0
+                            or len(user_accounts) == 1
+                            and not user_accounts[0].is_points
+                            and is_points
+                        ):
                             user = s.get(models.User, player["subid"])
                             if not user:
                                 u = await TeleClientSingleton().get_entity(
@@ -139,11 +151,12 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                     account_number=player["player_id"],
                                     country=player["country"],
                                     currency=(
-                                        "SYP" if player["country"] == "Syria" else "AED"
+                                        "syp" if player["country"] == "Syria" else "aed"
                                     ),
                                     registration_date=datetime.fromisoformat(
                                         player["registration_date"]
                                     ),
+                                    is_points=is_points,
                                 )
                             )
                             s.commit()
