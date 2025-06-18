@@ -62,16 +62,16 @@ async def choose_payment_method(event: events.CallbackQuery.Event):
         user_session = s.query(models.UserSession).filter_by(group_id=group.id).first()
         st = user_session.session_type
         if user_session and uid == user_session.user_id:
-            payment_method_name = event.data.decode("utf-8").split("_")[-1]
-            session_data[uid]["metadata"]["payment_method"] = payment_method_name
+            payment_method_id = int(event.data.decode("utf-8").split("_")[-1])
+            session_data[uid]["metadata"]["payment_method"] = payment_method_id
             payment_method = (
                 s.query(models.PaymentMethod)
-                .filter_by(name=payment_method_name)
+                .filter_by(id=payment_method_id)
                 .first()
             )
             await event.answer(message="Payment Method Set", alert=True)
             if st == "deposit":
-                if payment_method.name == STRIPE:
+                if payment_method.mode == "stripe":
                     from_group_id = session_data[uid]["metadata"]["from_group_id"]
                     currency = CURRENCIES[from_group_id]["currency"]
                     stripe_link = generate_stripe_payment_link(
