@@ -1,4 +1,5 @@
 from telegram import Update
+from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters
 from telethon import events
 from start import start_command, admin_command
 from common.common import create_folders
@@ -7,7 +8,6 @@ from common.back_to_home_page import (
     back_to_user_home_page_handler,
 )
 from common.error_handler import error_handler
-from common.force_join import check_joined_handler
 from common.constants import TIMEZONE
 
 from utils.api_calls import schedule_daily_fixtures
@@ -100,8 +100,6 @@ def setup_and_run():
 
     app.add_handler(broadcast_message_handler)
 
-    app.add_handler(check_joined_handler)
-
     app.add_handler(ban_unban_user_handler)
 
     app.add_handler(groups_settings_handler)
@@ -118,6 +116,13 @@ def setup_and_run():
     app.add_handler(hide_ids_keyboard_handler)
     app.add_handler(back_to_user_home_page_handler)
     app.add_handler(back_to_admin_home_page_handler)
+
+    app.add_handler(
+        MessageHandler(
+            filters=filters.StatusUpdate.NEW_CHAT_MEMBERS,
+            callback=handle_new_user,
+        )
+    )
 
     app.add_error_handler(error_handler)
 
@@ -261,3 +266,31 @@ def setup_and_run():
 
     tele_client.disconnect()
     tele_bot.disconnect()
+
+
+async def handle_new_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.id not in [
+        Config.UAE_MONITOR_GROUP_ID,
+        Config.SYR_MONITOR_GROUP_ID,
+    ]:
+        return
+    
+    user = update.my_chat_member.from_user
+    with models.session_scope() as s:
+        existing_user = (
+            s.query(models.User).filter(models.User.user_id == user.id).first()
+        )
+        if not existing_user:
+            new_user = models.User(
+                user_id=user.id,
+                username=user.username,
+                name=user.full_name,
+                lang=(
+                    models.Language.ARABIC
+                    if update.effective_chat.id == Config.SYR_MONITOR_GROUP_ID
+                    else models.Language.ENGLISH
+                ),
+                from_group_id=update.effective_chat.id,
+            )
+            s.add(new_user)
+            s.commit()

@@ -1,5 +1,6 @@
 from telethon import events
-from client.client_calls.client_calls import openai
+from client.client_calls.common import openai, now_iso
+from client.client_calls.lang_dicts import *
 from TeleClientSingleton import TeleClientSingleton
 from Config import Config
 import models
@@ -89,9 +90,25 @@ async def paste_receipte(event: events.NewMessage.Event):
                     if res["Success"]:
                         transaction.status = "approved"
                         transaction.mobi_operation_id = res["OperationId"]
+                        transaction.completed_at = now_iso()
                         message = (
                             f"Deposit number <code>{transaction.id}</code> is done"
                         )
+                        player_account = (
+                            s.query(models.PlayerAccount)
+                            .filter_by(account_number=transaction.account_number)
+                            .first()
+                        )
+                        offer_progress = player_account.check_offer_progress(s=s)
+                        if offer_progress.get("completed", False):
+                            player_account.offer_completed = True
+                        elif offer_progress.get("completed", None) is not None:
+                            message += TEXTS[transaction.user.lang][
+                                "progress_msg"
+                            ].format(
+                                offer_progress["amount_left"],
+                                offer_progress["deposit_days_left"],
+                            )
                     elif "Deposit limit exceeded" in res["Message"]:
                         message = "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
                     else:

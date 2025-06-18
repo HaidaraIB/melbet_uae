@@ -1,6 +1,5 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from common.force_join import check_if_user_member
 import functools
 import models
 
@@ -39,12 +38,3 @@ def add_new_user_dec(func):
     return wrapper
 
 
-def check_if_user_member_decorator(func):
-    @functools.wraps(func)
-    async def wrapper(update, context, *args, **kwargs):
-        is_user_member = await check_if_user_member(update=update, context=context)
-        if not is_user_member:
-            return
-        return await func(update, context, *args, **kwargs)
-
-    return wrapper

@@ -1,9 +1,10 @@
 import aiohttp
 from Config import Config
 from client.client_calls.constants import PICKLE_FILE, SessionState
+from common.constants import TIMEZONE
 import pickle
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 import json
 import models
 import logging
@@ -83,7 +84,7 @@ def initialize_user_session_data(
 
 
 def now_iso() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(TIMEZONE)
 
 
 def classify_intent(text: str):

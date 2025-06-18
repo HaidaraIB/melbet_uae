@@ -24,7 +24,6 @@ from TeleClientSingleton import TeleClientSingleton
 from TeleBotSingleton import TeleBotSingleton
 from telethon import events, Button
 from sqlalchemy import and_
-from sqlalchemy.orm import joinedload
 from Config import Config
 import models
 import json
@@ -46,7 +45,10 @@ async def choose_account_number(event: events.CallbackQuery.Event):
         if user_session and uid == user_session.user_id:
             account_number = event.data.decode("utf-8").split("_")[-1]
             session_data[uid]["metadata"]["account_number"] = account_number
-            await event.answer(message="Player Account Set", alert=True)
+            await event.answer(
+                message=TEXTS[user_session.user.lang]["player_account_set"],
+                alert=True,
+            )
             save_session_data()
     raise events.StopPropagation
 
@@ -58,7 +60,6 @@ async def choose_payment_method(event: events.CallbackQuery.Event):
     uid = event.sender_id
     group = await TeleBotSingleton().get_entity(entity=cid)
     with models.session_scope() as s:
-        user = s.get(models.User, uid)
         user_session = s.query(models.UserSession).filter_by(group_id=group.id).first()
         st = user_session.session_type
         if user_session and uid == user_session.user_id:
@@ -69,7 +70,9 @@ async def choose_payment_method(event: events.CallbackQuery.Event):
                 .filter_by(name=payment_method_name)
                 .first()
             )
-            await event.answer(message="Payment Method Set", alert=True)
+            await event.answer(
+                message=TEXTS[user_session.user.lang]["payment_method_set"], alert=True
+            )
             if st == "deposit":
                 if payment_method.name == STRIPE:
                     from_group_id = session_data[uid]["metadata"]["from_group_id"]
@@ -80,14 +83,20 @@ async def choose_payment_method(event: events.CallbackQuery.Event):
                     session_data[uid]["metadata"]["stripe_link"] = stripe_link
                     await TeleBotSingleton().send_message(
                         entity=group.id,
-                        message=(
-                            f"Please pay through the link below and press <b>Done ✅</b> when the payment is done\n"
-                            "Note that there's a fee of <b>3% plus 1 AED</b> on the total amount you'll transfer\n"
-                            "for example transferring 10 AED will give you <b>10 - (10 * 0.03 -1) = 8.7 AED</b>"
-                        ),
+                        message=TEXTS[user_session.user.lang]["stripe_payment_text"],
                         buttons=[
-                            [Button.url(text="Link 🔗", url=stripe_link["url"])],
-                            [Button.inline(text="Done ✅", data="payment_done")],
+                            [
+                                Button.url(
+                                    text=BUTTONS[user_session.user.lang]["link"],
+                                    url=stripe_link["url"],
+                                )
+                            ],
+                            [
+                                Button.inline(
+                                    text=BUTTONS[user_session.user.lang]["done"],
+                                    data="payment_done",
+                                )
+                            ],
                         ],
                         parse_mode="html",
                     )
@@ -95,17 +104,14 @@ async def choose_payment_method(event: events.CallbackQuery.Event):
                 else:
                     await TeleBotSingleton().send_message(
                         entity=group.id,
-                        message=(
-                            f"The Payment info of <b>{payment_method.name}</b> is <code>{payment_method.details}</code>\n"
-                            "Please send a photo of the receipt after completing the transaction."
-                        ),
+                        message=TEXTS[user_session.user.lang]["payemnt_method_info"],
                         parse_mode="html",
                     )
                     session_data[uid][st]["state"] = SessionState.AWAITING_RECEIPT.name
             else:
                 await TeleBotSingleton().send_message(
                     entity=group.id,
-                    message="Please Provide the <b>withdrawal code</b> and your <b>payment info</b>",
+                    message=TEXTS[user_session.user.lang]["provide_withdrawal_info"],
                     parse_mode="html",
                 )
                 session_data[uid][st][
@@ -439,14 +445,20 @@ async def get_missing(event: events.NewMessage.Event):
                     stripe_link = session_data[uid]["metadata"]["stripe_link"]
                     await TeleBotSingleton().send_message(
                         entity=group.id,
-                        message=(
-                            f"Please pay through the link below and press <b>Done ✅</b> when the payment is done\n"
-                            "Note that there's a fee of <b>3% plus 1 AED</b> on the total amount you'll transfer\n"
-                            "for example transferring 10 AED will give you <b>10 - (10 * 0.03 -1) = 8.7 AED</b>"
-                        ),
+                        message=TEXTS[user_session.user.lang]["stripe_payment_text"],
                         buttons=[
-                            [Button.url(text="Link 🔗", url=stripe_link["url"])],
-                            [Button.inline(text="Done ✅", data="payment_done")],
+                            [
+                                Button.url(
+                                    text=BUTTONS[user_session.user.lang]["link"],
+                                    url=stripe_link["url"],
+                                )
+                            ],
+                            [
+                                Button.inline(
+                                    text=BUTTONS[user_session.user.lang]["done"],
+                                    data="payment_done",
+                                )
+                            ],
                         ],
                         parse_mode="html",
                     )
@@ -535,8 +547,10 @@ async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
 async def listen_to_dp_and_wd_requests(event: events.NewMessage.Event):
     uid = event.sender_id
     cid = event.chat_id
-    sender = await TeleClientSingleton().get_permissions(entity=cid, user=uid)
-    if sender.is_admin:
+    sender_permissions = await TeleClientSingleton().get_permissions(
+        entity=cid, user=uid
+    )
+    if sender_permissions.is_admin:
         return
     intent = classify_intent(event.raw_text)
     if not intent:
@@ -550,6 +564,24 @@ async def listen_to_dp_and_wd_requests(event: events.NewMessage.Event):
             default_prompt = s.get(models.Setting, "gpt_prompt")
             monitor_prompt = s.get(models.Setting, "gpt_prompt_monitor")
             user = s.get(models.User, uid)
+            if not user:
+                user = models.User(
+                    user_id=uid,
+                    username=event.sender.username or "N/A",
+                    name=(event.sender.first_name or "")
+                    + " "
+                    + (event.sender.last_name or ""),
+                    lang=(
+                        models.Language.ARABIC
+                        if cid == Config.SYR_MONITOR_GROUP_ID
+                        else models.Language.ENGLISH
+                    ),
+                    from_group_id=cid,
+                )
+                s.add(user)
+            elif not user.from_group_id:
+                user.from_group_id = cid
+            s.commit()
             note = (
                 (
                     await openai.chat.completions.create(

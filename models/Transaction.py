@@ -1,9 +1,10 @@
 import sqlalchemy as sa
-from models.DB import Base
 from datetime import datetime
 from common.constants import TIMEZONE
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Session
+from models.DB import Base
 from models.Language import Language
+from models.PlayerAccount import PlayerAccount
 
 
 class Proof(Base):
@@ -79,7 +80,7 @@ class Transaction(Base):
 
     # Transaction type and amount details
     type = sa.Column(
-        sa.Enum("deposit", "withdraw", name="transaction_type"), nullable=False
+        sa.Enum("deposit", "withdraw", "offer", name="transaction_type"), nullable=False
     )
     amount = sa.Column(sa.Float, nullable=True)
     tax = sa.Column(sa.Float, nullable=True)
@@ -101,6 +102,7 @@ class Transaction(Base):
         default="pending",
         index=True,
     )
+    description = sa.Column(sa.TEXT, nullable=True)
     date = sa.Column(sa.DateTime, nullable=True)
     created_at = sa.Column(sa.DateTime, default=datetime.now(TIMEZONE), index=True)
     updated_at = sa.Column(
@@ -115,6 +117,23 @@ class Transaction(Base):
     proof = relationship("Proof", back_populates="transaction")
     receipt = relationship("Receipt", back_populates="transaction", uselist=False)
     player_account = relationship("PlayerAccount", back_populates="transactions")
+
+    @classmethod
+    def add_offer_transaction(
+        s: Session, player_account: PlayerAccount, reward_amount: float, currency: str
+    ):
+        offer_tx = Transaction(
+            account_number=player_account.account_number,
+            user_id=player_account.user_id,
+            type="offer",
+            amount=reward_amount,
+            currency=currency,
+            status="approved",  # أو أي حالة تناسبك
+            description="Reward for completing welcome offer",
+        )
+        s.add(offer_tx)
+        s.commit()
+        return offer_tx
 
     def stringify(self, lang: Language):
         if lang == Language.ENGLISH.name:

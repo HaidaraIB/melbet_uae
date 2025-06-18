@@ -1,6 +1,5 @@
 from telegram import Update, Chat
 from telegram.ext import ContextTypes, CallbackQueryHandler, ConversationHandler
-from common.decorators import check_if_user_member_decorator
 from common.keyboards import build_user_keyboard, build_admin_keyboard
 from common.constants import *
 from common.lang_dicts import *
@@ -8,7 +7,6 @@ from common.common import get_lang
 from custom_filters import Admin
 
 
-@check_if_user_member_decorator
 async def back_to_user_home_page(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)

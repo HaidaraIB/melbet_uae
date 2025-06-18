@@ -17,9 +17,9 @@ class User(Base):
     is_admin = sa.Column(sa.Boolean, default=0)
 
     plan_code = sa.Column(sa.String, sa.ForeignKey("plans.code"))
-    plan = relationship("Plan", back_populates="users")
 
     trial_used = sa.Column(sa.Boolean, default=False)
+    from_group_id = sa.Column(sa.Integer, default=0)
 
     # Relationships (one-to-many)
     sessions = relationship("UserSession", back_populates="user")
@@ -27,6 +27,8 @@ class User(Base):
     recommendations = relationship("FixtureRecommendation", back_populates="user")
     subscriptions = relationship("Subscription", back_populates="user")
     transactions = relationship("Transaction", back_populates="user")
+
+    plan = relationship("Plan", back_populates="users")
 
     # Relationship for fraud logs (both as user and copied_from)
     fraud_committed = relationship(

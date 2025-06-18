@@ -7,16 +7,12 @@ from telegram.ext import (
 )
 import models
 from custom_filters import Admin
-from common.decorators import (
-    check_if_user_banned_dec,
-    add_new_user_dec,
-    check_if_user_member_decorator,
-)
+from common.decorators import check_if_user_banned_dec, add_new_user_dec
 from common.keyboards import build_user_keyboard, build_admin_keyboard
 from common.common import check_hidden_keyboard, get_lang
-from common.lang_dicts import TEXTS
 from client.client_calls.common import resume_timers_on_startup
 from client.client_calls.functions import load_session_data
+from common.lang_dicts import TEXTS
 from Config import Config
 
 
@@ -59,7 +55,6 @@ async def set_commands(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @add_new_user_dec
 @check_if_user_banned_dec
-@check_if_user_member_decorator
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         await set_commands(update, context)

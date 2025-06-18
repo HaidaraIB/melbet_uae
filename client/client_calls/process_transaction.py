@@ -9,9 +9,10 @@ from client.client_calls.keyboards import (
     build_process_deposit_options_keyboard,
     build_process_transaction_keyboard,
 )
+from client.client_calls.common import now_iso
 from TeleClientSingleton import TeleClientSingleton
-import os
 import utils.mobi_cash as mobi
+import os
 
 
 async def approve_transaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -57,15 +58,29 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if res["Success"]:
                 transaction.status = "approved"
                 transaction.mobi_operation_id = res["OperationId"]
-                s.commit()
+                transaction.completed_at = now_iso()
+                message = TEXTS[user.lang]["deposit_approved"].format(
+                    transaction.id,
+                    transaction.amount,
+                    transaction.currency,
+                    transaction.player_account,
+                )
+                player_account = (
+                    s.query(models.PlayerAccount)
+                    .filter_by(account_number=transaction.account_number)
+                    .first()
+                )
+                offer_progress = player_account.check_offer_progress(s=s)
+                if offer_progress.get("completed", False):
+                    player_account.offer_completed = True
+                elif offer_progress.get("completed", None) is not None:
+                    message += TEXTS[transaction.user.lang]["progress_msg"].format(
+                        offer_progress["amount_left"],
+                        offer_progress["deposit_days_left"],
+                    )
                 await TeleClientSingleton().send_message(
                     entity=transaction.user_id,
-                    message=TEXTS[user.lang]["deposit_approved"].format(
-                        transaction.id,
-                        transaction.amount,
-                        transaction.currency,
-                        transaction.player_account,
-                    ),
+                    message=message,
                     parse_mode="html",
                 )
                 await update.message.reply_to_message.edit_reply_markup(
@@ -80,6 +95,7 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text="تمت الموافقة ✅",
                     reply_to_message_id=update.message.reply_to_message.id,
                 )
+                s.commit()
             else:
                 await update.callback_query.answer(
                     text=res["Message"],
@@ -104,6 +120,7 @@ async def get_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with models.session_scope() as s:
             transaction = s.get(models.Transaction, transaction_id)
             transaction.status = "approved"
+            transaction.completed_at = now_iso()
             new_proof = models.Proof(
                 transaction_id=transaction.id,
                 photo_data=bytes(photo_bytes),

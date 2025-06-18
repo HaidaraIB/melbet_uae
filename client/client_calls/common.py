@@ -236,18 +236,7 @@ async def start_session(uid: int, cid: int, st: str):
     bot = await TeleBotSingleton().get_me()
     with models.session_scope() as s:
         user = s.get(models.User, uid)
-        if not user:
-            user = models.User(
-                user_id=tg_user.id,
-                username=tg_user.username if tg_user.username else "",
-                name=(
-                    (tg_user.first_name + tg_user.last_name)
-                    if tg_user.last_name
-                    else tg_user.first_name
-                ),
-            )
-            s.add(user)
-            s.commit()
+
         user_accounts = s.query(models.PlayerAccount).filter_by(user_id=uid).all()
         if not user_accounts:
             try:
@@ -355,11 +344,10 @@ async def start_session(uid: int, cid: int, st: str):
             if st == "deposit":
                 asyncio.create_task(session_timer(gid, uid))
             else:
-                with models.session_scope() as s:
-                    s.query(models.SessionTimer).filter(
-                        models.SessionTimer.uid == uid, models.SessionTimer.gid == gid
-                    ).delete()
-                    s.commit()
+                s.query(models.SessionTimer).filter(
+                    models.SessionTimer.uid == uid, models.SessionTimer.gid == gid
+                ).delete()
+                s.commit()
             if uid not in session_data or st not in session_data[uid]:
                 initialize_user_session_data(
                     user_id=uid, from_group_id=cid, user_accounts=user_accounts, st=st
@@ -433,6 +421,7 @@ async def send_and_pin_payment_methods_keyboard(s: Session, st: str, group: int)
 async def auto_deposit(data: dict, user: models.User, s: Session):
     st = "deposit"
     currency = data["data"]["object"]["currency"].lower()
+    account_number = session_data[user.user_id]["metadata"]["account_number"]
     if currency == "aed":
         total_amount = float(data["data"]["object"]["amount"] / 100)
         tax = total_amount * 0.03 + 1
@@ -457,18 +446,34 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
         data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
     )
     res = await mobi.deposit(
-        user_id=session_data[user.user_id]["metadata"]["account_number"],
+        user_id=account_number,
         amount=amount,
     )
     if res["Success"]:
+        player_account = (
+            s.query(models.PlayerAccount)
+            .filter_by(account_number=account_number)
+            .first()
+        )
         transaction.status = "approved"
         transaction.mobi_operation_id = res["OperationId"]
-        s.commit()
+        transaction.completed_at = now_iso()
         await TeleBotSingleton().send_message(
             entity=Config.ADMIN_ID,
             message=str(transaction),
             parse_mode="html",
         )
+        offer_progress = player_account.check_offer_progress(s=s)
+        if offer_progress.get("completed", False):
+            player_account.offer_completed = True
+        elif offer_progress.get("completed", None) is not None:
+            await TeleClientSingleton().send_message(
+                entity=user.user_id,
+                message=TEXTS[user.lang]["progress_msg"].format(
+                    offer_progress["amount_left"], offer_progress["deposit_days_left"]
+                ),
+            )
+        s.commit()
         return transaction.id
     elif "Deposit limit exceeded" in res["Message"]:
         return "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
@@ -478,6 +483,7 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
 async def process_deposit(user: models.User, s: Session):
     st = "deposit"
     data = session_data[user.user_id][st]["data"]
+    account_number = session_data[user.user_id]["metadata"]["account_number"]
     payment_method = (
         s.query(models.PaymentMethod)
         .filter_by(name=session_data[user.user_id]["metadata"]["payment_method"])
@@ -490,7 +496,7 @@ async def process_deposit(user: models.User, s: Session):
         receipt = s.query(models.Receipt).filter_by(id=transaction.receipt_id).first()
         if receipt and not receipt.transaction_id:
             res = await mobi.deposit(
-                user_id=session_data[user.user_id]["metadata"]["account_number"],
+                user_id=account_number,
                 amount=receipt.amount,
             )
             if res["Success"]:
@@ -498,17 +504,32 @@ async def process_deposit(user: models.User, s: Session):
                 transaction.amount = receipt.amount
                 transaction.status = "approved"
                 transaction.mobi_operation_id = res["OperationId"]
-                s.commit()
+                transaction.completed_at = now_iso()
                 await TeleBotSingleton().send_message(
                     entity=Config.ADMIN_ID,
                     message=str(transaction),
                     parse_mode="html",
                 )
+                player_account = (
+                    s.query(models.PlayerAccount)
+                    .filter_by(account_number=account_number)
+                    .first()
+                )
+                offer_progress = player_account.check_offer_progress(s=s)
+                message = f"Deposit number <code>{transaction.id}</code> is done"
+                if offer_progress.get("completed", False):
+                    player_account.offer_completed = True
+                elif offer_progress.get("completed", None) is not None:
+                    message += TEXTS[user.lang]["progress_msg"].format(
+                        offer_progress["amount_left"],
+                        offer_progress["deposit_days_left"],
+                    )
                 await TeleBotSingleton().send_message(
                     entity=user.user_id,
-                    message=f"Deposit number <code>{transaction.id}</code> is done",
+                    message=message,
                     parse_mode="html",
                 )
+                s.commit()
                 return transaction.id
             elif "Deposit limit exceeded" in res["Message"]:
                 return "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
@@ -554,6 +575,7 @@ async def process_withdraw(user: models.User, s: Session):
     if res["Success"]:
         transaction.status = "approved"
         transaction.mobi_operation_id = res["OperationId"]
+        transaction.completed_at = now_iso()
         s.commit()
         await TeleBotSingleton().send_message(
             entity=Config.ADMIN_ID,

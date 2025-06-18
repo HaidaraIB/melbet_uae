@@ -37,6 +37,24 @@ TEXTS = {
         ),
         "deposit_failed": "فشل الإيداع، رسالة الخطأ: {}",
         "unexpected_session_error": "حدث خطأ غير متوقع",
+        "player_account_set": "تم اختيار رقم الحساب",
+        "payment_method_set": "تم اختيار وسيلة الدفع",
+        "stripe_payment_text": (
+            f"الرجاء الدفع عبر الرابط أدناه ثم الضغط على <b>تم ✅</b> عند إتمام العملية\n"
+            "ملاحظة: هناك رسوم إضافية قدرها <b>3% بالإضافة إلى 1 درهم</b> من إجمالي المبلغ المحول\n"
+            "مثلاً عند تحويل 10 درهم يكون المبلغ الذي سيتم إيداعه في حسابك <b>10 - (10 * 0.03 -1) = 8.7 درهم</b>"
+        ),
+        "provide_withdrawal_info": "الرجاء إرسال <b>كود السحب ومعلومات محفظتك</b>.",
+        "payemnt_method_info": (
+            "تفاصيل الدفع الخاصة ب <b>{}</b> هي <code>{}</code>\n"
+            "الرجاء إرسال صورة لإيصال الدفع عند إتمام العملية."
+        ),
+        "progress_msg": (
+            "🚀 أنت على الطريق الصحيح نحو جائزتك!\n\n"
+            "بقي لك فقط إيداع {} درهم في {} أيام مختلفة لتستلم مكافأتك المميزة 🎁\n\n"
+            "استمر بالإيداع، وكل عملية تقربك أكثر لتحقيق الشروط والفوز بالجائزة!\n\n"
+            "✨ لا تدع الفرصة تفوتك — تابع التقدم!"
+        ),
     },
     Language.ENGLISH: {
         "blacklisted_user": "Sorry, you have been blacklisted due to repeated fraud attempts.",
@@ -64,6 +82,24 @@ TEXTS = {
         ),
         "deposit_failed": "Deposit failed, error message: {}",
         "unexpected_session_error": "Unexpected Error",
+        "player_account_set": "Player Account Set",
+        "payment_method_set": "Payment Method Set",
+        "stripe_payment_text": (
+            f"Please pay through the link below and press <b>Done ✅</b> when the payment is done\n"
+            "Note that there's a fee of <b>3% plus 1 AED</b> on the total amount you'll transfer\n"
+            "for example transferring 10 AED will give you <b>10 - (10 * 0.03 -1) = 8.7 AED</b>"
+        ),
+        "provide_withdrawal_info": "Please Provide the <b>Withdrawal Code</b> and your <b>Payment Info</b>.",
+        "payemnt_method_info": (
+            "The Payment info of <b>{}</b> is <code>{}</code>\n"
+            "Please send a photo of the receipt after completing the transaction."
+        ),
+        "progress_msg": (
+            "🚀 You're on the right track to your reward!\n\n"
+            "You only need to deposit {} AED on {} different days to claim your special bonus 🎁\n\n"
+            "Keep depositing—every step brings you closer to winning!\n\n"
+            "✨ Don't miss out — keep progressing!"
+        ),
     },
 }
 
@@ -80,5 +116,17 @@ ERROR_TEXTS = {
         "permission_error": "Error modifying permissions: {}",
         "session_start_failed": "Failed to start session for user {} due to entity error: {}",
         "unexpected_session_error": "Unexpected error starting session for user {}: {}",
+    },
+}
+
+
+BUTTONS = {
+    Language.ARABIC: {
+        "link": "الرابط 🔗",
+        "done": "تم ✅",
+    },
+    Language.ENGLISH: {
+        "link": "Link 🔗",
+        "done": "Done ✅",
     },
 }

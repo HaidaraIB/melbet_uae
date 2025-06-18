@@ -18,8 +18,6 @@ class Config:
     RECEIPTS_GROUP_ID = int(os.getenv("RECEIPTS_GROUP_ID"))
     PHONE = os.getenv("PHONE")
     ERRORS_CHANNEL = int(os.getenv("ERRORS_CHANNEL"))
-    FORCE_JOIN_CHANNEL_ID = int(os.getenv("FORCE_JOIN_CHANNEL_ID"))
-    FORCE_JOIN_CHANNEL_LINK = os.getenv("FORCE_JOIN_CHANNEL_LINK")
 
     DB_PATH = os.getenv("DB_PATH")
     DB_POOL_SIZE = 20

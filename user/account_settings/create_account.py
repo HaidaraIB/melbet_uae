@@ -26,9 +26,17 @@ async def create_account(event: events.newmessage.NewMessage.Event):
                 user_id=msg.sender_id,
                 username=sender.username or "N/A",
                 name=(sender.first_name or "") + " " + (sender.last_name or ""),
+                lang=(
+                    models.Language.ARABIC
+                    if event.chat_id == Config.SYR_MONITOR_GROUP_ID
+                    else models.Language.ENGLISH
+                ),
+                from_group_id=event.chat_id,
             )
             s.add(user)
-            s.commit()
+        elif not user.from_group_id:
+            user.from_group_id = event.chat_id
+        s.commit()
         try:
             message = TEXTS[user.lang]["create_account_group_reply"].format(
                 user.name,

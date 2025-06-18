@@ -5,7 +5,7 @@ import pandas as pd
 from client.client_calls.common import openai
 from common.lang_dicts import *
 from Config import Config
-from datetime import datetime
+from datetime import datetime, timedelta
 import io
 import logging
 import json
@@ -152,6 +152,11 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                     name=(u.first_name or "")
                                     + " "
                                     + (u.last_name or ""),
+                                    lang=(
+                                        models.Language.ARABIC
+                                        if player["country"] == "Syria"
+                                        else models.Language.ENGLISH
+                                    ),
                                 )
                                 s.add(user)
                                 s.commit()
@@ -163,18 +168,88 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                     currency=(
                                         "syp" if player["country"] == "Syria" else "aed"
                                     ),
+                                    is_points=is_points,
                                     registration_date=datetime.fromisoformat(
                                         player["registration_date"]
                                     ),
-                                    is_points=is_points,
+                                    offer_start_date=datetime.fromisoformat(
+                                        player["registration_date"]
+                                    ),
+                                    offer_expiry_date=datetime.fromisoformat(
+                                        player["registration_date"]
+                                    )
+                                    + timedelta(days=10),
+                                    offer_prize=(
+                                        150000 if player["country"] == "Syria" else 50
+                                    ),
                                 )
                             )
                             s.commit()
+                            offer_text = "\n\n"
+                            if player["country"] == "Syria":
+                                if user.lang == models.Language.ARABIC:
+                                    offer_text += (
+                                        "🎁 *عرض ترحيبي حصري للأعضاء الجدد في سوريا:*\n"
+                                        "لديك 10 أيام من تاريخ تسجيلك لتحقيق الشروط التالية:\n\n"
+                                        "1️⃣ قم بإجراء ٧ إيداعات في ٧ أيام مختلفة (خلال مدة ١٠ أيام فقط)\n"
+                                        "2️⃣ يجب أن يكون مجموع كل الإيداعات معًا خلال هذه الفترة ٤٠٠ ألف ليرة سورية أو أكثر\n\n"
+                                        "💸 عند تحقيق الشرطين، تحصل فورًا على ١٥٠ ألف ليرة سورية مال حقيقي تضاف إلى حسابك الأساسي مباشرة!\n\n"
+                                        "⏳ ملاحظة: إذا لم تكمل الشروط خلال ١٠ أيام من التسجيل، ينتهي العرض تلقائيًا."
+                                    )
+                                else:
+                                    offer_text += (
+                                        "🎁 *Exclusive Welcome Offer for New Members in Syria:*\n"
+                                        "You have 10 days from your registration date to fulfill the following conditions:\n\n"
+                                        "1️⃣ Make 7 deposits on 7 different days (within the 10-day period)\n"
+                                        "2️⃣ The total amount of all deposits during this period must be 400,000 SYP or more\n\n"
+                                        "💸 Once you complete both conditions, you will immediately receive 150,000 SYP in real cash credited directly to your main account!\n\n"
+                                        "⏳ Note: If you do not complete the requirements within 10 days of registration, the offer will automatically expire."
+                                    )
+                            elif player["country"] == "United Arab Emirates":
+                                if not is_points:
+                                    if user.lang == models.Language.ARABIC:
+                                        offer_text += (
+                                            "🎁 *عرض ترحيبي حصري للأعضاء الجدد:*\n"
+                                            "لديك 10 أيام من تاريخ تسجيلك لتحقيق الشروط التالية:\n\n"
+                                            "1️⃣ قم بإجراء ٧ إيداعات في ٧ أيام مختلفة (خلال مدة ١٠ أيام فقط)\n"
+                                            "2️⃣ يجب أن يكون مجموع كل الإيداعات معًا خلال هذه الفترة ٢٠٠ درهم أو أكثر\n\n"
+                                            "💸 عند تحقيق الشرطين، تحصل فورًا على ٥٠ درهم مال حقيقي تضاف إلى حسابك الأساسي مباشرة!\n\n"
+                                            "⏳ ملاحظة: إذا لم تكمل الشروط خلال ١٠ أيام من التسجيل، ينتهي العرض تلقائيًا."
+                                        )
+                                    else:
+                                        offer_text += (
+                                            "🎁 *Exclusive Welcome Offer for New Members:*\n"
+                                            "You have 10 days from your registration date to meet these requirements:\n\n"
+                                            "1️⃣ Make 7 deposits on 7 different days (within a 10-day period)\n"
+                                            "2️⃣ The total sum of all deposits during this period must be 200 AED or more\n\n"
+                                            "💸 Once you complete both conditions, you will instantly receive 50 AED in real cash credited directly to your main account!\n\n"
+                                            "⏳ Note: If you do not meet the requirements within 10 days of registration, the offer will automatically expire."
+                                        )
+                                else:
+                                    if user.lang == models.Language.ARABIC:
+                                        offer_text += (
+                                            "🎁 *عرض ترحيبي حصري للأعضاء الجدد:*\n"
+                                            "لديك 10 أيام من تاريخ تسجيلك لتحقيق الشروط التالية:\n\n"
+                                            "1️⃣ قم بإجراء ٧ إيداعات في ٧ أيام مختلفة (خلال مدة ١٠ أيام فقط)\n"
+                                            "2️⃣ يجب أن يكون مجموع كل الإيداعات معًا خلال هذه الفترة ٢٠٠ نقطة أو أكثر\n\n"
+                                            "💸 عند تحقيق الشرطين، تحصل فورًا على ٥٠ نقطة تضاف إلى حسابك الأساسي مباشرة!\n\n"
+                                            "⏳ ملاحظة: إذا لم تكمل الشروط خلال ١٠ أيام من التسجيل، ينتهي العرض تلقائيًا."
+                                        )
+                                    else:
+                                        offer_text += (
+                                            "🎁 *Exclusive Welcome Offer for New Members:*\n"
+                                            "You have 10 days from your registration date to fulfill the following conditions:\n\n"
+                                            "1️⃣ Make 7 deposits on 7 different days (within the 10-day period)\n"
+                                            "2️⃣ The total sum of all deposits during this period must be 200 points or more\n\n"
+                                            "💸 Once you complete both conditions, you will immediately receive 50 points credited directly to your main account!\n\n"
+                                            "⏳ Note: If you do not complete the requirements within 10 days of registration, the offer will automatically expire."
+                                        )
                             await TeleClientSingleton().send_message(
                                 entity=player["subid"],
                                 message=TEXTS[user.lang]["account_link_success"].format(
                                     player["player_id"]
-                                ),
+                                )
+                                + offer_text,
                             )
         await update.message.reply_text(text="تم ✅")
     except Exception as e:
@@ -184,8 +259,8 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 handle_excel_handler = MessageHandler(
     filters=(
         filters.Document.FileExtension("xlsx")
-        | filters.Document.FileExtension("xls ")
-        | filters.Document.FileExtension("xlsm ")
+        | filters.Document.FileExtension("xls")
+        | filters.Document.FileExtension("xlsm")
     ),
     callback=handle_excel,
 )
