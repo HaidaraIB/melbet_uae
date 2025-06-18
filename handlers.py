@@ -243,7 +243,7 @@ def setup_and_run():
     )
     tele_bot.add_event_handler(
         paste_receipte,
-        events.NewMessage(chats=Config.RECEIPTS_GROUP_ID),
+        events.NewMessage(chats=Config.RECEIPTS_GROUP_ID, incoming=True),
     )
     tele_bot.add_event_handler(
         choose_payment_method,

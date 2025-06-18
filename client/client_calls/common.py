@@ -407,7 +407,7 @@ async def send_and_pin_payment_methods_keyboard(s: Session, st: str, group: int)
             [
                 Button.inline(
                     text=p.name,
-                    data=f"{st}_session_payment_method_{p.name}",
+                    data=f"{st}_session_payment_method_{p.id}",
                 )
             ]
             for p in payment_methods
@@ -439,7 +439,7 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
     }
     payment_method = (
         s.query(models.PaymentMethod)
-        .filter_by(name=session_data[user.user_id]["metadata"]["payment_method"])
+        .filter_by(id=session_data[user.user_id]["metadata"]["payment_method"])
         .first()
     )
     transaction = add_transaction(
@@ -486,7 +486,7 @@ async def process_deposit(user: models.User, s: Session):
     account_number = session_data[user.user_id]["metadata"]["account_number"]
     payment_method = (
         s.query(models.PaymentMethod)
-        .filter_by(name=session_data[user.user_id]["metadata"]["payment_method"])
+        .filter_by(id=session_data[user.user_id]["metadata"]["payment_method"])
         .first()
     )
     transaction = add_transaction(
@@ -562,7 +562,7 @@ async def process_withdraw(user: models.User, s: Session):
     data = session_data[user.user_id][st]["data"]
     payment_method = (
         s.query(models.PaymentMethod)
-        .filter_by(name=session_data[user.user_id]["metadata"]["payment_method"])
+        .filter_by(id=session_data[user.user_id]["metadata"]["payment_method"])
         .first()
     )
     transaction = add_transaction(
