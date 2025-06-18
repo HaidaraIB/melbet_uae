@@ -73,6 +73,24 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 offer_progress = player_account.check_offer_progress(s=s)
                 if offer_progress.get("completed", False):
                     player_account.offer_completed = True
+                    offer_tx = models.Transaction.add_offer_transaction(
+                        s=s, player_account=player_account
+                    )
+                    offer_dp = await mobi.deposit(
+                        user_id=transaction.account_number,
+                        amount=player_account.offer_prize,
+                    )
+                    if offer_dp["Success"]:
+                        offer_tx.status = "approved"
+                        offer_tx.mobi_operation_id = res["OperationId"]
+                        offer_tx.completed_at = now_iso()
+                    else:
+                        offer_tx.status = "failed"
+                        offer_tx.fail_reason = res['Message']
+                    await TeleClientSingleton().send_message(
+                        entity=user.user_id,
+                        message=TEXTS[user.lang]["offer_completed_msg"],
+                    )
                 elif offer_progress.get("completed", None) is not None:
                     message += TEXTS[transaction.user.lang]["progress_msg"].format(
                         offer_progress["amount_left"],
@@ -97,6 +115,8 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 s.commit()
             else:
+                transaction.status = "failed"
+                transaction.fail_reason = res['Message']
                 await update.callback_query.answer(
                     text=res["Message"],
                     show_alert=True,

@@ -55,6 +55,11 @@ TEXTS = {
             "استمر بالإيداع، وكل عملية تقربك أكثر لتحقيق الشروط والفوز بالجائزة!\n\n"
             "✨ لا تدع الفرصة تفوتك — تابع التقدم!"
         ),
+        "offer_completed_msg": (
+            "🎉 تهانينا! لقد أكملت جميع شروط العرض بنجاح.\n"
+            "✅ ستتم إضافة جائزتك إلى حسابك الأساسي تلقائيًا.\n\n"
+            "استمر في نشاطك على منصتنا للاستفادة من المزيد من العروض والمكافآت قريبًا!"
+        ),
     },
     Language.ENGLISH: {
         "blacklisted_user": "Sorry, you have been blacklisted due to repeated fraud attempts.",
@@ -99,6 +104,11 @@ TEXTS = {
             "You only need to deposit {} AED on {} different days to claim your special bonus 🎁\n\n"
             "Keep depositing—every step brings you closer to winning!\n\n"
             "✨ Don't miss out — keep progressing!"
+        ),
+        "offer_completed_msg": (
+            "🎉 Congratulations! You have successfully completed all the offer requirements.\n"
+            "✅ Your reward will be added to your main account automatically.\n\n"
+            "Keep being active on our platform to enjoy more offers and rewards soon!"
         ),
     },
 }

@@ -11,7 +11,7 @@ import utils.mobi_cash as mobi
 from telethon.tl.functions.channels import EditBannedRequest
 from common.constants import *
 from telethon.tl.types import ChatBannedRights
-from client.client_calls.common import openai
+from client.client_calls.common import openai, now_iso
 from client.client_calls.lang_dicts import *
 from Config import Config
 import re
@@ -112,11 +112,16 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
                 s.query(models.Transaction).filter_by(receipt_id=receipt.id).first()
             )
             if transaction and transaction.status == "pending":
+                receipt.transaction_id = transaction.id
+                transaction.amount = receipt.amount
                 res = await mobi.deposit(
                     user_id=transaction.account_number,
                     amount=receipt.amount,
                 )
                 if res["Success"]:
+                    transaction.status = "approved"
+                    transaction.mobi_operation_id = res["OperationId"]
+                    transaction.completed_at = now_iso()
                     message = f"Deposit number <code>{transaction.id}</code> is done"
                     player_account = (
                         s.query(models.PlayerAccount)
@@ -126,18 +131,36 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
                     offer_progress = player_account.check_offer_progress(s=s)
                     if offer_progress.get("completed", False):
                         player_account.offer_completed = True
+                        offer_tx = models.Transaction.add_offer_transaction(
+                            s=s, player_account=player_account
+                        )
+                        offer_dp = await mobi.deposit(
+                            user_id=transaction.account_number,
+                            amount=player_account.offer_prize,
+                        )
+                        if offer_dp["Success"]:
+                            offer_tx.status = "approved"
+                            offer_tx.mobi_operation_id = res["OperationId"]
+                            offer_tx.completed_at = now_iso()
+                        else:
+                            offer_tx.status = "failed"
+                            offer_tx.fail_reason = res['Message']
+                        await TeleClientSingleton().send_message(
+                            entity=transaction.user_id,
+                            message=TEXTS[transaction.user.lang]["offer_completed_msg"],
+                        )
                     elif offer_progress.get("completed", None) is not None:
                         message += TEXTS[transaction.user.lang]["progress_msg"].format(
                             offer_progress["amount_left"],
                             offer_progress["deposit_days_left"],
                         )
-                elif "Deposit limit exceeded" in res["Message"]:
-                    message = "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
                 else:
-                    message = f"Deposit number <code>{transaction.id}</code> failed, reason: {res['Message']}"
-                receipt.transaction_id = transaction.id
-                transaction.status = "approved"
-                transaction.amount = receipt.amount
+                    transaction.status = "failed"
+                    transaction.fail_reason = res['Message']
+                    if "Deposit limit exceeded" in res["Message"]:
+                        message = "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
+                    else:
+                        message = f"Deposit number <code>{transaction.id}</code> failed, reason: {res['Message']}"
                 await TeleClientSingleton().send_message(
                     entity=transaction.user_id,
                     message=message,

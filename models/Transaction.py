@@ -105,11 +105,9 @@ class Transaction(Base):
     description = sa.Column(sa.TEXT, nullable=True)
     date = sa.Column(sa.DateTime, nullable=True)
     created_at = sa.Column(sa.DateTime, default=datetime.now(TIMEZONE), index=True)
-    updated_at = sa.Column(
-        sa.DateTime, default=datetime.now(TIMEZONE), onupdate=datetime.now(TIMEZONE)
-    )
     completed_at = sa.Column(sa.DateTime, nullable=True)
     decline_reason = sa.Column(sa.TEXT, nullable=True)
+    fail_reason = sa.Column(sa.TEXT, nullable=True)
 
     # Relationships
     payment_method = relationship("PaymentMethod", back_populates="transactions")
@@ -119,16 +117,13 @@ class Transaction(Base):
     player_account = relationship("PlayerAccount", back_populates="transactions")
 
     @classmethod
-    def add_offer_transaction(
-        s: Session, player_account: PlayerAccount, reward_amount: float, currency: str
-    ):
+    def add_offer_transaction(cls, s: Session, player_account: PlayerAccount):
         offer_tx = Transaction(
             account_number=player_account.account_number,
             user_id=player_account.user_id,
             type="offer",
-            amount=reward_amount,
-            currency=currency,
-            status="approved",  # أو أي حالة تناسبك
+            amount=player_account.offer_prize,
+            currency=player_account.currency,
             description="Reward for completing welcome offer",
         )
         s.add(offer_tx)

@@ -450,22 +450,35 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
         amount=amount,
     )
     if res["Success"]:
+        transaction.status = "approved"
+        transaction.mobi_operation_id = res["OperationId"]
+        transaction.completed_at = now_iso()
         player_account = (
             s.query(models.PlayerAccount)
             .filter_by(account_number=account_number)
             .first()
         )
-        transaction.status = "approved"
-        transaction.mobi_operation_id = res["OperationId"]
-        transaction.completed_at = now_iso()
-        await TeleBotSingleton().send_message(
-            entity=Config.ADMIN_ID,
-            message=str(transaction),
-            parse_mode="html",
-        )
         offer_progress = player_account.check_offer_progress(s=s)
         if offer_progress.get("completed", False):
             player_account.offer_completed = True
+            offer_tx = models.Transaction.add_offer_transaction(
+                s=s, player_account=player_account
+            )
+            offer_dp = await mobi.deposit(
+                user_id=account_number,
+                amount=player_account.offer_prize,
+            )
+            if offer_dp["Success"]:
+                offer_tx.status = "approved"
+                offer_tx.mobi_operation_id = res["OperationId"]
+                offer_tx.completed_at = now_iso()
+            else:
+                offer_tx.status = "failed"
+                offer_tx.fail_reason = res['Message']
+            await TeleClientSingleton().send_message(
+                entity=user.user_id,
+                message=TEXTS[user.lang]["offer_completed_msg"],
+            )
         elif offer_progress.get("completed", None) is not None:
             await TeleClientSingleton().send_message(
                 entity=user.user_id,
@@ -473,11 +486,19 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
                     offer_progress["amount_left"], offer_progress["deposit_days_left"]
                 ),
             )
+        await TeleBotSingleton().send_message(
+            entity=Config.ADMIN_ID,
+            message=str(transaction),
+            parse_mode="html",
+        )
         s.commit()
         return transaction.id
-    elif "Deposit limit exceeded" in res["Message"]:
-        return "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
-    return ["Message"]
+    else:
+        transaction.status = "failed"
+        transaction.fail_reason = res['Message']
+        if "Deposit limit exceeded" in res["Message"]:
+            return "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
+        return res["Message"]
 
 
 async def process_deposit(user: models.User, s: Session):
@@ -495,13 +516,13 @@ async def process_deposit(user: models.User, s: Session):
     if payment_method.mode == "auto":
         receipt = s.query(models.Receipt).filter_by(id=transaction.receipt_id).first()
         if receipt and not receipt.transaction_id:
+            receipt.transaction_id = transaction.id
+            transaction.amount = receipt.amount
             res = await mobi.deposit(
                 user_id=account_number,
                 amount=receipt.amount,
             )
             if res["Success"]:
-                receipt.transaction_id = transaction.id
-                transaction.amount = receipt.amount
                 transaction.status = "approved"
                 transaction.mobi_operation_id = res["OperationId"]
                 transaction.completed_at = now_iso()
@@ -519,6 +540,24 @@ async def process_deposit(user: models.User, s: Session):
                 message = f"Deposit number <code>{transaction.id}</code> is done"
                 if offer_progress.get("completed", False):
                     player_account.offer_completed = True
+                    offer_tx = models.Transaction.add_offer_transaction(
+                        s=s, player_account=player_account
+                    )
+                    offer_dp = await mobi.deposit(
+                        user_id=account_number,
+                        amount=player_account.offer_prize,
+                    )
+                    if offer_dp["Success"]:
+                        offer_tx.status = "approved"
+                        offer_tx.mobi_operation_id = res["OperationId"]
+                        offer_tx.completed_at = now_iso()
+                    else:
+                        offer_tx.status = "failed"
+                        offer_tx.fail_reason = res['Message']
+                    await TeleClientSingleton().send_message(
+                        entity=user.user_id,
+                        message=TEXTS[user.lang]["offer_completed_msg"],
+                    )
                 elif offer_progress.get("completed", None) is not None:
                     message += TEXTS[user.lang]["progress_msg"].format(
                         offer_progress["amount_left"],
@@ -531,10 +570,12 @@ async def process_deposit(user: models.User, s: Session):
                 )
                 s.commit()
                 return transaction.id
-            elif "Deposit limit exceeded" in res["Message"]:
-                return "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
-            transaction.status = "failed"
-            return res["Message"]
+            else:
+                transaction.status = "failed"
+                transaction.fail_reason = res['Message']
+                if "Deposit limit exceeded" in res["Message"]:
+                    return "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
+                return res["Message"]
         elif receipt and receipt.transaction_id:
             return "Duplicate Receipt Id"
         elif not receipt:
@@ -586,6 +627,8 @@ async def process_withdraw(user: models.User, s: Session):
             ),
         )
         return transaction.id
+    transaction.status = "failed"
+    transaction.fail_reason = res['Message']
     return res["Message"]
 
 
