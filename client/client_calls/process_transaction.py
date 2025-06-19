@@ -59,6 +59,7 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 transaction.status = "approved"
                 transaction.mobi_operation_id = res["OperationId"]
                 transaction.completed_at = now_iso()
+                s.commit()
                 message = TEXTS[user.lang]["deposit_approved"].format(
                     transaction.id,
                     transaction.amount,
@@ -86,7 +87,7 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         offer_tx.completed_at = now_iso()
                     else:
                         offer_tx.status = "failed"
-                        offer_tx.fail_reason = res['Message']
+                        offer_tx.fail_reason = res["Message"]
                     await TeleClientSingleton().send_message(
                         entity=user.user_id,
                         message=TEXTS[user.lang]["offer_completed_msg"],
@@ -94,7 +95,9 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 elif offer_progress.get("completed", None) is not None:
                     message += TEXTS[transaction.user.lang]["progress_msg"].format(
                         offer_progress["amount_left"],
+                        player_account.currency,
                         offer_progress["deposit_days_left"],
+                        player_account.offer_expiry_date,
                     )
                 await TeleClientSingleton().send_message(
                     entity=transaction.user_id,
@@ -116,7 +119,7 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 s.commit()
             else:
                 transaction.status = "failed"
-                transaction.fail_reason = res['Message']
+                transaction.fail_reason = res["Message"]
                 await update.callback_query.answer(
                     text=res["Message"],
                     show_alert=True,

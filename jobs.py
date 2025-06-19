@@ -106,12 +106,12 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
     with models.session_scope() as s:
         receipts = s.query(models.Receipt).all()
         for receipt in receipts:
-            if receipt.transaction_id:
-                continue
             transaction = (
                 s.query(models.Transaction).filter_by(receipt_id=receipt.id).first()
             )
-            if transaction and transaction.status == "pending":
+            if not transaction or receipt.transaction_id and transaction.status in ["approved", "declined"]:
+                continue
+            elif transaction.status in ["failed", "pending"]:
                 receipt.transaction_id = transaction.id
                 transaction.amount = receipt.amount
                 res = await mobi.deposit(
@@ -122,6 +122,7 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
                     transaction.status = "approved"
                     transaction.mobi_operation_id = res["OperationId"]
                     transaction.completed_at = now_iso()
+                    s.commit()
                     message = f"Deposit number <code>{transaction.id}</code> is done"
                     player_account = (
                         s.query(models.PlayerAccount)
@@ -144,7 +145,7 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
                             offer_tx.completed_at = now_iso()
                         else:
                             offer_tx.status = "failed"
-                            offer_tx.fail_reason = res['Message']
+                            offer_tx.fail_reason = res["Message"]
                         await TeleClientSingleton().send_message(
                             entity=transaction.user_id,
                             message=TEXTS[transaction.user.lang]["offer_completed_msg"],
@@ -152,11 +153,13 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
                     elif offer_progress.get("completed", None) is not None:
                         message += TEXTS[transaction.user.lang]["progress_msg"].format(
                             offer_progress["amount_left"],
+                            player_account.currency,
                             offer_progress["deposit_days_left"],
+                            player_account.offer_expiry_date,
                         )
                 else:
                     transaction.status = "failed"
-                    transaction.fail_reason = res['Message']
+                    transaction.fail_reason = res["Message"]
                     if "Deposit limit exceeded" in res["Message"]:
                         message = "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
                     else:

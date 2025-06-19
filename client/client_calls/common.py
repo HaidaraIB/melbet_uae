@@ -206,6 +206,7 @@ async def session_timer(gid: int, uid: int, duration: int = 900):
         s.commit()
     await asyncio.sleep(duration)
     await kick_user_and_admin(gid, uid)
+    clear_session_data(user_id=uid)
     with models.session_scope() as s:
         s.query(models.SessionTimer).filter(
             models.SessionTimer.uid == uid, models.SessionTimer.gid == gid
@@ -223,6 +224,7 @@ async def resume_timers_on_startup():
                 log.info(f"session timer {timer} resumed.")
             else:
                 await kick_user_and_admin(timer.gid, timer.uid)
+                clear_session_data(user_id=timer.uid)
                 s.query(models.SessionTimer).filter(
                     models.SessionTimer.uid == timer.uid,
                     models.SessionTimer.gid == timer.gid,
@@ -453,6 +455,7 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
         transaction.status = "approved"
         transaction.mobi_operation_id = res["OperationId"]
         transaction.completed_at = now_iso()
+        s.commit()
         player_account = (
             s.query(models.PlayerAccount)
             .filter_by(account_number=account_number)
@@ -474,7 +477,7 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
                 offer_tx.completed_at = now_iso()
             else:
                 offer_tx.status = "failed"
-                offer_tx.fail_reason = res['Message']
+                offer_tx.fail_reason = res["Message"]
             await TeleClientSingleton().send_message(
                 entity=user.user_id,
                 message=TEXTS[user.lang]["offer_completed_msg"],
@@ -483,7 +486,11 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
             await TeleClientSingleton().send_message(
                 entity=user.user_id,
                 message=TEXTS[user.lang]["progress_msg"].format(
-                    offer_progress["amount_left"], offer_progress["deposit_days_left"]
+                    offer_progress["amount_left"],
+                        player_account.currency,
+
+                    offer_progress["deposit_days_left"],
+                    player_account.offer_expiry_date,
                 ),
             )
         await TeleBotSingleton().send_message(
@@ -495,7 +502,7 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
         return transaction.id
     else:
         transaction.status = "failed"
-        transaction.fail_reason = res['Message']
+        transaction.fail_reason = res["Message"]
         if "Deposit limit exceeded" in res["Message"]:
             return "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
         return res["Message"]
@@ -526,6 +533,7 @@ async def process_deposit(user: models.User, s: Session):
                 transaction.status = "approved"
                 transaction.mobi_operation_id = res["OperationId"]
                 transaction.completed_at = now_iso()
+                s.commit()
                 await TeleBotSingleton().send_message(
                     entity=Config.ADMIN_ID,
                     message=str(transaction),
@@ -537,7 +545,7 @@ async def process_deposit(user: models.User, s: Session):
                     .first()
                 )
                 offer_progress = player_account.check_offer_progress(s=s)
-                message = f"Deposit number <code>{transaction.id}</code> is done"
+                message = f"Deposit number <code>{transaction.id}</code> is done\n\n"
                 if offer_progress.get("completed", False):
                     player_account.offer_completed = True
                     offer_tx = models.Transaction.add_offer_transaction(
@@ -553,7 +561,7 @@ async def process_deposit(user: models.User, s: Session):
                         offer_tx.completed_at = now_iso()
                     else:
                         offer_tx.status = "failed"
-                        offer_tx.fail_reason = res['Message']
+                        offer_tx.fail_reason = res["Message"]
                     await TeleClientSingleton().send_message(
                         entity=user.user_id,
                         message=TEXTS[user.lang]["offer_completed_msg"],
@@ -561,9 +569,11 @@ async def process_deposit(user: models.User, s: Session):
                 elif offer_progress.get("completed", None) is not None:
                     message += TEXTS[user.lang]["progress_msg"].format(
                         offer_progress["amount_left"],
+                        player_account.currency,
                         offer_progress["deposit_days_left"],
+                        player_account.offer_expiry_date,
                     )
-                await TeleBotSingleton().send_message(
+                await TeleClientSingleton().send_message(
                     entity=user.user_id,
                     message=message,
                     parse_mode="html",
@@ -572,7 +582,7 @@ async def process_deposit(user: models.User, s: Session):
                 return transaction.id
             else:
                 transaction.status = "failed"
-                transaction.fail_reason = res['Message']
+                transaction.fail_reason = res["Message"]
                 if "Deposit limit exceeded" in res["Message"]:
                     return "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
                 return res["Message"]
@@ -628,7 +638,7 @@ async def process_withdraw(user: models.User, s: Session):
         )
         return transaction.id
     transaction.status = "failed"
-    transaction.fail_reason = res['Message']
+    transaction.fail_reason = res["Message"]
     return res["Message"]
 
 
@@ -708,11 +718,11 @@ async def handle_fraud(
     transaction_id: int,
     s: Session,
 ):
-    from_user = s.get(models.User, duplicate.user_id)
+    from_user = s.get(models.User, duplicate.transaction.user_id)
     s.add(
         models.FraudLog(
             user_id=uid,
-            copied_from_id=duplicate.user_id,
+            copied_from_id=duplicate.transaction.user_id,
             timestamp=now_iso(),
             receipt_text=extracted,
             transaction_id=transaction_id,
@@ -737,7 +747,7 @@ async def handle_fraud(
         admin_msg = (
             f"المستخدم @{user.username} (<code>{uid}</code>) في القائمة السوداء عدد المحاولات {count} ⚠️\n"
             f"رقم العملية الذي تمت المحاولة فيه: <code>{transaction_id}</code>\n"
-            f"عائد للمستخدم @{from_user.username} (<code>{duplicate.user_id}</code>)"
+            f"عائد للمستخدم @{from_user.username} (<code>{duplicate.transaction.user_id}</code>)"
         )
     else:
         user_msg = (
@@ -749,7 +759,7 @@ async def handle_fraud(
         admin_msg = (
             f"محاولة احتيال رقم {count} للمستخدم @{user.username} (<code>{uid}</code>) ⚠️\n"
             f"رقم العملية الذي تمت المحاولة فيه: <code>{transaction_id}</code>\n"
-            f"عائد للمستخدم @{from_user.username} (<code>{duplicate.user_id}</code>)"
+            f"عائد للمستخدم @{from_user.username} (<code>{duplicate.transaction.user_id}</code>)"
         )
     await TeleClientSingleton().send_message(entity=cid, message=user_msg)
     await TeleClientSingleton().send_message(entity=Config.ADMIN_ID, message=admin_msg)

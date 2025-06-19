@@ -34,7 +34,7 @@ async def paste_receipte(event: events.NewMessage.Event):
             "Extract the following fields as JSON matching the Receipt table schema:\n"
             """
             {
-                "id": ...,
+                "receipt_id": ...,
                 "payment_method_id": ...,
                 "amount": ...,
                 "available_balance_at_the_time": ...
@@ -66,11 +66,18 @@ async def paste_receipte(event: events.NewMessage.Event):
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0]
             parsed_receipt = json.loads(content)
-            existing_receipt = s.get(models.Receipt, parsed_receipt["id"])
+            missing = []
+            for k, v in parsed_receipt.items():
+                if not v:
+                    missing.append(k)
+            if missing:
+                await event.reply(f"Missing Fields {", ".join(missing)}")
+                return
+            existing_receipt = s.get(models.Receipt, parsed_receipt["receipt_id"])
             if not existing_receipt:
                 amount = float(parsed_receipt["amount"])
                 new_receipt = models.Receipt(
-                    id=parsed_receipt["id"],
+                    id=parsed_receipt["receipt_id"],
                     payment_method_id=parsed_receipt["payment_method_id"],
                     available_balance_at_the_time=parsed_receipt[
                         "available_balance_at_the_time"
@@ -79,7 +86,7 @@ async def paste_receipte(event: events.NewMessage.Event):
                 )
                 transaction = (
                     s.query(models.Transaction)
-                    .filter_by(receipt_id=parsed_receipt["id"])
+                    .filter_by(receipt_id=parsed_receipt["receipt_id"])
                     .first()
                 )
                 if transaction and transaction.status == "pending":
@@ -93,6 +100,7 @@ async def paste_receipte(event: events.NewMessage.Event):
                         transaction.status = "approved"
                         transaction.mobi_operation_id = res["OperationId"]
                         transaction.completed_at = now_iso()
+                        s.commit()
                         message = (
                             f"Deposit number <code>{transaction.id}</code> is done"
                         )
@@ -117,21 +125,25 @@ async def paste_receipte(event: events.NewMessage.Event):
                                 offer_tx.completed_at = now_iso()
                             else:
                                 offer_tx.status = "failed"
-                                offer_tx.fail_reason = res['Message']
+                                offer_tx.fail_reason = res["Message"]
                             await TeleClientSingleton().send_message(
                                 entity=transaction.user_id,
-                                message=TEXTS[transaction.user.lang]["offer_completed_msg"],
+                                message=TEXTS[transaction.user.lang][
+                                    "offer_completed_msg"
+                                ],
                             )
                         elif offer_progress.get("completed", None) is not None:
                             message += TEXTS[transaction.user.lang][
                                 "progress_msg"
                             ].format(
                                 offer_progress["amount_left"],
+                                player_account.currency,
                                 offer_progress["deposit_days_left"],
+                                player_account.offer_expiry_date,
                             )
                     else:
                         transaction.status = "failed"
-                        transaction.fail_reason = res['Message']
+                        transaction.fail_reason = res["Message"]
                         if "Deposit limit exceeded" in res["Message"]:
                             message = "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
                         else:

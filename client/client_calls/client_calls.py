@@ -66,9 +66,7 @@ async def choose_payment_method(event: events.CallbackQuery.Event):
             payment_method_id = int(event.data.decode("utf-8").split("_")[-1])
             session_data[uid]["metadata"]["payment_method"] = payment_method_id
             payment_method = (
-                s.query(models.PaymentMethod)
-                .filter_by(id=payment_method_id)
-                .first()
+                s.query(models.PaymentMethod).filter_by(id=payment_method_id).first()
             )
             await event.answer(
                 message=TEXTS[user_session.user.lang]["payment_method_set"], alert=True
@@ -104,7 +102,9 @@ async def choose_payment_method(event: events.CallbackQuery.Event):
                 else:
                     await TeleBotSingleton().send_message(
                         entity=group.id,
-                        message=TEXTS[user_session.user.lang]["payemnt_method_info"],
+                        message=TEXTS[user_session.user.lang][
+                            "payemnt_method_info"
+                        ].format(payment_method.name, payment_method.details),
                         parse_mode="html",
                     )
                     session_data[uid][st]["state"] = SessionState.AWAITING_RECEIPT.name
@@ -185,7 +185,7 @@ async def get_receipt(event: events.NewMessage.Event):
             if st != "deposit":
                 await TeleClientSingleton().send_message(
                     entity=cid,
-                    message=f"Receipts can only be send in deposit sessions, withdraw info must be provided manualy.",
+                    message=TEXTS[user.lang]["receipt_in_withdraw_session"],
                 )
                 return
             elif session_data[uid][st]["state"] not in [
@@ -194,7 +194,7 @@ async def get_receipt(event: events.NewMessage.Event):
             ]:
                 await TeleClientSingleton().send_message(
                     entity=cid,
-                    message=f"Please select a payment method first or complete the payment through the link if one was sent",
+                    message=TEXTS[user.lang]["select_payment_method_first"],
                 )
                 return
             extracted, parsed_details = await extract_text_from_photo(
@@ -222,11 +222,7 @@ async def get_receipt(event: events.NewMessage.Event):
                         .filter(models.Receipt.id == receipt_id)
                         .first()
                     )
-                    if (
-                        duplicate
-                        and duplicate.user_id is not None
-                        and duplicate.user_id != uid
-                    ):
+                    if duplicate and duplicate.transaction_id:
                         await handle_fraud(
                             uid=uid,
                             cid=cid,
@@ -372,11 +368,7 @@ async def get_missing(event: events.NewMessage.Event):
                         .filter(models.Receipt.id == receipt_id)
                         .first()
                     )
-                    if (
-                        duplicate
-                        and duplicate.user_id is not None
-                        and duplicate.user_id != uid
-                    ):
+                    if duplicate and duplicate.transaction_id:
                         await handle_fraud(
                             uid=uid,
                             cid=cid,

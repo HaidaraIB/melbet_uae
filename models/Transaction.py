@@ -4,7 +4,6 @@ from common.constants import TIMEZONE
 from sqlalchemy.orm import relationship, Session
 from models.DB import Base
 from models.Language import Language
-from models.PlayerAccount import PlayerAccount
 
 
 class Proof(Base):
@@ -117,7 +116,7 @@ class Transaction(Base):
     player_account = relationship("PlayerAccount", back_populates="transactions")
 
     @classmethod
-    def add_offer_transaction(cls, s: Session, player_account: PlayerAccount):
+    def add_offer_transaction(cls, s: Session, player_account):
         offer_tx = Transaction(
             account_number=player_account.account_number,
             user_id=player_account.user_id,

@@ -26,7 +26,8 @@ class PlayerAccount(Base):
     transactions = relationship("Transaction", back_populates="player_account")
 
     def check_offer_progress(self, s: Session):
-        if self.offer_completed or datetime.now() >= self.offer_expiry_date:
+        now = datetime.now()
+        if self.offer_completed or now >= self.offer_expiry_date:
             return {}
 
         deposits = (

@@ -35,7 +35,7 @@ TEXTS = {
         "withdraw_failed": (
             "فشلت عملية السحب، رسالة الخطأ: {}\n" "تحقق من صحة كود السحب وأعد المحاولة"
         ),
-        "deposit_failed": "فشل الإيداع، رسالة الخطأ: {}",
+        "deposit_failed": ("فشل الإيداع، رسالة الخطأ:\n" "{}"),
         "unexpected_session_error": "حدث خطأ غير متوقع",
         "player_account_set": "تم اختيار رقم الحساب",
         "payment_method_set": "تم اختيار وسيلة الدفع",
@@ -46,20 +46,24 @@ TEXTS = {
         ),
         "provide_withdrawal_info": "الرجاء إرسال <b>كود السحب ومعلومات محفظتك</b>.",
         "payemnt_method_info": (
-            "تفاصيل الدفع الخاصة ب <b>{}</b> هي <code>{}</code>\n"
+            "تفاصيل الدفع الخاصة ب <b>{}</b>:\n"
+            "<code>{}</code>\n"
             "الرجاء إرسال صورة لإيصال الدفع عند إتمام العملية."
         ),
         "progress_msg": (
             "🚀 أنت على الطريق الصحيح نحو جائزتك!\n\n"
-            "بقي لك فقط إيداع {} درهم في {} أيام مختلفة لتستلم مكافأتك المميزة 🎁\n\n"
+            "بقي لك فقط إيداع {} {} في {} أيام مختلفة لتستلم مكافأتك المميزة 🎁\n\n"
             "استمر بالإيداع، وكل عملية تقربك أكثر لتحقيق الشروط والفوز بالجائزة!\n\n"
-            "✨ لا تدع الفرصة تفوتك — تابع التقدم!"
+            "✨ لا تدع الفرصة تفوتك — تابع التقدم!\n\n"
+            "<i>ينتهي العرض بتاريخ:\n{}</i>"
         ),
         "offer_completed_msg": (
             "🎉 تهانينا! لقد أكملت جميع شروط العرض بنجاح.\n"
             "✅ ستتم إضافة جائزتك إلى حسابك الأساسي تلقائيًا.\n\n"
             "استمر في نشاطك على منصتنا للاستفادة من المزيد من العروض والمكافآت قريبًا!"
         ),
+        "select_payment_method_first": "الرجاء اختيار وسيلة دفع من الرسالة المثبتة أولاً، أو إتمام الدفع عبر الرابط المرسل إن كنا قد أرسلنا رابطاً إليك",
+        "receipt_in_withdraw_session": "الإيصالات مقبولة في جلسات الإيداع فقط، معلومات السحب يجب إرسالها يدوياً.",
     },
     Language.ENGLISH: {
         "blacklisted_user": "Sorry, you have been blacklisted due to repeated fraud attempts.",
@@ -85,7 +89,7 @@ TEXTS = {
             "Withdrawal failed with error message: {}\n"
             "check if your withdrawal code is correct and try again"
         ),
-        "deposit_failed": "Deposit failed, error message: {}",
+        "deposit_failed": ("Deposit failed, error message:\n" "{}"),
         "unexpected_session_error": "Unexpected Error",
         "player_account_set": "Player Account Set",
         "payment_method_set": "Payment Method Set",
@@ -96,20 +100,24 @@ TEXTS = {
         ),
         "provide_withdrawal_info": "Please Provide the <b>Withdrawal Code</b> and your <b>Payment Info</b>.",
         "payemnt_method_info": (
-            "The Payment info of <b>{}</b> is <code>{}</code>\n"
+            "The Payment info of <b>{}</b>:\n"
+            "<code>{}</code>\n"
             "Please send a photo of the receipt after completing the transaction."
         ),
         "progress_msg": (
             "🚀 You're on the right track to your reward!\n\n"
-            "You only need to deposit {} AED on {} different days to claim your special bonus 🎁\n\n"
+            "You only need to deposit {} {} on {} different days to claim your special bonus 🎁\n\n"
             "Keep depositing—every step brings you closer to winning!\n\n"
-            "✨ Don't miss out — keep progressing!"
+            "✨ Don't miss out — keep progressing!\n\n"
+            "<i>Offer expires at: {}</i>"
         ),
         "offer_completed_msg": (
             "🎉 Congratulations! You have successfully completed all the offer requirements.\n"
             "✅ Your reward will be added to your main account automatically.\n\n"
             "Keep being active on our platform to enjoy more offers and rewards soon!"
         ),
+        "select_payment_method_first": "Please select a payment method from the pinned message first or complete the payment through the link if one was sent",
+        "receipt_in_withdraw_session": "Receipts can only be send in deposit sessions, withdraw info must be provided manualy.",
     },
 }
 
