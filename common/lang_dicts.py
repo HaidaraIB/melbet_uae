@@ -97,8 +97,10 @@ TEXTS = {
             "⬇️ لتحميل التطبيق: <a href={}>رابط التحميل</a>\n"
             "⚽️ تسجيل الرياضة: <a href={}>رابط الرياضة</a>\n"
             "استخدم هذا الرابط حتى نتمكّن من تتبع مكافآتك 🎁\n\n"
-            "<i><b>أنشئ حسابك بنقرة واحدة ولا تنسى الاحتفاظ برقم اللاعب وكلمة المرور</b></i>"
+            "<i><b>أنشئ حسابك بنقرة واحدة ولا تنسى الاحتفاظ برقم اللاعب وكلمة المرور</b></i>\n\n"
         ),
+        "uae_create_account_important_note": "هام جداً: عند التسجيل، يجب اختيار الإمارات العربية المتحدة كدولة والدرهم (AED) كعملة، إذا اخترت غير ذلك، لن تتمكن من الإيداع أو السحب.",
+        "syr_create_account_important_note": "هام جداً: عند التسجيل، يجب اختيار سوريا كدولة والليرة السورية (SYP) كعملة، إذا اخترت غير ذلك، لن تتمكن من الإيداع أو السحب.",
         "start_chat_first": "يرجى فتح محادثة خاصة معي أولاً ثم إعادة إرسال كلمة حساب ❗️",
         "link_sent_in_private": "📩 تم إرسال الرابط في الخاص ✅",
         "duplicate_account_not_yours": "رقم حساب مكرر ❗️",
@@ -208,8 +210,10 @@ TEXTS = {
             "⬇️ Download the app: <a href={}>Download Link</a>\n"
             "⚽️ Sport registration: <a href={}>Sport Registration Link</a>\n"
             "🎁 Use This link to be able to keep track of your rewards\n\n"
-            "<i><b>Create your account with one click and don't forget to save your account's palyer id and password.</b></i>"
+            "<i><b>Create your account with one click and don't forget to save your account's palyer id and password.</b></i>\n\n"
         ),
+        "uae_create_account_important_note": "IMPORTANT: When registering, you MUST select United Arab Emirates as your country and AED (Dirham) as your currency. Otherwise, you will not be able to deposit or withdraw.",
+        "syr_create_account_important_note": "IMPORTANT: When registering, you MUST select Syria as your country and SYP (Syrian Pound) as your currency. Otherwise, you will not be able to deposit or withdraw.",
         "start_chat_first": "Please start a chat with me first and then resend the last message you sent ❗️",
         "link_sent_in_private": "📩 Registeration link was sent in private, check your inbox ✅",
         "duplicate_account_not_yours": "Duplicate account number ❗️",

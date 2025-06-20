@@ -11,7 +11,7 @@ from sqlalchemy import and_
 from user.buy_voucher.common import gift_voucher
 
 async def paste_receipte(event: events.NewMessage.Event):
-    if event.chat_id != Config.RECEIPTS_GROUP_ID or not event.raw_text:
+    if not event.raw_text:
         return
 
     message_text = event.raw_text.strip()
@@ -34,12 +34,12 @@ async def paste_receipte(event: events.NewMessage.Event):
             f"we have the following payment methods [{payment_methods_str}]\n"
             "Extract the following fields as JSON matching the Receipt table schema:\n"
             """
-            {
-                "receipt_id": ...,
-                "payment_method_id": ...,
-                "amount": ...,
-                "available_balance_at_the_time": ...
-            }
+                {
+                    "receipt_id": ...,
+                    "payment_method_id": ...,
+                    "amount": ...,
+                    "available_balance_at_the_time": ...
+                }
             """
             "Return only valid JSON and nothing else.\n\n"
             "Message to parse:\n"

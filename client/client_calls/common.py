@@ -242,9 +242,10 @@ async def start_session(uid: int, cid: int, st: str):
         user_accounts = s.query(models.PlayerAccount).filter_by(user_id=uid).all()
         if not user_accounts:
             try:
-                await TeleClientSingleton().send_message(
+                await TeleClientSingleton().send_file(
                     entity=user.user_id,
-                    message=common.lang_dicts.TEXTS[user.lang][
+                    file=CREATE_ACCOUNT_LINKS[cid]["pic"],
+                    caption=common.lang_dicts.TEXTS[user.lang][
                         "create_account_group_reply"
                     ].format(
                         user.name,

@@ -49,7 +49,10 @@ async def create_account(event: events.newmessage.NewMessage.Event):
                 CREATE_ACCOUNT_LINKS[event.chat_id]["reg"].format(
                     user.user_id, user.user_id
                 ),
+            ) + (
+                TEXTS[user.lang][CREATE_ACCOUNT_LINKS[event.chat_id]["important_note"]]
             )
+            pic = CREATE_ACCOUNT_LINKS[event.chat_id]["pic"]
             if event.chat_id == Config.SYR_MONITOR_GROUP_ID and any(
                 kw in msg.raw_text.lower() for kw in ["نقاط", "points", "point"]
             ):
@@ -64,11 +67,19 @@ async def create_account(event: events.newmessage.NewMessage.Event):
                     CREATE_ACCOUNT_LINKS[Config.UAE_MONITOR_GROUP_ID]["reg"].format(
                         -user.user_id, -user.user_id
                     ),
+                ) + (
+                    TEXTS[user.lang][
+                        CREATE_ACCOUNT_LINKS[Config.UAE_MONITOR_GROUP_ID][
+                            "important_note"
+                        ]
+                    ]
                 )
+                pic = CREATE_ACCOUNT_LINKS[Config.UAE_MONITOR_GROUP_ID]["pic"]
 
-            await TeleClientSingleton().send_message(
+            await TeleClientSingleton().send_file(
                 entity=user.user_id,
-                message=message,
+                file=pic,
+                caption=message,
                 link_preview=False,
                 parse_mode="html",
             )

@@ -32,7 +32,10 @@ def load_session_data():
 
 def clear_session_data(user_id: int):
     global session_data
-    del session_data[user_id]
+    try:
+        del session_data[user_id]
+    except KeyError:
+        pass
     save_session_data()
 
 

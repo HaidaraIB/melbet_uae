@@ -504,7 +504,8 @@ async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
             ):
                 await event.answer(message="You're not at this state yet", alert=True)
                 return
-            if not session_data[uid]["metadata"]["account_number"]:
+            account_number = session_data[uid]["metadata"]["account_number"]
+            if not account_number:
                 await send_and_pin_player_accounts_keyboard(
                     group=cid,
                     player_accounts=s.query(models.PlayerAccount)
@@ -513,6 +514,21 @@ async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
                     st=st,
                 )
                 return
+            player_account = (
+                s.query(models.PlayerAccount)
+                .filter_by(account_number=account_number)
+                .first()
+            )
+            if (
+                st == "deposit"
+                and session_data[uid]["deposit"]["currency"] != player_account.currency
+            ):
+                await event.answer(
+                    message=f"The transaction currency doesn't match with your account {account_number} currency",
+                    alert=True,
+                )
+                return
+
             if st == "withdraw":
                 res = await process_withdraw(user=user, s=s)
             else:
