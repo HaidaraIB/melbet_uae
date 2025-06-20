@@ -7,12 +7,14 @@ from telethon.tl.types import (
     ChannelParticipantCreator,
     ChatParticipantCreator,
 )
-import utils.mobi_cash as mobi
 from telethon.tl.functions.channels import EditBannedRequest
-from common.constants import *
 from telethon.tl.types import ChatBannedRights
-from client.client_calls.common import openai, now_iso
+import utils.mobi_cash as mobi
+from common.constants import *
+from user.buy_voucher.common import gift_voucher
+from client.client_calls.common import now_iso
 from client.client_calls.lang_dicts import *
+from client.client_calls.constants import *
 from Config import Config
 import re
 import logging
@@ -109,14 +111,23 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
             transaction = (
                 s.query(models.Transaction).filter_by(receipt_id=receipt.id).first()
             )
-            if not transaction or receipt.transaction_id and transaction.status in ["approved", "declined"]:
+            if not transaction or (
+                receipt.transaction_id
+                and transaction.status in ["approved", "declined"]
+            ):
                 continue
             elif transaction.status in ["failed", "pending"]:
                 receipt.transaction_id = transaction.id
                 transaction.amount = receipt.amount
+                player_account = (
+                    s.query(models.PlayerAccount)
+                    .filter_by(account_number=transaction.account_number)
+                    .first()
+                )
                 res = await mobi.deposit(
                     user_id=transaction.account_number,
                     amount=receipt.amount,
+                    country=player_account.country,
                 )
                 if res["Success"]:
                     transaction.status = "approved"
@@ -124,11 +135,6 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
                     transaction.completed_at = now_iso()
                     s.commit()
                     message = f"Deposit number <code>{transaction.id}</code> is done"
-                    player_account = (
-                        s.query(models.PlayerAccount)
-                        .filter_by(account_number=transaction.account_number)
-                        .first()
-                    )
                     offer_progress = player_account.check_offer_progress(s=s)
                     if offer_progress.get("completed", False):
                         player_account.offer_completed = True
@@ -138,6 +144,7 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
                         offer_dp = await mobi.deposit(
                             user_id=transaction.account_number,
                             amount=player_account.offer_prize,
+                            country=player_account.country,
                         )
                         if offer_dp["Success"]:
                             offer_tx.status = "approved"
@@ -164,6 +171,12 @@ async def match_recipts_with_transaction(context: ContextTypes.DEFAULT_TYPE):
                         message = "We're facing a technical problem with deposits at the moment so all deposit orders will be processed after about 5 minutes"
                     else:
                         message = f"Deposit number <code>{transaction.id}</code> failed, reason: {res['Message']}"
+                if (player_account.currency == "aed" and receipt.amount >= 100) or (
+                    player_account.currency == "syr" and receipt.amount >= 100_000
+                ):
+                    await gift_voucher(
+                        uid=transaction.user_id, s=s, lang=transaction.user.lang
+                    )
                 await TeleClientSingleton().send_message(
                     entity=transaction.user_id,
                     message=message,

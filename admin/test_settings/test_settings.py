@@ -5,10 +5,9 @@ from custom_filters import Admin
 from utils.api_calls import (
     _send_pre_match_lineup,
     _send_post_match_stats,
-    HEADERS,
-    BASE_URL,
     _extract_fixture_data,
 )
+from utils.helpers import HEADERS, BASE_URL
 from common.keyboards import build_back_to_home_page_button
 import logging
 import aiohttp
@@ -46,7 +45,7 @@ async def test_match_lineup(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                f"{BASE_URL}/fixtures",
+                    f"{BASE_URL}/fixtures",
                     params={"id": 1208814},
                     headers=HEADERS,
                 ) as response:
@@ -88,6 +87,4 @@ test_settings_handler = CallbackQueryHandler(test_settings, "^test_settings$")
 test_match_lineup_handler = CallbackQueryHandler(
     test_match_lineup, "^test_match_lineup$"
 )
-test_match_stats_handler = CallbackQueryHandler(
-    test_match_stats, "^test_match_stats$"
-)
+test_match_stats_handler = CallbackQueryHandler(test_match_stats, "^test_match_stats$")

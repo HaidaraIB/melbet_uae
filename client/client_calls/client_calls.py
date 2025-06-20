@@ -9,7 +9,6 @@ from client.client_calls.common import (
     send_and_pin_payment_methods_keyboard,
     send_and_pin_player_accounts_keyboard,
     generate_stripe_payment_link,
-    openai,
     session_data,
 )
 from client.client_calls.functions import (

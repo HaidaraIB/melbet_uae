@@ -10,6 +10,7 @@ from client.client_calls.keyboards import (
     build_process_transaction_keyboard,
 )
 from client.client_calls.common import now_iso
+from user.buy_voucher.common import gift_voucher
 from TeleClientSingleton import TeleClientSingleton
 import utils.mobi_cash as mobi
 import os
@@ -51,9 +52,15 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with models.session_scope() as s:
             transaction = s.get(models.Transaction, transaction_id)
             user = s.get(models.User, transaction.user_id)
+            player_account = (
+                s.query(models.PlayerAccount)
+                .filter_by(account_number=transaction.account_number)
+                .first()
+            )
             res = await mobi.deposit(
                 user_id=transaction.account_number,
                 amount=transaction.amount,
+                country=player_account.country,
             )
             if res["Success"]:
                 transaction.status = "approved"
@@ -66,11 +73,6 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     transaction.currency,
                     transaction.player_account,
                 )
-                player_account = (
-                    s.query(models.PlayerAccount)
-                    .filter_by(account_number=transaction.account_number)
-                    .first()
-                )
                 offer_progress = player_account.check_offer_progress(s=s)
                 if offer_progress.get("completed", False):
                     player_account.offer_completed = True
@@ -80,6 +82,7 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     offer_dp = await mobi.deposit(
                         user_id=transaction.account_number,
                         amount=player_account.offer_prize,
+                        country=player_account.country,
                     )
                     if offer_dp["Success"]:
                         offer_tx.status = "approved"
@@ -124,6 +127,10 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text=res["Message"],
                     show_alert=True,
                 )
+            if (player_account.currency == "aed" and transaction.amount >= 100) or (
+                player_account.currency == "syr" and transaction.amount >= 100_000
+            ):
+                await gift_voucher(uid=user.user_id, s=s, lang=transaction.user.lang)
 
 
 async def get_proof(update: Update, context: ContextTypes.DEFAULT_TYPE):

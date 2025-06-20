@@ -6,7 +6,7 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 from ptbcontrib.ptb_jobstores.sqlalchemy import PTBSQLAlchemyJobStore
 
-from start import inits
+from inits import inits
 from Config import Config
 
 

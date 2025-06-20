@@ -1,13 +1,17 @@
+from TeleClientSingleton import TeleClientSingleton
 from Config import Config
-from client.client_calls.common import openai
+from common.constants import TIMEZONE
+from client.client_calls.constants import openai
+from client.client_calls.lang_dicts import TEXTS
 from utils.api_calls_by_sport import (
     get_fixture_odds_by_sport,
     get_h2h_by_sport,
     get_team_statistics_by_sport,
     get_team_standing_by_sport,
     get_last_matches_by_sport,
+    get_fixtures_by_sport,
 )
-from utils.api_calls import get_fixture_stats
+import utils.api_calls as api_calls
 from utils.functions import (
     format_basketball_stats,
     format_american_football_stats,
@@ -16,8 +20,12 @@ from utils.functions import (
     format_last_matches,
     structure_team_standing,
     summarize_odds,
+    filter_fixtures,
 )
+from sqlalchemy.orm import Session
+from datetime import datetime
 import json
+import models
 import logging
 
 log = logging.getLogger(__name__)
@@ -117,7 +125,7 @@ async def summarize_fixtures_with_odds_stats(fixtures: list) -> str:
 
         # FB FIXTURE STATS
         if fix["sport"] == "football":
-            fix_stats = await get_fixture_stats(fixture_id=fixture_id)
+            fix_stats = await api_calls.get_fixture_stats(fixture_id=fixture_id)
             if fix_stats:
                 fix_summary += "\nMatch Stats:\n"
                 for team_stats in fix_stats:
@@ -159,21 +167,35 @@ async def summarize_fixtures_with_odds_stats(fixtures: list) -> str:
 
 
 async def generate_multimatch_coupon(fixtures_summary: str, odds: float):
-    json_format = (
-        "{\n"
-        '  "matches": [\n'
-        "    {\n"
-        '      "teams": "Team A vs Team B",\n'
-        '      "tips": [\n'
-        '        {"risk": "Low", "market": "...", "selection": "...", "probability": 60, "odds": 1.8, "value": "✅", "reason": "..."},\n'
-        '        {"risk": "Medium", ...},\n'
-        '        {"risk": "High", ...}\n'
-        "      ]\n"
-        "    }\n"
-        "  ],\n"
-        '  "combo": { "selections": ["...","..."], "combined_odds": 4.5, "overall_risk": "Medium", "reason": "..." }\n'
-        "}\n"
-    )
+    json_format = """
+        {
+            "matches": [
+                {
+                    "teams": "Team A vs Team B",
+                    "sport": "...", // football, basketball, hockey or american_football
+                    "tips": [
+                        {
+                            "risk": "Low", 
+                            "market": "...", 
+                            "selection": "...", 
+                            "probability": 60, 
+                            "odds": 1.8, 
+                            "value": "✅", 
+                            "reason": "..."
+                        },
+                        {"risk": "Medium", ...},
+                        {"risk": "High", ...}
+                    ]
+                }
+            ],
+            "combo": {
+                "selections": ["...","..."], 
+                "combined_odds": 4.5, 
+                "overall_risk": "Medium", 
+                "reason": "..." 
+            }
+        }\n\n
+    """
 
     odds = (
         f"{odds} total odds"
@@ -287,3 +309,73 @@ async def parse_user_request(matches_text: str = None, league: str = None):
         content = content.split("```json")[1].split("```")[0].strip()
     result = json.loads(content)
     return result
+
+
+async def gift_voucher(uid: int, s: Session, lang: models.Language):
+    now = datetime.now(TIMEZONE)
+    football_fixtures = await get_fixtures_by_sport(
+        from_date=now, duration_in_days=2, sport="football"
+    )
+    if not football_fixtures:
+        return
+    fixtures = filter_fixtures(fixtures=football_fixtures, sport="football")
+    fixtures_summary = await summarize_fixtures_with_odds_stats(fixtures=fixtures)
+    coupon_json, message_md = await generate_multimatch_coupon(
+        fixtures_summary=fixtures_summary, odds=4
+    )
+    # Store each tip in DB
+    for match_block in coupon_json["matches"]:
+        label = match_block["teams"]  # e.g. "Team A vs Team B"
+        fx = next(
+            f
+            for f in fixtures
+            if label
+            in [
+                f"{f['home_name']} vs {f['away_name']}",
+                f"{f['away_name']} vs {f['home_name']}",
+            ]
+        )
+        for tip in match_block["tips"]:
+            # إضافة التوصيات الجديدة
+            recommendation = models.FixtureRecommendation(
+                user_id=uid,
+                fixture_id=fx["fixture_id"],
+                sport=match_block["sport"],
+                match_date=fx["date"],
+                league_id=fx["league_id"],
+                title=f"{label} → {tip['selection']}",
+                market=tip["market"],
+                selection=tip["selection"],
+                threshold=tip.get("threshold"),
+            )
+            s.add(recommendation)
+        s.commit()
+
+    await TeleClientSingleton().send_message(
+        entity=uid, message=TEXTS[lang]["congrats_txt"], parse_mode="md"
+    )
+    # Split and send final Markdown message if it's too long
+    max_length = 4096  # Telegram's message length limit
+    if len(message_md) <= max_length:
+        await TeleClientSingleton().send_message(
+            entity=uid, message=message_md, parse_mode="md"
+        )
+    else:
+        # Split the message into parts
+        parts = []
+        while message_md:
+            if len(message_md) > max_length:
+                # Find the last newline before the limit to avoid breaking mid-line
+                split_at = message_md.rfind("\n", 0, max_length)
+                if split_at == -1:  # No newline found, split at max_length
+                    split_at = max_length
+                parts.append(message_md[:split_at])
+                message_md = message_md[split_at:].lstrip()
+            else:
+                parts.append(message_md)
+                message_md = ""
+
+        for part in parts:
+            await TeleClientSingleton().send_message(
+                entity=uid, message=part, parse_mode="md"
+            )

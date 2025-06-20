@@ -15,9 +15,8 @@ from common.keyboards import (
 )
 from common.back_to_home_page import back_to_admin_home_page_handler
 from start import admin_command
-from client.client_calls.common import openai
+from client.client_calls.constants import openai
 from Config import Config
-from openai.types.chat_model import ChatModel
 PLAN, FIELD, VALUE = range(3)
 
 

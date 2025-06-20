@@ -489,6 +489,7 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     recommendation = models.FixtureRecommendation(
                         user_id=update.effective_user.id,
                         fixture_id=fx["fixture_id"],
+                        sport=match_block["sport"],
                         match_date=fx["date"],
                         league_id=fx["league_id"],
                         title=f"{label} → {tip['selection']}",

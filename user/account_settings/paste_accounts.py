@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, filters
 from TeleClientSingleton import TeleClientSingleton
 import pandas as pd
-from client.client_calls.common import openai
+from client.client_calls.constants import openai
 from common.lang_dicts import *
 from common.constants import TIMEZONE
 from Config import Config
@@ -51,8 +51,8 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         {
                             "metadata": {
                                 "time_interval": {
-                                "start": "...",  // in ISO format
-                                "end": "..."     // in ISO format
+                                    "start": "...",  // in ISO format
+                                    "end": "..."     // in ISO format
                                 },
                                 "currency": "...",
                                 "website_id": "...",
@@ -65,24 +65,24 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             },
                             "players": [
                                 {
-                                "number": ..., // int
-                                "website_id": ..., // int
-                                "website": "...",
-                                "media_id": ..., // int
-                                "subid": ..., // int
-                                "click_id": ..., // int
-                                "player_id": ..., // int
-                                "registration_date": "...",  // in ISO format
-                                "country": "...",
-                                "sum_of_all_deposits": ..., // int
-                                "total_bet_amount": ..., // int
-                                "bonus_amount": ..., // int
-                                "company_profit": ..., // int
-                                "rs": ..., // int
-                                "cpa": ..., // int
-                                "commission_amount": ..., // int
-                                "hold_time": ..., // int
-                                "blocked": ... // bool
+                                    "number": ..., // int
+                                    "website_id": ..., // int
+                                    "website": "...",
+                                    "media_id": ..., // int
+                                    "subid": ..., // int
+                                    "click_id": ..., // int
+                                    "player_id": ..., // int
+                                    "registration_date": "...",  // in ISO format
+                                    "country": "...", // either Syria or United Arab Emirates
+                                    "sum_of_all_deposits": ..., // int
+                                    "total_bet_amount": ..., // int
+                                    "bonus_amount": ..., // int
+                                    "company_profit": ..., // int
+                                    "rs": ..., // int
+                                    "cpa": ..., // int
+                                    "commission_amount": ..., // int
+                                    "hold_time": ..., // int
+                                    "blocked": ... // bool
                                 }
                                 ...
                             ],

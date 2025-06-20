@@ -35,13 +35,13 @@ from client.client_calls.functions import (
     initialize_user_session_data,
     session_data,
 )
+from user.buy_voucher.common import gift_voucher
 import common.lang_dicts
 import logging
 import utils.mobi_cash as mobi
 
 log = logging.getLogger(__name__)
 
-openai = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
 stripe.api_key = Config.STRIPE_API_KEY
 
 
@@ -447,20 +447,19 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
     transaction = add_transaction(
         data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
     )
+    player_account = (
+        s.query(models.PlayerAccount).filter_by(account_number=account_number).first()
+    )
     res = await mobi.deposit(
         user_id=account_number,
         amount=amount,
+        country=player_account.country,
     )
     if res["Success"]:
         transaction.status = "approved"
         transaction.mobi_operation_id = res["OperationId"]
         transaction.completed_at = now_iso()
         s.commit()
-        player_account = (
-            s.query(models.PlayerAccount)
-            .filter_by(account_number=account_number)
-            .first()
-        )
         offer_progress = player_account.check_offer_progress(s=s)
         if offer_progress.get("completed", False):
             player_account.offer_completed = True
@@ -470,6 +469,7 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
             offer_dp = await mobi.deposit(
                 user_id=account_number,
                 amount=player_account.offer_prize,
+                country=player_account.country,
             )
             if offer_dp["Success"]:
                 offer_tx.status = "approved"
@@ -487,12 +487,15 @@ async def auto_deposit(data: dict, user: models.User, s: Session):
                 entity=user.user_id,
                 message=TEXTS[user.lang]["progress_msg"].format(
                     offer_progress["amount_left"],
-                        player_account.currency,
-
+                    player_account.currency,
                     offer_progress["deposit_days_left"],
                     player_account.offer_expiry_date,
                 ),
             )
+        if (currency == "aed" and amount >= 100) or (
+            currency == "syr" and amount >= 100_000
+        ):
+            await gift_voucher(uid=user.user_id, s=s, lang=user.lang)
         await TeleBotSingleton().send_message(
             entity=Config.ADMIN_ID,
             message=str(transaction),
@@ -525,9 +528,15 @@ async def process_deposit(user: models.User, s: Session):
         if receipt and not receipt.transaction_id:
             receipt.transaction_id = transaction.id
             transaction.amount = receipt.amount
+            player_account = (
+                s.query(models.PlayerAccount)
+                .filter_by(account_number=account_number)
+                .first()
+            )
             res = await mobi.deposit(
                 user_id=account_number,
                 amount=receipt.amount,
+                country=player_account.country,
             )
             if res["Success"]:
                 transaction.status = "approved"
@@ -539,11 +548,6 @@ async def process_deposit(user: models.User, s: Session):
                     message=str(transaction),
                     parse_mode="html",
                 )
-                player_account = (
-                    s.query(models.PlayerAccount)
-                    .filter_by(account_number=account_number)
-                    .first()
-                )
                 offer_progress = player_account.check_offer_progress(s=s)
                 message = f"Deposit number <code>{transaction.id}</code> is done\n\n"
                 if offer_progress.get("completed", False):
@@ -554,6 +558,7 @@ async def process_deposit(user: models.User, s: Session):
                     offer_dp = await mobi.deposit(
                         user_id=account_number,
                         amount=player_account.offer_prize,
+                        country=player_account.country,
                     )
                     if offer_dp["Success"]:
                         offer_tx.status = "approved"
@@ -573,6 +578,10 @@ async def process_deposit(user: models.User, s: Session):
                         offer_progress["deposit_days_left"],
                         player_account.offer_expiry_date,
                     )
+                if (player_account.currency == "aed" and receipt.amount >= 100) or (
+                    player_account.currency == "syp" and receipt.amount >= 100_000
+                ):
+                    await gift_voucher(uid=user.user_id, s=s, lang=user.lang)
                 await TeleClientSingleton().send_message(
                     entity=user.user_id,
                     message=message,
@@ -611,6 +620,7 @@ async def process_deposit(user: models.User, s: Session):
 async def process_withdraw(user: models.User, s: Session):
     st = "withdraw"
     data = session_data[user.user_id][st]["data"]
+    account_number = session_data[user.user_id]["metadata"]["account_number"]
     payment_method = (
         s.query(models.PaymentMethod)
         .filter_by(id=session_data[user.user_id]["metadata"]["payment_method"])
@@ -619,9 +629,13 @@ async def process_withdraw(user: models.User, s: Session):
     transaction = add_transaction(
         data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
     )
+    player_account = (
+        s.query(models.PlayerAccount).filter_by(account_number=account_number).first()
+    )
     res = await mobi.withdraw(
-        user_id=session_data[user.user_id]["metadata"]["account_number"],
+        user_id=account_number,
         code=data["withdrawal_code"],
+        country=player_account.country,
     )
     if res["Success"]:
         transaction.status = "approved"

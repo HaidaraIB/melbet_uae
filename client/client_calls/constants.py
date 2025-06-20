@@ -1,6 +1,9 @@
 from enum import Enum, auto
 from Config import Config
+from openai import AsyncOpenAI
 
+
+openai = AsyncOpenAI(api_key=Config.OPENAI_API_KEY)
 
 class SessionState(Enum):
     AWAITING_PAYMENT_METHOD = auto()

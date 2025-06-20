@@ -31,12 +31,8 @@ from common.keyboards import (
     build_user_keyboard,
 )
 from common.back_to_home_page import back_to_user_home_page_handler
-from user.analyze_game.common import (
-    summarize_injuries,
-    summarize_matches,
-    generate_gpt_analysis,
-    ask_gpt_about_match,
-)
+from user.analyze_game.functions import summarize_injuries, summarize_matches
+from user.analyze_game.common import generate_gpt_analysis, ask_gpt_about_match
 from user.analyze_game.keyboards import build_matches_keyboard, build_sports_keyboard
 from start import start_command
 from datetime import datetime

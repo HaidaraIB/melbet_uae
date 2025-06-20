@@ -9,6 +9,7 @@ class FixtureRecommendation(Base):
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
     user_id = sa.Column(sa.BigInteger, sa.ForeignKey("users.user_id"), nullable=False)
     fixture_id = sa.Column(sa.Integer, nullable=False)
+    sport = sa.Column(sa.String)
     match_date = sa.Column(sa.String, nullable=False)
     league_id = sa.Column(sa.Integer, nullable=False)
     title = sa.Column(sa.String, nullable=False)

@@ -16,6 +16,8 @@ from models.FixtureCache import (
     CachedFixtureStats,
     CachedTeamStats,
     CachedTeamResults,
+    CachedInjuries,
+    CachedTeams,
 )
 from models.Plan import Plan
 from models.GroupPreferences import GroupPreferences

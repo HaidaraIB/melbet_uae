@@ -64,6 +64,11 @@ TEXTS = {
         ),
         "select_payment_method_first": "الرجاء اختيار وسيلة دفع من الرسالة المثبتة أولاً، أو إتمام الدفع عبر الرابط المرسل إن كنا قد أرسلنا رابطاً إليك",
         "receipt_in_withdraw_session": "الإيصالات مقبولة في جلسات الإيداع فقط، معلومات السحب يجب إرسالها يدوياً.",
+        "congrats_txt": (
+            "🎁 تهانينا! لقد حصلت على قسيمة توقعات مجانية 🔥\n\n"
+            "بمناسبة إيداعك الأخير بقيمة 100 درهم أو أكثر (أو 100 ألف ليرة سورية)، نقدم لك هدية مميزة: قسيمة توقعات مجانية يمكنك استخدامها لأي مباراة من اختيارك!\n\n"
+            "لا تتردد في الاستفادة من فرصتك الجديدة، ونتمنى لك حظًا موفقًا في توقعاتك القادمة! ⚽️✨"
+        ),
     },
     Language.ENGLISH: {
         "blacklisted_user": "Sorry, you have been blacklisted due to repeated fraud attempts.",
@@ -118,6 +123,11 @@ TEXTS = {
         ),
         "select_payment_method_first": "Please select a payment method from the pinned message first or complete the payment through the link if one was sent",
         "receipt_in_withdraw_session": "Receipts can only be send in deposit sessions, withdraw info must be provided manualy.",
+        "congrats_txt": (
+            "🎁 Congratulations! You’ve received a free prediction voucher 🔥\n\n"
+            "With your latest deposit of 100 AED or more (or 100,000 Syrian Pounds), you've unlocked a special gift: a free prediction voucher that you can use for any match of your choice!\n\n"
+            "Don't miss your chance—make the most of your new opportunity and good luck with your predictions! ⚽️✨"
+        ),
     },
 }
 
