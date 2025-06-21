@@ -207,6 +207,11 @@ async def get_receipt(event: events.NewMessage.Event):
                             and_(
                                 models.PaymentMethod.type.in_([st, "both"]),
                                 models.PaymentMethod.is_active == True,
+                                (
+                                    models.PaymentMethod.country == "uae"
+                                    if user.from_group_id == Config.UAE_MONITOR_GROUP_ID
+                                    else "syr"
+                                ),
                             )
                         )
                         .all(),
@@ -429,7 +434,7 @@ async def get_missing(event: events.NewMessage.Event):
             except json.decoder.JSONDecodeError:
                 if reply == "display_payment_methods_keyboard":
                     await send_and_pin_payment_methods_keyboard(
-                        s=s, st=st, group=group.id
+                        s=s, st=st, group=group.id, from_group_id=user.from_group_id
                     )
                     return
                 elif reply == "display_done_button":

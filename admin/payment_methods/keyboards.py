@@ -81,31 +81,33 @@ def build_payment_method_modes_keyboard():
     ]
 
 
-def build_edit_fields_keyboard():
+def build_edit_fields_keyboard(is_active: bool):
     return [
         [
             InlineKeyboardButton(
-                "الاسم",
-                callback_data="edit_name",
+                "إلغاء تفعيل" if is_active else "تفعيل",
+                callback_data=f"edit_status_{is_active}",
             )
         ],
         [
             InlineKeyboardButton(
+                "الاسم",
+                callback_data="edit_name",
+            ),
+            InlineKeyboardButton(
                 "التفاصيل",
                 callback_data="edit_details",
-            )
+            ),
         ],
         [
             InlineKeyboardButton(
                 "النوع",
                 callback_data="edit_type",
-            )
-        ],
-        [
+            ),
             InlineKeyboardButton(
                 "النمط",
                 callback_data="edit_mode",
-            )
+            ),
         ],
         [
             InlineKeyboardButton(
@@ -117,6 +119,12 @@ def build_edit_fields_keyboard():
             InlineKeyboardButton(
                 "حفظ التعديلات ✅",
                 callback_data="confirm_update",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "حذف الوسيلة ❌",
+                callback_data="delete_method",
             )
         ],
     ]

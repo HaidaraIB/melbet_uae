@@ -42,6 +42,7 @@ class PaymentMethod(Base):
             f"<b>{self.name}</b>\n"
             f"{self.details}\n"
             f"النوع: {self.type}\n"
+            f"الحالة: {'فعال' if self.is_active else 'غير فعال'}\n"
             f"النمط: {self.mode}\n"
             f"الدولة: {self.country}"
         )

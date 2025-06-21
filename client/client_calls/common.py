@@ -332,7 +332,9 @@ async def start_session(uid: int, cid: int, st: str):
                 await TeleClientSingleton().pin_message(
                     entity=group, message=end_cmd, notify=False
                 )
-            await send_and_pin_payment_methods_keyboard(s=s, st=st, group=gid)
+            await send_and_pin_payment_methods_keyboard(
+                s=s, st=st, group=gid, from_group_id=user.from_group_id
+            )
             inv = await TeleClientSingleton()(
                 ExportChatInviteRequest(
                     peer=group,
@@ -392,13 +394,20 @@ async def send_and_pin_player_accounts_keyboard(
     )
 
 
-async def send_and_pin_payment_methods_keyboard(s: Session, st: str, group: int):
+async def send_and_pin_payment_methods_keyboard(
+    s: Session, st: str, group: int, from_group_id: int
+):
     payment_methods = (
         s.query(models.PaymentMethod)
         .filter(
             and_(
                 models.PaymentMethod.type.in_([st, "both"]),
                 models.PaymentMethod.is_active == True,
+                (
+                    models.PaymentMethod.country == "uae"
+                    if from_group_id == Config.UAE_MONITOR_GROUP_ID
+                    else "syr"
+                ),
             )
         )
         .all()

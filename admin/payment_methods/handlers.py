@@ -260,222 +260,297 @@ add_payment_method_handler = ConversationHandler(
 async def start_update_payment_method(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ):
-    keyboard = [
-        *build_country_selection_keyboard(),
-        build_back_button(data="back_to_payment_method_settings"),
-        build_back_to_home_page_button()[0],
-    ]
-    await update.callback_query.edit_message_text(
-        text="اختر الدولة لتعديل وسائل الدفع",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
-    return SELECT_COUNTRY
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        keyboard = [
+            *build_country_selection_keyboard(),
+            build_back_button(data="back_to_payment_method_settings"),
+            build_back_to_home_page_button()[0],
+        ]
+        await update.callback_query.edit_message_text(
+            text="اختر الدولة لتعديل وسائل الدفع",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+        return SELECT_COUNTRY
 
 
 async def select_country(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    country = update.callback_query.data.replace("country_", "")
-    context.user_data["update_country"] = country
-    with models.session_scope() as s:
-        methods = s.query(models.PaymentMethod).filter_by(country=country).all()
-        if not methods:
-            await update.callback_query.answer(
-                text=f"لا توجد وسائل دفع مضافة لهذه الدولة ({country})",
-                show_alert=True,
-            )
-            return
-        method_buttons = [
-            [
-                InlineKeyboardButton(
-                    text=m.name,
-                    callback_data=f"update_method_{m.id}",
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        if not update.callback_query.data.startswith("back"):
+            country = update.callback_query.data.replace("country_", "")
+            context.user_data["update_country"] = country
+        else:
+            country = context.user_data["update_country"]
+        with models.session_scope() as s:
+            methods = s.query(models.PaymentMethod).filter_by(country=country).all()
+            if not methods:
+                await update.callback_query.answer(
+                    text=f"لا توجد وسائل دفع مضافة لهذه الدولة ({country})",
+                    show_alert=True,
                 )
+                return
+            method_buttons = [
+                [
+                    InlineKeyboardButton(
+                        text=m.name,
+                        callback_data=f"update_method_{m.id}",
+                    )
+                ]
+                for m in methods
             ]
-            for m in methods
-        ]
-        back_buttons = [
-            build_back_button(data="back_to_select_method"),
-            build_back_to_home_page_button()[0],
-        ]
-        keyboard = method_buttons + back_buttons
-        await update.callback_query.edit_message_text(
-            text="اختر وسيلة الدفع لتعديلها:",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-        )
-    return SELECT_METHOD
+            back_buttons = [
+                build_back_button(data="back_to_select_method"),
+                build_back_to_home_page_button()[0],
+            ]
+            keyboard = method_buttons + back_buttons
+            await update.callback_query.edit_message_text(
+                text="اختر وسيلة الدفع لتعديلها:",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+            )
+        return SELECT_METHOD
 
 
 back_to_select_method = start_update_payment_method
 
 
 async def select_method(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.callback_query and update.callback_query.data.startswith(
-        "update_method_"
-    ):
-        method_id = int(update.callback_query.data.replace("update_method_", ""))
-        context.user_data["update_method_id"] = method_id
-    else:
-        method_id = context.user_data["update_method_id"]
-    with models.session_scope() as s:
-        method = s.query(models.PaymentMethod).get(method_id)
-        context.user_data["method_obj"] = method
-        msg = method.stringify()
-
-    changes = (
-        "\n\n"
-        "التغييرات:\n"
-        f"الاسم: {context.user_data.get('edit_name', '')}\n"
-        f"التفاصيل: {context.user_data.get('edit_details', '')}\n"
-        f"النوع: {context.user_data.get('edit_type', '')}\n"
-        f"النمط: {context.user_data.get('edit_mode', '')}\n"
-        f"الدولة: {context.user_data.get('edit_country', '')}"
-    )
-    keyboard = [
-        *build_edit_fields_keyboard(),
-        build_back_button(data="back_to_choose_field"),
-        build_back_to_home_page_button()[0],
-    ]
-    if update.message:
-        await update.message.reply_text(
-            text=f"<b>تعديل وسيلة الدفع:</b>\n\n" + msg + changes,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-        )
-    else:
-        await update.callback_query.edit_message_text(
-            text=f"<b>تعديل وسيلة الدفع:</b>\n\n" + msg + changes,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-        )
-    return CHOOSE_FIELD
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        if update.callback_query and update.callback_query.data.startswith(
+            "update_method_"
+        ):
+            method_id = int(update.callback_query.data.replace("update_method_", ""))
+            context.user_data["update_method_id"] = method_id
+        else:
+            method_id = context.user_data["update_method_id"]
+        with models.session_scope() as s:
+            method = s.get(models.PaymentMethod, method_id)
+            msg = method.stringify()
+            changes = (
+                "\n\n"
+                "التغييرات:\n"
+                f"الاسم: {context.user_data.get('edit_name', '')}\n"
+                f"التفاصيل: {context.user_data.get('edit_details', '')}\n"
+                f"النوع: {context.user_data.get('edit_type', '')}\n"
+                f"النمط: {context.user_data.get('edit_mode', '')}\n"
+                f"الدولة: {context.user_data.get('edit_country', '')}"
+            )
+            keyboard = [
+                *build_edit_fields_keyboard(is_active=method.is_active),
+                build_back_button(data="back_to_choose_field"),
+                build_back_to_home_page_button()[0],
+            ]
+            if update.message:
+                await update.message.reply_text(
+                    text=f"<b>تعديل وسيلة الدفع:</b>\n\n" + msg + changes,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                )
+            else:
+                await update.callback_query.edit_message_text(
+                    text=f"<b>تعديل وسيلة الدفع:</b>\n\n" + msg + changes,
+                    reply_markup=InlineKeyboardMarkup(keyboard),
+                )
+        return CHOOSE_FIELD
 
 
 back_to_choose_field = select_country
 
 
 async def edit_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    back_buttons = [
-        build_back_button(data="back_to_edit_field"),
-        build_back_to_home_page_button()[0],
-    ]
-    await update.callback_query.edit_message_text(
-        text="أرسل الاسم الجديد:",
-        reply_markup=InlineKeyboardMarkup(back_buttons),
-    )
-    return EDIT_NAME
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        back_buttons = [
+            build_back_button(data="back_to_edit_field"),
+            build_back_to_home_page_button()[0],
+        ]
+        await update.callback_query.edit_message_text(
+            text="أرسل الاسم الجديد:",
+            reply_markup=InlineKeyboardMarkup(back_buttons),
+        )
+        return EDIT_NAME
 
 
 async def save_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["edit_name"] = update.message.text
-    await select_method(update, context)
-    return CHOOSE_FIELD
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        context.user_data["edit_name"] = update.message.text
+        await select_method(update, context)
+        return CHOOSE_FIELD
 
 
 async def edit_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    back_buttons = [
-        build_back_button(data="back_to_edit_field"),
-        build_back_to_home_page_button()[0],
-    ]
-    await update.callback_query.edit_message_text(
-        text="أرسل التفاصيل الجديدة:",
-        reply_markup=InlineKeyboardMarkup(back_buttons),
-    )
-    return EDIT_DETAILS
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        back_buttons = [
+            build_back_button(data="back_to_edit_field"),
+            build_back_to_home_page_button()[0],
+        ]
+        await update.callback_query.edit_message_text(
+            text="أرسل التفاصيل الجديدة:",
+            reply_markup=InlineKeyboardMarkup(back_buttons),
+        )
+        return EDIT_DETAILS
 
 
 async def save_details(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["edit_details"] = update.message.text
-    await select_method(update, context)
-    return CHOOSE_FIELD
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        context.user_data["edit_details"] = update.message.text
+        await select_method(update, context)
+        return CHOOSE_FIELD
 
 
 async def edit_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        *build_payemnt_method_types_keyboard(),
-        build_back_button(data="back_to_edit_field"),
-        build_back_to_home_page_button()[0],
-    ]
-    await update.callback_query.edit_message_text(
-        text="اختر النوع الجديد:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
-    return EDIT_TYPE
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        keyboard = [
+            *build_payemnt_method_types_keyboard(),
+            build_back_button(data="back_to_edit_field"),
+            build_back_to_home_page_button()[0],
+        ]
+        await update.callback_query.edit_message_text(
+            text="اختر النوع الجديد:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+        return EDIT_TYPE
 
 
 async def save_type(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    t = update.callback_query.data.replace("_payment_method", "")
-    context.user_data["edit_type"] = t
-    await select_method(update, context)
-    return CHOOSE_FIELD
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        t = update.callback_query.data.replace("_payment_method", "")
+        context.user_data["edit_type"] = t
+        await select_method(update, context)
+        return CHOOSE_FIELD
 
 
 async def edit_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        *build_payment_method_modes_keyboard(),
-        build_back_button(data="back_to_edit_field"),
-        build_back_to_home_page_button()[0],
-    ]
-    await update.callback_query.edit_message_text(
-        text="اختر النمط الجديد:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
-    return EDIT_MODE
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        keyboard = [
+            *build_payment_method_modes_keyboard(),
+            build_back_button(data="back_to_edit_field"),
+            build_back_to_home_page_button()[0],
+        ]
+        await update.callback_query.edit_message_text(
+            text="اختر النمط الجديد:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+        return EDIT_MODE
 
 
 async def save_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    m = update.callback_query.data.replace("_payment_method", "")
-    context.user_data["edit_mode"] = m
-    await select_method(update, context)
-    return CHOOSE_FIELD
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        m = update.callback_query.data.replace("_payment_method", "")
+        context.user_data["edit_mode"] = m
+        await select_method(update, context)
+        return CHOOSE_FIELD
+
+
+async def edit_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        st = bool(int(update.callback_query.data.replace("edit_status_", "")))
+        context.user_data["edit_status"] = st
+        keyboard = [
+            *build_edit_fields_keyboard(is_active=not st),
+            build_back_button(data="back_to_choose_field"),
+            build_back_to_home_page_button()[0],
+        ]
+        await update.callback_query.answer(
+            text="تمت إضافة الحالة الجديدة إلى قائمة التعديلات",
+            show_alert=True,
+        )
+        await update.callback_query.edit_message_reply_markup(
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+        return CHOOSE_FIELD
 
 
 async def edit_country(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        *build_country_selection_keyboard(),
-        build_back_button(data="back_to_edit_field"),
-        build_back_to_home_page_button()[0],
-    ]
-    await update.callback_query.edit_message_text(
-        text="اختر الدولة الجديدة:",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-    )
-    return EDIT_COUNTRY
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        keyboard = [
+            *build_country_selection_keyboard(),
+            build_back_button(data="back_to_edit_field"),
+            build_back_to_home_page_button()[0],
+        ]
+        await update.callback_query.edit_message_text(
+            text="اختر الدولة الجديدة:",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+        )
+        return EDIT_COUNTRY
 
 
 back_to_edit_field = select_method
 
 
 async def save_country(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    c = update.callback_query.data.replace("country_", "")
-    context.user_data["edit_country"] = c
-    await select_method(update, context)
-    return CHOOSE_FIELD
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        c = update.callback_query.data.replace("country_", "")
+        context.user_data["edit_country"] = c
+        await select_method(update, context)
+        return CHOOSE_FIELD
+
+
+async def delete_method(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        method_id = context.user_data["update_method_id"]
+        country = context.user_data["update_country"]
+        with models.session_scope() as s:
+            s.query(models.PaymentMethod).filter_by(id=method_id).delete()
+            s.commit()
+            await update.callback_query.answer(
+                text="تم حذف وسيلة الدفع بنجاح",
+                show_alert=True,
+            )
+            methods = s.query(models.PaymentMethod).filter_by(country=country).all()
+            if not methods:
+                return await start_update_payment_method(update, context)
+            method_buttons = [
+                [
+                    InlineKeyboardButton(
+                        text=m.name,
+                        callback_data=f"update_method_{m.id}",
+                    )
+                ]
+                for m in methods
+            ]
+            back_buttons = [
+                build_back_button(data="back_to_select_method"),
+                build_back_to_home_page_button()[0],
+            ]
+            keyboard = method_buttons + back_buttons
+            await update.callback_query.edit_message_text(
+                text="اختر وسيلة الدفع لتعديلها:",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+            )
+        return SELECT_METHOD
 
 
 async def confirm_update(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    method_id = context.user_data["update_method_id"]
-    with models.session_scope() as s:
-        method = s.query(models.PaymentMethod).get(method_id)
-        if "edit_name" in context.user_data:
-            method.name = context.user_data["edit_name"]
-            context.user_data.pop("edit_name")
-        if "edit_details" in context.user_data:
-            method.details = context.user_data["edit_details"]
-            context.user_data.pop("edit_details")
-        if "edit_type" in context.user_data:
-            method.type = context.user_data["edit_type"]
-            context.user_data.pop("edit_type")
-        if "edit_mode" in context.user_data:
-            method.mode = context.user_data["edit_mode"]
-            context.user_data.pop("edit_mode")
-        if "edit_country" in context.user_data:
-            method.country = context.user_data["edit_country"]
-            context.user_data.pop("edit_country")
-        s.commit()
-        msg = method.stringify()
-    await update.callback_query.edit_message_text(
-        text=(
-            f"تم تحديث وسيلة الدفع بنجاح:\n\n" + msg + "\n\n" + "اضغط /admin للمتابعة"
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        method_id = context.user_data["update_method_id"]
+        with models.session_scope() as s:
+            method = s.get(models.PaymentMethod, method_id)
+            if context.user_data.get("edit_name", None):
+                method.name = context.user_data["edit_name"]
+                context.user_data.pop("edit_name")
+            if context.user_data.get("edit_details", None):
+                method.details = context.user_data["edit_details"]
+                context.user_data.pop("edit_details")
+            if context.user_data.get("edit_type", None):
+                method.type = context.user_data["edit_type"]
+                context.user_data.pop("edit_type")
+            if context.user_data.get("edit_mode", None):
+                method.mode = context.user_data["edit_mode"]
+                context.user_data.pop("edit_mode")
+            if context.user_data.get("edit_country", None):
+                method.country = context.user_data["edit_country"]
+                context.user_data.pop("edit_country")
+            if context.user_data.get("edit_status", None):
+                method.is_active = context.user_data["edit_status"]
+                context.user_data.pop("edit_status")
+            s.commit()
+            msg = method.stringify()
+        await update.callback_query.edit_message_text(
+            text=(
+                f"تم تحديث وسيلة الدفع بنجاح:\n\n"
+                + msg
+                + "\n\n"
+                + "اضغط /admin للمتابعة"
+            )
         )
-    )
-    return ConversationHandler.END
+        return ConversationHandler.END
 
 
 update_payment_method_handler = ConversationHandler(
@@ -520,8 +595,16 @@ update_payment_method_handler = ConversationHandler(
                 pattern=r"^edit_country$",
             ),
             CallbackQueryHandler(
+                edit_status,
+                pattern=r"^edit_status_\d$",
+            ),
+            CallbackQueryHandler(
                 confirm_update,
                 pattern=r"^confirm_update$",
+            ),
+            CallbackQueryHandler(
+                delete_method,
+                pattern=r"^delete_method$",
             ),
         ],
         EDIT_NAME: [
@@ -572,7 +655,7 @@ SHOW_COUNTRY = range(1)
 async def show_payment_methods(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
         keyboard = [
-            *build_country_selection_keyboard(),
+            *build_country_selection_keyboard(act="show"),
             build_back_button(data="back_to_payment_method_settings"),
             build_back_to_home_page_button()[0],
         ]
@@ -617,7 +700,7 @@ show_payment_methods_handler = ConversationHandler(
         SHOW_COUNTRY: [
             CallbackQueryHandler(
                 show_methods_for_country,
-                r"^country_(uae|syria)$",
+                r"^show_country_(uae|syria)$",
             )
         ],
     },
