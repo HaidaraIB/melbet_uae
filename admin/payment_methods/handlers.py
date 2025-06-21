@@ -655,7 +655,7 @@ SHOW_COUNTRY = range(1)
 async def show_payment_methods(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
         keyboard = [
-            *build_country_selection_keyboard(act="show"),
+            *build_country_selection_keyboard(),
             build_back_button(data="back_to_payment_method_settings"),
             build_back_to_home_page_button()[0],
         ]
