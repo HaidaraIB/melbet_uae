@@ -700,7 +700,7 @@ show_payment_methods_handler = ConversationHandler(
         SHOW_COUNTRY: [
             CallbackQueryHandler(
                 show_methods_for_country,
-                r"^show_country_(uae|syria)$",
+                r"^country_(uae|syria)$",
             )
         ],
     },
