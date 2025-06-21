@@ -63,7 +63,7 @@ def build_admin_keyboard():
         ],
         [
             InlineKeyboardButton(
-                text="إعدادات وسائل الدفع",
+                text="إعدادات وسائل الدفع 💳",
                 callback_data="payment_method_settings",
             ),
         ],

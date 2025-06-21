@@ -1,6 +1,21 @@
 from telegram import InlineKeyboardButton
 
 
+def build_country_selection_keyboard():
+    return [
+        [
+            InlineKeyboardButton(
+                text="🇦🇪 الإمارات",
+                callback_data="country_uae",
+            ),
+            InlineKeyboardButton(
+                text="🇸🇾 سوريا",
+                callback_data="country_syria",
+            ),
+        ]
+    ]
+
+
 def build_payemnt_methods_settings_keyboard():
     return [
         [
@@ -8,11 +23,19 @@ def build_payemnt_methods_settings_keyboard():
                 text="إضافة ➕",
                 callback_data="add_payemnt_method",
             ),
-            # InlineKeyboardButton(
-            #     text="تعديل 🔄",
-            #     callback_data="update_payemnt_method",
-            # ),
-        ]
+        ],
+        [
+            InlineKeyboardButton(
+                text="عرض 👁️",
+                callback_data="show_payemnt_methods",
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="تعديل 🔄",
+                callback_data="update_payemnt_method",
+            ),
+        ],
     ]
 
 
@@ -54,5 +77,46 @@ def build_payment_method_modes_keyboard():
                 text="stripe",
                 callback_data="stripe_payment_method",
             ),
+        ],
+    ]
+
+
+def build_edit_fields_keyboard():
+    return [
+        [
+            InlineKeyboardButton(
+                "الاسم",
+                callback_data="edit_name",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "التفاصيل",
+                callback_data="edit_details",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "النوع",
+                callback_data="edit_type",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "النمط",
+                callback_data="edit_mode",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "الدولة",
+                callback_data="edit_country",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "حفظ التعديلات ✅",
+                callback_data="confirm_update",
+            )
         ],
     ]

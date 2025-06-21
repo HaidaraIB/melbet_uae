@@ -88,6 +88,8 @@ def setup_and_run():
 
     app.add_handler(add_payment_method_handler)
     app.add_handler(payment_method_settings_handler)
+    app.add_handler(show_payment_methods_handler)
+    app.add_handler(update_payment_method_handler)
 
     app.add_handler(approve_transaction_handler)
     app.add_handler(get_proof_handler)
@@ -274,7 +276,7 @@ async def handle_new_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
         Config.SYR_MONITOR_GROUP_ID,
     ]:
         return
-    
+
     user = update.my_chat_member.from_user
     with models.session_scope() as s:
         existing_user = (

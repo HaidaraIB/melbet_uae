@@ -29,12 +29,22 @@ class PaymentMethod(Base):
     type = sa.Column(sa.String, default="both")  # 'deposit' or 'withdrawal' or 'both'
     is_active = sa.Column(sa.Boolean, default=True)  # To enable/disable the method
     mode = sa.Column(sa.String, default="manual")
+    country = sa.Column(sa.String, default="uae")
 
     transactions = relationship("Transaction", back_populates="payment_method")
     receipts = relationship("Receipt", back_populates="payment_method")
 
     def __str__(self):
         return self.name
+
+    def stringify(self):
+        return (
+            f"<b>{self.name}</b>\n"
+            f"{self.details}\n"
+            f"النوع: {self.type}\n"
+            f"النمط: {self.mode}\n"
+            f"الدولة: {self.country}"
+        )
 
 
 class Transaction(Base):
