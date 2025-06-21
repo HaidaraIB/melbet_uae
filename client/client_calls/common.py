@@ -702,18 +702,27 @@ def generate_stripe_payment_link(uid: int, currency: str = "aed"):
     stripe.PaymentIntent.create(
         amount=1000,
         currency=currency,
-        metadata={"telegram_id": str(uid)},
+        metadata={
+            "telegram_id": str(uid),
+            "product_type": "digital",
+            "non_refundable": "true",
+        },
+    )
+    price = stripe.Price.create(
+        currency=currency,
+        product_data={
+            "name": "استشارة تسويقية Marketing Consulting - Non-Refundable",
+        },
+        unit_amount=1000,
+        metadata={
+            "product_type": "digital",
+            "non_refundable": "true",
+        },
     )
     payment_link = stripe.PaymentLink.create(
         line_items=[
             {
-                "price": stripe.Price.create(
-                    currency=currency,
-                    product_data={
-                        "name": "Custom Payment",
-                    },
-                    unit_amount=1000,
-                ).id,
+                "price": price.id,
                 "quantity": 1,
                 "adjustable_quantity": {
                     "enabled": True,
@@ -722,7 +731,11 @@ def generate_stripe_payment_link(uid: int, currency: str = "aed"):
             }
         ],
         payment_intent_data={
-            "metadata": {"telegram_id": str(uid)},
+            "metadata": {
+                "telegram_id": str(uid),
+                "product_type": "digital",
+                "non_refundable": "true",
+            },
         },
     )
 
