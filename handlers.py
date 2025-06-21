@@ -11,6 +11,7 @@ from common.error_handler import error_handler
 from common.constants import TIMEZONE
 
 from utils.api_calls import schedule_daily_fixtures
+from utils.cache import cache_monthly_fixtures
 
 from user.user_calls import *
 from user.user_settings import *
@@ -199,6 +200,15 @@ def setup_and_run():
         time=time(hour=0, minute=0, tzinfo=TIMEZONE),
         job_kwargs={
             "id": "schedule_daily_fixtures",
+            "replace_existing": True,
+        },
+    )
+
+    app.job_queue.run_daily(
+        callback=cache_monthly_fixtures,
+        time=time(hour=1, minute=0, tzinfo=TIMEZONE),
+        job_kwargs={
+            "id": "cache_monthly_fixtures",
             "replace_existing": True,
         },
     )

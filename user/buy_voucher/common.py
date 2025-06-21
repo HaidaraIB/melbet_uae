@@ -3,14 +3,7 @@ from Config import Config
 from common.constants import TIMEZONE
 from client.client_calls.constants import openai
 from client.client_calls.lang_dicts import TEXTS
-from utils.api_calls_by_sport import (
-    get_fixture_odds_by_sport,
-    get_h2h_by_sport,
-    get_team_statistics_by_sport,
-    get_team_standing_by_sport,
-    get_last_matches_by_sport,
-    get_fixtures_by_sport,
-)
+from utils.api_calls_by_sport import get_fixtures_by_sport
 import utils.api_calls as api_calls
 from utils.functions import (
     format_basketball_stats,
@@ -47,18 +40,34 @@ async def summarize_fixtures_with_odds_stats(fixtures: list) -> str:
         fix_summary += f"\n=== Home Team: {home_name} vs Away Team: {away_name} | {league_name} | {date} ===\n"
 
         # STANDINGS
-        home_stand = structure_team_standing(
-            data=await get_team_standing_by_sport(
-                team_id=home_id, league_id=league_id, season=season, sport=fix["sport"]
-            ),
-            sport=fix["sport"],
-        )
-        away_stand = structure_team_standing(
-            data=await get_team_standing_by_sport(
-                team_id=away_id, league_id=league_id, season=season, sport=fix["sport"]
-            ),
-            sport=fix["sport"],
-        )
+        with models.session_scope() as session:
+            home_stand_obj = (
+                session.query(models.CachedStandings)
+                .filter_by(
+                    team_id=home_id,
+                    league_id=league_id,
+                    season=season,
+                    sport=fix["sport"],
+                )
+                .first()
+            )
+            home_stand = structure_team_standing(
+                data=home_stand_obj.data if home_stand_obj else None, sport=fix["sport"]
+            )
+            away_stand_obj = (
+                session.query(models.CachedStandings)
+                .filter_by(
+                    team_id=away_id,
+                    league_id=league_id,
+                    season=season,
+                    sport=fix["sport"],
+                )
+                .first()
+            )
+            away_stand = structure_team_standing(
+                data=away_stand_obj.data if away_stand_obj else None, sport=fix["sport"]
+            )
+
         if home_stand and away_stand:
             fix_summary += "Standings:\n"
             fix_summary += f"- {home_name}: Rank {home_stand['rank']} | {home_stand['points']} pts\n"
@@ -67,26 +76,41 @@ async def summarize_fixtures_with_odds_stats(fixtures: list) -> str:
             fix_summary += "Standings: Not available\n"
 
         # ODDS
-        odds = await get_fixture_odds_by_sport(
-            fixture_id=fixture_id, sport=fix["sport"]
-        )
+        with models.session_scope() as session:
+            odds_obj = (
+                session.query(models.CachedOdds)
+                .filter_by(fixture_id=fixture_id, sport=fix["sport"])
+                .first()
+            )
+            odds = odds_obj.data if odds_obj else None
         fix_summary += summarize_odds(odds) if odds else "- Odds not available\n"
 
         # TEAMS STATS
-        home_stats = await get_team_statistics_by_sport(
-            team_id=home_id,
-            league_id=league_id,
-            season=season,
-            sport=fix["sport"],
-            game_id=fixture_id,
-        )
-        away_stats = await get_team_statistics_by_sport(
-            team_id=away_id,
-            league_id=league_id,
-            season=season,
-            sport=fix["sport"],
-            game_id=fixture_id,
-        )
+        with models.session_scope() as session:
+            home_stats_obj = (
+                session.query(models.CachedTeamStats)
+                .filter_by(
+                    team_id=home_id,
+                    league_id=league_id,
+                    season=season,
+                    sport=fix["sport"],
+                    game_id=fixture_id,
+                )
+                .first()
+            )
+            home_stats = home_stats_obj.data if home_stats_obj else None
+            away_stats_obj = (
+                session.query(models.CachedTeamStats)
+                .filter_by(
+                    team_id=away_id,
+                    league_id=league_id,
+                    season=season,
+                    sport=fix["sport"],
+                    game_id=fixture_id,
+                )
+                .first()
+            )
+            away_stats = away_stats_obj.data if away_stats_obj else None
         if home_stats or away_stats:
             if home_stats:
                 fix_summary += f"\n{home_name} Statistics:\n"
@@ -125,7 +149,13 @@ async def summarize_fixtures_with_odds_stats(fixtures: list) -> str:
 
         # FB FIXTURE STATS
         if fix["sport"] == "football":
-            fix_stats = await api_calls.get_fixture_stats(fixture_id=fixture_id)
+            with models.session_scope() as session:
+                fix_stats_obj = (
+                    session.query(models.CachedFixtureStats)
+                    .filter_by(fixture_id=fixture_id, sport=fix["sport"])
+                    .first()
+                )
+                fix_stats = fix_stats_obj.data if fix_stats_obj else None
             if fix_stats:
                 fix_summary += "\nMatch Stats:\n"
                 for team_stats in fix_stats:
@@ -139,7 +169,18 @@ async def summarize_fixtures_with_odds_stats(fixtures: list) -> str:
                 fix_summary += "Match Stats: Not available\n"
 
         # H2H
-        h2h = await get_h2h_by_sport(h2h=f"{home_id}-{away_id}", sport=fix["sport"])
+        with models.session_scope() as session:
+            h2h_obj = (
+                session.query(models.CachedH2H)
+                .filter_by(
+                    fixture_id=fixture_id,
+                    home_id=home_id,
+                    away_id=away_id,
+                    sport=fix["sport"],
+                )
+                .first()
+            )
+            h2h = h2h_obj.data if h2h_obj else None
         if h2h:
             fix_summary += "\nLast 5 Head-to-Head:\n"
             for h in h2h:
@@ -152,12 +193,19 @@ async def summarize_fixtures_with_odds_stats(fixtures: list) -> str:
             fix_summary += "H2H: Not available\n"
 
         # LAST 5
-        last_5_home = await get_last_matches_by_sport(
-            team_id=home_id, sport=fix["sport"], season=season
-        )
-        last_5_away = await get_last_matches_by_sport(
-            team_id=away_id, sport=fix["sport"], season=season
-        )
+        with models.session_scope() as session:
+            last_5_home_obj = (
+                session.query(models.CachedTeamResults)
+                .filter_by(team_id=home_id, sport=fix["sport"])
+                .first()
+            )
+            last_5_home = last_5_home_obj.data if last_5_home_obj else []
+            last_5_away_obj = (
+                session.query(models.CachedTeamResults)
+                .filter_by(team_id=away_id, sport=fix["sport"])
+                .first()
+            )
+            last_5_away = last_5_away_obj.data if last_5_away_obj else []
         fix_summary += f"\n{home_name} Last 5: {format_last_matches(matches=last_5_home, team_id=home_id, sport=fix['sport'])}\n"
         fix_summary += f"{away_name} Last 5: {format_last_matches(matches=last_5_away, team_id=away_id, sport=fix['sport'])}\n"
 

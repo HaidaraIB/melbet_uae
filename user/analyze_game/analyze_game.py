@@ -7,15 +7,7 @@ from telegram.ext import (
     ConversationHandler,
 )
 from telegram.constants import ParseMode
-from utils.api_calls_by_sport import (
-    search_team_id_by_name,
-    get_h2h_by_sport,
-    get_team_injuries_by_sport,
-    get_team_standing_by_sport,
-    get_last_matches_by_sport,
-    get_fixture_odds_by_sport,
-    get_fixtures_by_sport,
-)
+from utils.api_calls_by_sport import search_team_id_by_name
 from utils.functions import (
     filter_fixtures,
     structure_team_standing,
@@ -35,8 +27,9 @@ from user.analyze_game.functions import summarize_injuries, summarize_matches
 from user.analyze_game.common import generate_gpt_analysis, ask_gpt_about_match
 from user.analyze_game.keyboards import build_matches_keyboard, build_sports_keyboard
 from start import start_command
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
+import models
 import json
 
 log = logging.getLogger(__name__)
@@ -70,11 +63,18 @@ async def choose_sport(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if not update.callback_query.data.startswith("back"):
             sport = update.callback_query.data.replace("analyze_", "")
-            fixtures = await get_fixtures_by_sport(
-                sport=sport,
-                from_date=datetime.now(TIMEZONE),
-                duration_in_days=1,
-            )
+            now = datetime.now(TIMEZONE)
+            with models.session_scope() as session:
+                cached_fixtures = (
+                    session.query(models.CachedFixture)
+                    .filter(
+                        models.CachedFixture.sport == sport,
+                        models.CachedFixture.fixture_date >= now,
+                        models.CachedFixture.fixture_date <= now + timedelta(days=1),
+                    )
+                    .all()
+                )
+                fixtures = [f.data for f in cached_fixtures]
             fixtures = filter_fixtures(fixtures=fixtures, sport=sport)
             context.user_data["analyze_game_sport"] = sport
             context.user_data["analyze_game_fixtures"] = fixtures
@@ -128,12 +128,18 @@ async def choose_from_todays_matches(
                 fixture = fix
                 break
 
-        h2h = f"{fixture['home_id']}-{fixture['away_id']}"
-        teams = f"{fixture['home_name']} vs {fixture['away_name']}"
-        matches = await get_h2h_by_sport(
-            h2h=h2h,
-            sport=context.user_data["analyze_game_sport"],
-        )
+        with models.session_scope() as session:
+            h2h_obj = (
+                session.query(models.CachedH2H)
+                .filter_by(
+                    fixture_id=fixture_id,
+                    home_id=fixture["home_id"],
+                    away_id=fixture["away_id"],
+                    sport=context.user_data["analyze_game_sport"],
+                )
+                .first()
+            )
+            matches = h2h_obj.data if h2h_obj else []
         keyboard = [
             [
                 InlineKeyboardButton(
@@ -149,7 +155,7 @@ async def choose_from_todays_matches(
                 format_datetime(datetime.fromisoformat(str(fixture["date"]))),
                 fixture["league_name"],
                 fixture["venue"],
-                teams,
+                f"{fixture['home_name']} vs {fixture['away_name']}",
             ),
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
@@ -192,14 +198,25 @@ async def handle_match_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         for team1 in teams1:
             for team2 in teams2:
-                matches = await get_h2h_by_sport(
-                    h2h=(
-                        f"{team1['team']['id']}-{team2['team']['id']}"
-                        if sport == "football"
-                        else f"{team1['id']}-{team2['id']}"
-                    ),
-                    sport=sport,
-                )
+                with models.session_scope() as session:
+                    h2h_obj = (
+                        session.query(models.CachedH2H)
+                        .filter_by(
+                            home_id=(
+                                team1["team"]["id"]
+                                if sport == "football"
+                                else team1["id"]
+                            ),
+                            away_id=(
+                                team2["team"]["id"]
+                                if sport == "football"
+                                else team2["id"]
+                            ),
+                            sport=sport,
+                        )
+                        .first()
+                    )
+                    matches = h2h_obj.data if h2h_obj else []
                 if matches:
                     fixture = matches[0]
                     keyboard = [
@@ -252,57 +269,85 @@ async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=TEXTS[lang]["plz_wait"],
         )
 
-        home_last = format_last_matches(
-            matches=await get_last_matches_by_sport(
+        with models.session_scope() as session:
+            home_last_obj = (
+                session.query(models.CachedTeamResults)
+                .filter_by(team_id=home_id, sport=sport)
+                .first()
+            )
+            home_last = format_last_matches(
+                matches=home_last_obj.data if home_last_obj else [],
                 team_id=home_id,
                 sport=sport,
-                season=context.user_data["match_info"]["season"],
-            ),
-            team_id=home_id,
-            sport=sport,
-        )
-        away_last = format_last_matches(
-            matches=await get_last_matches_by_sport(
+            )
+            away_last_obj = (
+                session.query(models.CachedTeamResults)
+                .filter_by(team_id=away_id, sport=sport)
+                .first()
+            )
+            away_last = format_last_matches(
+                matches=away_last_obj.data if away_last_obj else [],
                 team_id=away_id,
                 sport=sport,
-                season=context.user_data["match_info"]["season"],
-            ),
-            team_id=away_id,
-            sport=sport,
-        )
-
-        home_rank = structure_team_standing(
-            data=await get_team_standing_by_sport(
-                team_id=home_id,
-                league_id=context.user_data["match_info"]["league_id"],
-                season=context.user_data["match_info"]["season"],
+            )
+            home_rank_obj = (
+                session.query(models.CachedStandings)
+                .filter_by(
+                    team_id=home_id,
+                    league_id=context.user_data["match_info"]["league_id"],
+                    season=context.user_data["match_info"]["season"],
+                    sport=sport,
+                )
+                .first()
+            )
+            home_rank = structure_team_standing(
+                data=home_rank_obj.data if home_rank_obj else None,
                 sport=sport,
-            ),
-            sport=sport,
-        )
-        away_rank = structure_team_standing(
-            data=await get_team_standing_by_sport(
-                team_id=context.user_data["match_info"]["away_id"],
-                league_id=context.user_data["match_info"]["league_id"],
-                season=context.user_data["match_info"]["season"],
+            )
+            away_rank_obj = (
+                session.query(models.CachedStandings)
+                .filter_by(
+                    team_id=away_id,
+                    league_id=context.user_data["match_info"]["league_id"],
+                    season=context.user_data["match_info"]["season"],
+                    sport=sport,
+                )
+                .first()
+            )
+            away_rank = structure_team_standing(
+                data=away_rank_obj.data if away_rank_obj else None,
                 sport=sport,
-            ),
-            sport=sport,
-        )
-        home_injuries = await get_team_injuries_by_sport(
-            team_id=home_id,
-            season=context.user_data["match_info"]["season"],
-            sport=sport,
-        )
-        away_injuries = await get_team_injuries_by_sport(
-            team_id=away_id,
-            season=context.user_data["match_info"]["season"],
-            sport=sport,
-        )
-
-        odds = await get_fixture_odds_by_sport(
-            fixture_id=context.user_data["match_info"]["fixture_id"], sport=sport
-        )
+            )
+            # Injuries
+            home_injuries_obj = (
+                session.query(models.CachedInjuries)
+                .filter_by(
+                    team_id=home_id,
+                    season=context.user_data["match_info"]["season"],
+                    sport=sport,
+                )
+                .first()
+            )
+            home_injuries = home_injuries_obj.data if home_injuries_obj else []
+            away_injuries_obj = (
+                session.query(models.CachedInjuries)
+                .filter_by(
+                    team_id=away_id,
+                    season=context.user_data["match_info"]["season"],
+                    sport=sport,
+                )
+                .first()
+            )
+            away_injuries = away_injuries_obj.data if away_injuries_obj else []
+            odds_obj = (
+                session.query(models.CachedOdds)
+                .filter_by(
+                    fixture_id=context.user_data["match_info"]["fixture_id"],
+                    sport=sport,
+                )
+                .first()
+            )
+            odds = odds_obj.data if odds_obj else None
 
         match_info = {
             "teams": f"{context.user_data['match_info']['home_name']} vs {context.user_data['match_info']['away_name']}",
