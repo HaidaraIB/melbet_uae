@@ -150,7 +150,9 @@ async def check_payment(event: events.CallbackQuery.Event):
                 session_data[uid]["deposit"]["state"]
                 != SessionState.AWAITING_PAYMENT.name
             ):
-                await event.answer(message="You're not at this state yet", alert=True)
+                await event.answer(
+                    message=TEXTS[user.lang]["not_at_this_state_yet"], alert=True
+                )
                 return
             if not session_data[uid]["metadata"]["account_number"]:
                 await send_and_pin_player_accounts_keyboard(
@@ -172,16 +174,14 @@ async def check_payment(event: events.CallbackQuery.Event):
                         message=TEXTS[user.lang][f"deposit_failed"].format(res),
                     )
                     return
-                await event.edit(
-                    "Successful deposit, we'll close this session after 5 seconds"
-                )
+                await event.edit(TEXTS[user.lang]["successful_deposit_closing_in_5"])
                 await asyncio.sleep(5)
                 await kick_user_and_admin(gid=user_session.group_id, uid=uid)
                 clear_session_data(user_id=uid)
             else:
                 await TeleBotSingleton().send_message(
                     entity=user_session.group_id,
-                    message="Payment not successful, check and try again",
+                    message=TEXTS[user.lang]["payment_not_successful"],
                 )
     raise events.StopPropagation
 
@@ -267,7 +267,7 @@ async def get_receipt(event: events.NewMessage.Event):
 
                 if "date" not in parsed_details:
                     log.info(f"تفاصيل اختيارية مفقودة: ['date']")
-                    msg += "optional fields (date) are missing, please provide them manually if they're present."
+                    msg += TEXTS[user.lang]["optional_missing"]
                 else:
                     session_data[uid][st]["data"]["date"] = parsed_details["date"]
 
@@ -281,10 +281,8 @@ async def get_receipt(event: events.NewMessage.Event):
                             missing.append(k)
                         else:
                             session_data[uid][st]["data"][k] = parsed_details[k]
-                    msg = (
-                        f"text extracted from photo:\n\n"
-                        f"<code>{details_str}</code>\n"
-                        f"but we have a missing details: ({', '.join(missing)}). Please provide them manually"
+                    msg = TEXTS[user.lang]["text_extracted_from_photo"].format(
+                        details_str, ", ".join(missing)
                     )
                     await TeleClientSingleton().send_message(
                         entity=cid, message=msg, parse_mode="html"
@@ -295,11 +293,9 @@ async def get_receipt(event: events.NewMessage.Event):
                 else:
                     for f in session_data[uid]["metadata"]["required_deposit_fields"]:
                         session_data[uid][st]["data"][f] = parsed_details[f]
-                    msg = (
-                        f"Receipt verified successfully, required fields extracted:\n\n"
-                        f"<code>{details_str}</code>\n\n"
+                    msg = TEXTS[user.lang]["receipt_verified_success"].format(
+                        details_str
                     )
-                    msg += "You can Press OK if all the information are correct."
                     await TeleBotSingleton().send_message(
                         entity=cid,
                         message=msg,
@@ -381,9 +377,8 @@ async def get_missing(event: events.NewMessage.Event):
                 provided_data = "".join(
                     [f"{k}: {v}\n" for k, v in parsed_details.items() if v]
                 )
-                user_msg = (
-                    f"missing/edited info recieved:\n\n"
-                    f"<code>{provided_data}</code>\n"
+                user_msg = TEXTS[user.lang]["missing_info_received"].format(
+                    provided_data
                 )
                 if parsed_details.get("receipt_id", None):
                     receipt_id = parsed_details["receipt_id"]
@@ -414,13 +409,11 @@ async def get_missing(event: events.NewMessage.Event):
                             if v
                         ]
                     )
-                    user_msg += (
-                        "Required data completed:\n\n"
-                        f"<code>{completed_data}</code>\n"
-                        "you can Press OK if all the information are correct."
+                    user_msg += TEXTS[user.lang]["required_data_completed"].format(
+                        completed_data
                     )
                     if st == "withdraw":
-                        user_msg += "\n\nNote that withdrawal take <b>from 1 up to 24 hours</b> to complete"
+                        user_msg += TEXTS[user.lang]["withdrawals_delay"]
                     await TeleBotSingleton().send_message(
                         entity=cid,
                         message=user_msg,
@@ -440,10 +433,8 @@ async def get_missing(event: events.NewMessage.Event):
                             if not v
                         ]
                     )
-                    user_msg += (
-                        "Required fields not yet provided:\n\n"
-                        f"<code>{missing_data}</code>\n"
-                        "Please provide them manualy."
+                    user_msg += TEXTS[user.lang]["missing_required"].format(
+                        missing_data
                     )
                     await TeleClientSingleton().send_message(
                         entity=cid,
@@ -487,10 +478,8 @@ async def get_missing(event: events.NewMessage.Event):
                             if v
                         ]
                     )
-                    user_msg = (
-                        "Required data completed:\n\n"
-                        f"<code>{completed_data}</code>\n"
-                        "you can Press OK if all the information are correct."
+                    user_msg = TEXTS[user.lang]["required_data_completed"].format(
+                        completed_data
                     )
                     await TeleBotSingleton().send_message(
                         entity=cid,
@@ -527,7 +516,9 @@ async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
                 session_data[uid][st]["state"]
                 != SessionState.AWAITING_CONFIRMATION.name
             ):
-                await event.answer(message="You're not at this state yet", alert=True)
+                await event.answer(
+                    message=TEXTS[user.lang]["not_at_this_state_yet"], alert=True
+                )
                 return
             account_number = session_data[uid]["metadata"]["account_number"]
             if not account_number:
@@ -549,7 +540,9 @@ async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
                 and session_data[uid]["deposit"]["currency"] != player_account.currency
             ):
                 await event.answer(
-                    message=f"The transaction currency doesn't match with your account {account_number} currency",
+                    message=TEXTS[user.lang]["mismatch_currency"].format(
+                        account_number
+                    ),
                     alert=True,
                 )
                 return
@@ -566,7 +559,7 @@ async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
                 return
             await TeleClientSingleton().send_message(
                 entity=cid,
-                message="your transaction is under review, we'll close this session after 5 seconds",
+                message=TEXTS[user.lang]["transaction_under_review_closing_in_5"],
             )
             await asyncio.sleep(5)
             await kick_user_and_admin(

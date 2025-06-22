@@ -71,6 +71,34 @@ TEXTS = {
         ),
         "choose_account_first": "الرجاء اختيار حساب أولاً",
         "incompatible_payment_method": "وسيلة الدفع هذه غير متوافقة مع حسابك",
+        "not_at_this_state_yet": "لم تصل إلى هذه الخطوة بعد",
+        "successful_deposit_closing_in_5": "تم الإيداع بنجاح، سيتم إغلاق هذه الجلسة بعد 5 ثواني",
+        "payment_not_successful": "فشلت العملية، الرجاء التحقق من الدفع وإعادة المحاولة",
+        "optional_missing": "حقول اختيارية (التاريخ) مفقودة، الرجاء إرسالها بشكل يدوي إن وجدت",
+        "text_extracted_from_photo": (
+            "تم استخراج النص من الصورة:\n\n"
+            "<code>{}</code>\n"
+            "ولكن لدينا معلومات ضرورية مفقودة: ({}). الرجاء إرسالهم بشكل يدوي"
+        ),
+        "receipt_verified_success": (
+            "تم تحليل الصورة بنجاح، المعلومات الضرورية تم استخراجها:\n\n"
+            "<code>{}</code>\n\n"
+            "الرجاء الضغط على OK في حال كانت المعلومات صحيحة."
+        ),
+        "required_data_completed": (
+            "تم الحصول على جميع المعلومات الضرورية:\n\n"
+            "<code>{}</code>\n\n"
+            "الرجاء الضغط على OK في حال كانت المعلومات صحيحة."
+        ),
+        "missing_info_received": ("تم تعديل/تعيين المعلومات:\n\n" "<code>{}</code>\n"),
+        "withdrawals_delay": "\n\n طلبات السحب تحتاج <b>من 1 إلى 24 ساعة</b> لتتم معالجتها.",
+        "missing_required": (
+            "بعض المعلومات  الضرورية لم يتم الحصول عليها:\n\n"
+            "<code>{}</code>\n"
+            "الرجاء إرسالها بشكل يدوي"
+        ),
+        "mismatch_currency": "عملة العملية غير متطابقة مع عملة الحساب رقم {}",
+        "transaction_under_review_closing_in_5": "العملية قيد المعالجة، سيتم إغلاق هذه الجلسة بعد 5 ثواني",
     },
     Language.ENGLISH: {
         "blacklisted_user": "Sorry, you have been blacklisted due to repeated fraud attempts.",
@@ -132,6 +160,37 @@ TEXTS = {
         ),
         "choose_account_first": "Please choose an account first",
         "incompatible_payment_method": "This payment method is incompatible with your account",
+        "not_at_this_state_yet": "You're not at this state yet",
+        "successful_deposit_closing_in_5": "Successful deposit, we'll close this session after 5 seconds",
+        "payment_not_successful": "Payment not successful, check and try again",
+        "optional_missing": "optional fields (date) are missing, please provide them manually if they're present.",
+        "text_extracted_from_photo": (
+            "text extracted from photo:\n\n"
+            "<code>{}</code>\n"
+            "but we have a missing details: ({}). Please provide them manually"
+        ),
+        "receipt_verified_success": (
+            "Receipt verified successfully, required fields extracted:\n\n"
+            "<code>{}</code>\n\n"
+            "You can Press OK if all the information are correct."
+        ),
+        "required_data_completed": (
+            "Required data completed:\n\n"
+            "<code>{}</code>\n\n"
+            "You can Press OK if all the information are correct."
+        ),
+        "missing_info_received": (
+            "missing/edited info recieved:\n\n" "<code>{}</code>\n"
+        ),
+        "withdrawals_delay": "\n\nNote that withdrawal take <b>from 1 up to 24 hours</b> to complete",
+        "missing_required": (
+            "Required fields not yet provided:\n\n"
+            "<code>{}</code>\n"
+            "Please provide them manualy."
+        ),
+        "mismatch_currency": "The transaction currency doesn't match with your account {} currency",
+        "transaction_under_review_closing_in_5": "your transaction is under review, we'll close this session after 5 seconds",
+
     },
 }
 
