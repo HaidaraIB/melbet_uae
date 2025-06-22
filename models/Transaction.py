@@ -20,14 +20,10 @@ class PaymentMethod(Base):
     __tablename__ = "payment_methods"
 
     id = sa.Column(sa.Integer, primary_key=True, autoincrement=True)
-    name = sa.Column(
-        sa.String, unique=True, nullable=False
-    )  # e.g., "Bank Transfer", "Crypto USDT"
-    details = sa.Column(
-        sa.Text, nullable=False
-    )  # Instructions for the user, e.g., "Bank Name: ..., Account: ..."
-    type = sa.Column(sa.String, default="both")  # 'deposit' or 'withdrawal' or 'both'
-    is_active = sa.Column(sa.Boolean, default=True)  # To enable/disable the method
+    name = sa.Column(sa.String, unique=True, nullable=False)
+    details = sa.Column(sa.Text, nullable=False)
+    type = sa.Column(sa.String, default="both")
+    is_active = sa.Column(sa.Boolean, default=True)
     mode = sa.Column(sa.String, default="manual")
     country = sa.Column(sa.String, default="uae")
 
@@ -88,7 +84,6 @@ class Transaction(Base):
         nullable=True,
     )
 
-    # Transaction type and amount details
     type = sa.Column(
         sa.Enum("deposit", "withdraw", "offer", name="transaction_type"), nullable=False
     )
@@ -106,7 +101,6 @@ class Transaction(Base):
         sa.String, sa.ForeignKey("player_accounts.account_number"), nullable=False
     )
 
-    # Status and timestamps
     status = sa.Column(
         sa.Enum("pending", "approved", "failed", "declined", name="transaction_status"),
         default="pending",
@@ -204,13 +198,10 @@ class Receipt(Base):
         sa.Integer, sa.ForeignKey("payment_methods.id", ondelete="SET NULL")
     )
 
-    # Financial details
     available_balance_at_the_time = sa.Column(sa.Float, nullable=False)
 
-    # Timestamps
     issued_at = sa.Column(sa.DateTime, default=datetime.now(TIMEZONE), index=True)
 
-    # Make transaction_id nullable for initial creation
     transaction_id = sa.Column(
         sa.Integer,
         sa.ForeignKey("transactions.id", ondelete="SET NULL"),

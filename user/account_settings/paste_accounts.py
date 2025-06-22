@@ -73,7 +73,7 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                     "click_id": ..., // int
                                     "player_id": ..., // int
                                     "registration_date": "...",  // in ISO format
-                                    "country": "...", // either Syria or United Arab Emirates
+                                    "country": "...", // either syr or uae
                                     "sum_of_all_deposits": ..., // int
                                     "total_bet_amount": ..., // int
                                     "bonus_amount": ..., // int
@@ -115,12 +115,31 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
                     if not existing_account:
                         is_points = False
-                        if (
-                            player["subid"] < 0
-                            and player["country"] == "United Arab Emirates"
-                        ):
+                        if player["subid"] < 0 and player["country"] == "uae":
                             is_points = True
                         player["subid"] = abs(player["subid"])
+                        user = s.get(models.User, player["subid"])
+                        if not user:
+                            u = await TeleClientSingleton().get_entity(
+                                entity=player["subid"]
+                            )
+                            user = models.User(
+                                user_id=player["subid"],
+                                username=u.username or "N/A",
+                                name=(u.first_name or "") + " " + (u.last_name or ""),
+                                lang=(
+                                    models.Language.ARABIC
+                                    if player["country"] == "syr"
+                                    else models.Language.ENGLISH
+                                ),
+                                from_group_id=(
+                                    Config.SYR_MONITOR_GROUP_ID
+                                    if player["country"] == "syr"
+                                    else Config.UAE_MONITOR_GROUP_ID
+                                ),
+                            )
+                            s.add(user)
+                            s.commit()
                         user_accounts = (
                             s.query(models.PlayerAccount)
                             .filter_by(user_id=player["subid"])
@@ -132,12 +151,12 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             and (
                                 (
                                     not user_accounts[0].is_points
-                                    and user_accounts[0].country == "Syria"
+                                    and user_accounts[0].country == "syr"
                                     and is_points
                                 )
                                 or (
                                     user_accounts[0].is_points
-                                    and player["country"] == "Syria"
+                                    and player["country"] == "syr"
                                     and not is_points
                                 )
                             )
@@ -148,50 +167,40 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             offer_start_date = datetime.fromisoformat(
                                 player["registration_date"]
                             )
-                            offer_expirity_date = (datetime.fromisoformat(
-                                player["registration_date"]
-                            ) + timedelta(days=10)).replace(tzinfo=TIMEZONE)
+                            offer_expirity_date = (
+                                datetime.fromisoformat(player["registration_date"])
+                                + timedelta(days=10)
+                            ).replace(tzinfo=TIMEZONE)
                             now = datetime.now(TIMEZONE)
-                            user = s.get(models.User, player["subid"])
-                            if not user:
-                                u = await TeleClientSingleton().get_entity(
-                                    entity=player["subid"]
-                                )
-                                user = models.User(
-                                    user_id=player["subid"],
-                                    username=u.username or "N/A",
-                                    name=(u.first_name or "")
-                                    + " "
-                                    + (u.last_name or ""),
-                                    lang=(
-                                        models.Language.ARABIC
-                                        if player["country"] == "Syria"
-                                        else models.Language.ENGLISH
-                                    ),
-                                )
-                                s.add(user)
-                                s.commit()
                             s.add(
                                 models.PlayerAccount(
                                     user_id=player["subid"],
                                     account_number=player["player_id"],
                                     country=player["country"],
                                     currency=(
-                                        "syp" if player["country"] == "Syria" else "aed"
+                                        "syp"
+                                        if (
+                                            player["country"] == "syr" and not is_points
+                                        )
+                                        else "aed"
                                     ),
                                     is_points=is_points,
                                     registration_date=registration_date,
                                     offer_start_date=offer_start_date,
                                     offer_expiry_date=offer_expirity_date,
                                     offer_prize=(
-                                        150000 if player["country"] == "Syria" else 50
+                                        150000
+                                        if (
+                                            player["country"] == "syr" and not is_points
+                                        )
+                                        else 50
                                     ),
                                 )
                             )
                             s.commit()
                             offer_text = "\n\n"
                             if offer_expirity_date > now:
-                                if player["country"] == "Syria":
+                                if player["country"] == "syr":
                                     if user.lang == models.Language.ARABIC:
                                         offer_text += (
                                             "🎁 <b>عرض ترحيبي حصري للأعضاء الجدد في سوريا:</b>\n"
@@ -210,7 +219,7 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                             "💸 Once you complete both conditions, you will immediately receive 150,000 SYP in real cash credited directly to your main account!\n\n"
                                             "⏳ Note: If you do not complete the requirements within 10 days of registration, the offer will automatically expire."
                                         )
-                                elif player["country"] == "United Arab Emirates":
+                                elif player["country"] == "uae":
                                     if not is_points:
                                         if user.lang == models.Language.ARABIC:
                                             offer_text += (

@@ -8,12 +8,12 @@ log = logging.getLogger(__name__)
 
 
 mobi_values_dict = {
-    "United Arab Emirates": {
+    "uae": {
         "hash": Config.MOBI_CASH_HASH_VALUE_UAE,
         "id": int(Config.MOBI_CASH_CASHDESKID_UAE),
         "pass": Config.MOBI_CASH_CASHIERPASS_UAE,
     },
-    "Syria": {
+    "syr": {
         "hash": Config.MOBI_CASH_HASH_VALUE_SYR,
         "id": int(Config.MOBI_CASH_CASHDESKID_SYR),
         "pass": Config.MOBI_CASH_CASHIERPASS_SYR,

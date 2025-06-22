@@ -287,22 +287,22 @@ async def handle_new_user(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]:
         return
 
-    user = update.my_chat_member.from_user
     with models.session_scope() as s:
-        existing_user = (
-            s.query(models.User).filter(models.User.user_id == user.id).first()
-        )
-        if not existing_user:
-            new_user = models.User(
-                user_id=user.id,
-                username=user.username,
-                name=user.full_name,
-                lang=(
-                    models.Language.ARABIC
-                    if update.effective_chat.id == Config.SYR_MONITOR_GROUP_ID
-                    else models.Language.ENGLISH
-                ),
-                from_group_id=update.effective_chat.id,
+        for user in update.message.new_chat_members:
+            existing_user = (
+                s.query(models.User).filter(models.User.user_id == user.id).first()
             )
-            s.add(new_user)
-            s.commit()
+            if not existing_user:
+                new_user = models.User(
+                    user_id=user.id,
+                    username=user.username,
+                    name=user.full_name,
+                    lang=(
+                        models.Language.ARABIC
+                        if update.effective_chat.id == Config.SYR_MONITOR_GROUP_ID
+                        else models.Language.ENGLISH
+                    ),
+                    from_group_id=update.effective_chat.id,
+                )
+                s.add(new_user)
+                s.commit()

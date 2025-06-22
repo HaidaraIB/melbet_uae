@@ -62,21 +62,37 @@ async def choose_payment_method(event: events.CallbackQuery.Event):
         user_session = s.query(models.UserSession).filter_by(group_id=group.id).first()
         st = user_session.session_type
         if user_session and uid == user_session.user_id:
+            account_number = session_data[uid]["metadata"]["account_number"]
+            if not account_number:
+                await event.answer(
+                    message=TEXTS[user_session.user.lang]["choose_account_first"],
+                    alert=True,
+                )
+                return
+            player_account = (
+                s.query(models.PlayerAccount)
+                .filter_by(account_number=account_number)
+                .first()
+            )
             payment_method_id = int(event.data.decode("utf-8").split("_")[-1])
-            session_data[uid]["metadata"]["payment_method"] = payment_method_id
             payment_method = (
                 s.query(models.PaymentMethod).filter_by(id=payment_method_id).first()
             )
+            if player_account.country != payment_method.country:
+                await event.answer(
+                    message=TEXTS[user_session.user.lang][
+                        "incompatible_payment_method"
+                    ],
+                    alert=True,
+                )
+                return
+            session_data[uid]["metadata"]["payment_method"] = payment_method_id
             await event.answer(
                 message=TEXTS[user_session.user.lang]["payment_method_set"], alert=True
             )
             if st == "deposit":
                 if payment_method.mode == "stripe":
-                    from_group_id = session_data[uid]["metadata"]["from_group_id"]
-                    currency = CURRENCIES[from_group_id]["currency"]
-                    stripe_link = generate_stripe_payment_link(
-                        uid=uid, currency=currency
-                    )
+                    stripe_link = generate_stripe_payment_link(uid=uid)
                     session_data[uid]["metadata"]["stripe_link"] = stripe_link
                     await TeleBotSingleton().send_message(
                         entity=group.id,

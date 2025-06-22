@@ -12,7 +12,7 @@ class PlayerAccount(Base):
 
     user_id = sa.Column(sa.BigInteger, sa.ForeignKey("users.user_id"))
     account_number = sa.Column(sa.String, nullable=False, unique=True)
-    country = sa.Column(sa.String, nullable=False, default="United Arab Emirates")
+    country = sa.Column(sa.String, nullable=False, default="uae")
     currency = sa.Column(sa.String, default="aed")
     is_points = sa.Column(sa.Boolean, default=False)
     registration_date = sa.Column(sa.DateTime)

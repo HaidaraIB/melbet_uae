@@ -69,6 +69,8 @@ TEXTS = {
             "بمناسبة إيداعك الأخير بقيمة 100 درهم أو أكثر (أو 100 ألف ليرة سورية)، نقدم لك هدية مميزة: قسيمة توقعات مجانية يمكنك استخدامها لأي مباراة من اختيارك!\n\n"
             "لا تتردد في الاستفادة من فرصتك الجديدة، ونتمنى لك حظًا موفقًا في توقعاتك القادمة! ⚽️✨"
         ),
+        "choose_account_first": "الرجاء اختيار حساب أولاً",
+        "incompatible_payment_method": "وسيلة الدفع هذه غير متوافقة مع حسابك",
     },
     Language.ENGLISH: {
         "blacklisted_user": "Sorry, you have been blacklisted due to repeated fraud attempts.",
@@ -128,6 +130,8 @@ TEXTS = {
             "With your latest deposit of 100 AED or more (or 100,000 Syrian Pounds), you've unlocked a special gift: a free prediction voucher that you can use for any match of your choice!\n\n"
             "Don't miss your chance—make the most of your new opportunity and good luck with your predictions! ⚽️✨"
         ),
+        "choose_account_first": "Please choose an account first",
+        "incompatible_payment_method": "This payment method is incompatible with your account",
     },
 }
 
