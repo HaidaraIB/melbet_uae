@@ -10,7 +10,7 @@ def build_country_selection_keyboard():
             ),
             InlineKeyboardButton(
                 text="🇸🇾 سوريا",
-                callback_data="country_syria",
+                callback_data="country_syr",
             ),
         ]
     ]

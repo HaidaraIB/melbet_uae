@@ -404,9 +404,10 @@ async def send_and_pin_payment_methods_keyboard(
                 models.PaymentMethod.type.in_([st, "both"]),
                 models.PaymentMethod.is_active == True,
                 (
-                    models.PaymentMethod.country == "uae"
-                    if from_group_id == Config.UAE_MONITOR_GROUP_ID
-                    else "syr"
+                    models.PaymentMethod.country
+                    == (
+                        "uae" if from_group_id == Config.UAE_MONITOR_GROUP_ID else "syr"
+                    )
                 ),
             )
         )

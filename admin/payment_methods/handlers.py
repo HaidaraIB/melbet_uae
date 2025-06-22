@@ -207,7 +207,7 @@ add_payment_method_handler = ConversationHandler(
         COUNTRY: [
             CallbackQueryHandler(
                 choose_country,
-                r"^country_(uae|syria)$",
+                r"^country_(uae|syr)$",
             ),
         ],
         DETAILS: [
@@ -564,7 +564,7 @@ update_payment_method_handler = ConversationHandler(
         SELECT_COUNTRY: [
             CallbackQueryHandler(
                 select_country,
-                pattern=r"^country_(uae|syria)$",
+                pattern=r"^country_(uae|syr)$",
             )
         ],
         SELECT_METHOD: [
@@ -634,7 +634,7 @@ update_payment_method_handler = ConversationHandler(
         EDIT_COUNTRY: [
             CallbackQueryHandler(
                 save_country,
-                pattern=r"^country_(uae|syria)$",
+                pattern=r"^country_(uae|syr)$",
             )
         ],
     },
@@ -700,7 +700,7 @@ show_payment_methods_handler = ConversationHandler(
         SHOW_COUNTRY: [
             CallbackQueryHandler(
                 show_methods_for_country,
-                r"^country_(uae|syria)$",
+                r"^country_(uae|syr)$",
             )
         ],
     },

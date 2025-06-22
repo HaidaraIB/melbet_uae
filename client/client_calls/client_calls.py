@@ -224,9 +224,13 @@ async def get_receipt(event: events.NewMessage.Event):
                                 models.PaymentMethod.type.in_([st, "both"]),
                                 models.PaymentMethod.is_active == True,
                                 (
-                                    models.PaymentMethod.country == "uae"
-                                    if user.from_group_id == Config.UAE_MONITOR_GROUP_ID
-                                    else "syr"
+                                    models.PaymentMethod.country
+                                    == (
+                                        "uae"
+                                        if user.from_group_id
+                                        == Config.UAE_MONITOR_GROUP_ID
+                                        else "syr"
+                                    )
                                 ),
                             )
                         )
