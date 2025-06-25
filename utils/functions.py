@@ -189,7 +189,7 @@ def draw_double_lineup_image(
     ax.text(
         x=15 + pitch_width / 2,
         y=pitch_height / 2,
-        s="888STARZ",
+        s="TipsterHub",
         ha="center",
         va="center",
         fontsize=50,

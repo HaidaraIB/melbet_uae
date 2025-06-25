@@ -1,6 +1,10 @@
 from Config import Config
 from client.client_calls.constants import openai
 from common.lang_dicts import *
+import stripe
+import aiohttp
+import json
+import models
 
 
 async def generate_gpt_analysis(match_info: dict):
@@ -89,3 +93,116 @@ async def ask_gpt_about_match(teams: str, sport: str):
         temperature=0,
     )
     return response.choices[0].message.content.replace("json", "").replace("```", "")
+
+
+def generate_stripe_payment_link(
+    uid: int, match_id: int, amount: int = 1000, currency: str = "aed"
+):
+    price = stripe.Price.create(
+        currency=currency,
+        unit_amount=amount,
+        product_data={
+            "name": f"Match Analysis #{match_id}",
+        },
+    )
+
+    payment_link = stripe.PaymentLink.create(
+        line_items=[
+            {
+                "price": price.id,
+                "quantity": 1,
+            }
+        ],
+        payment_intent_data={
+            "metadata": {
+                "telegram_id": str(uid),
+                "match_id": str(match_id),
+            }
+        },
+        after_completion={
+            "type": "redirect",
+            "redirect": {"url": "https://t.me/TipsterHubBot"},
+        },
+    )
+
+    return {
+        "url": payment_link.url,
+        "id": payment_link.id,
+    }
+
+
+async def check_stripe_payment_webhook(
+    uid: int, match_id: int, price: float = 10, currency: str = "aed"
+):
+    url = f"https://webhook.site/token/{Config.WEBHOOK_TOKEN}/requests"
+    headers = {
+        "Api-Key": Config.WEBHOOK_API_KEY,
+    }
+    params = {"sorting": "newest"}
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    for req in data["data"]:
+                        try:
+                            if not req["user_agent"].lower().startswith("stripe"):
+                                continue
+                            body = json.loads(req.get("content", ""))
+                            meta = body["data"]["object"]["metadata"]
+                            if (
+                                meta.get("telegram_id") == str(uid)
+                                and meta.get("match_id") == str(match_id)
+                                and body["type"] == "payment_intent.succeeded"
+                                and int(body["data"]["object"]["amount"])
+                                == int(price * 100)
+                                and body["data"]["object"]["currency"].lower()
+                                == currency.lower()
+                            ):
+                                with models.session_scope() as s:
+                                    transaction = (
+                                        s.query(models.Transaction)
+                                        .filter_by(
+                                            receipt_id=body["data"]["object"]["id"]
+                                        )
+                                        .first()
+                                    )
+                                    if not transaction:
+                                        s.add(
+                                            models.Transaction(
+                                                receipt_id=body["data"]["object"]["id"],
+                                                user_id=uid,
+                                                type="analyze_game",
+                                                amount=float(
+                                                    data["data"]["object"]["amount"]
+                                                    / 100
+                                                ),
+                                                currency=currency,
+                                                status="approved",
+                                            )
+                                        )
+                                        s.commit()
+                                stripe.PaymentLink.modify(
+                                    id=body["data"]["object"]["id"], active=False
+                                )
+                                return body
+                        except Exception as e:
+                            print(f"Exception: {e}")
+                            continue
+        return False
+
+    except Exception as e:
+        print(f"Exception: {e}")
+        return False
+
+
+# 3. دالة بدء تحليل المباراة بعد التحقق من الدفع
+async def start_match_analysis_if_paid(uid: int, match_id: int):
+    payment_data = await check_stripe_payment_webhook(uid, match_id)
+    if payment_data:
+        # من هنا تبدأ عملية تحليل المباراة وربطها بالمستخدم
+        # يمكنك إضافة كودك هنا لإرسال النتائج أو حفظها في قاعدة البيانات
+        print(f"تم الدفع بنجاح للمستخدم {uid} للمباراة {match_id}. ابدأ التحليل!")
+        # ...
+        return True
+    return False

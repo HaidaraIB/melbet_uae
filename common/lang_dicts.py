@@ -32,7 +32,7 @@ TEXTS = {
             "• البطولة: <b>{}</b>\n"
             "• الملعب: <b>{}</b>\n"
             "• المواجهة: <b>{}</b>\n\n"
-            "هل تريد تحليلًا ذكيًا؟ اضغط على زر الدفع."
+            "هل تريد تحليلًا ذكيًا؟ ادفع عن طريق <a href={}>الرابط</a> واضغط دفع عند الانتهاء."
         ),
         "no_upcoming_games": "لا توجد مواجهة قادمة بين الفريقين.",
         "plz_wait": "الرجاء الانتظار ⏳",
@@ -51,7 +51,7 @@ TEXTS = {
             "- Odds: {}\n"
             "- السعر: {} AED\n"
             "- التفضيلات:\n{}\n\n"
-            "هل تريد المتابعة للدفع؟"
+            "الرجاء الدفع عن طريق الرابط <a href={}>الرابط</a> ومن ثم الضغط على الزر أدناه"
         ),
         "voucher_canceled": "تم إلغاء القسيمة",
         "choose_preferences": "اختر تفضيلاتك من أجل هذه القسيمة",
@@ -144,7 +144,7 @@ TEXTS = {
             "• League: <b>{}</b>\n"
             "• Venue: <b>{}</b>\n"
             "• Teams: <b>{}</b>\n\n"
-            "Want smart analysis, Press Pay."
+            "Want smart analysis? pay through the <a href={}>Link</a> and press Pay when you're done."
         ),
         "no_upcoming_games": "There's no upcoming games between these teams.",
         "plz_wait": "Please Wait ⏳",
@@ -163,7 +163,7 @@ TEXTS = {
             "- Odds: {}\n"
             "- Price: {} AED\n"
             "- Preferences:\n{}\n\n"
-            "Continue to Payment?"
+            "Please pay through the following <a href={}>Link</a> and then press the button below"
         ),
         "voucher_canceled": "Voucher Canceled",
         "choose_preferences": "Choose your preferences for this voucher.",

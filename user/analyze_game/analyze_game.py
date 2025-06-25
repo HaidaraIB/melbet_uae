@@ -24,7 +24,12 @@ from common.keyboards import (
 )
 from common.back_to_home_page import back_to_user_home_page_handler
 from user.analyze_game.functions import summarize_injuries, summarize_matches
-from user.analyze_game.common import generate_gpt_analysis, ask_gpt_about_match
+from user.analyze_game.common import (
+    generate_gpt_analysis,
+    ask_gpt_about_match,
+    generate_stripe_payment_link,
+    check_stripe_payment_webhook,
+)
 from user.analyze_game.keyboards import build_matches_keyboard, build_sports_keyboard
 from start import start_command
 from datetime import datetime, timedelta
@@ -150,12 +155,18 @@ async def choose_from_todays_matches(
             build_back_button(data="back_to_handle_match_input", lang=lang),
             build_back_to_home_page_button(lang=lang, is_admin=False)[0],
         ]
+
+        stripe_link = generate_stripe_payment_link(
+            uid=update.effective_user.id, match_id=fixture_id
+        )
+
         await update.callback_query.edit_message_text(
             text=TEXTS[lang]["analyze_game_ai_result"].format(
                 format_datetime(datetime.fromisoformat(str(fixture["date"]))),
                 fixture["league_name"],
                 fixture["venue"],
                 f"{fixture['home_name']} vs {fixture['away_name']}",
+                stripe_link,
             ),
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
@@ -230,6 +241,12 @@ async def handle_match_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
                         build_back_to_home_page_button(lang=lang, is_admin=False)[0],
                     ]
                     teams = f"{fixture['home_name']} vs {fixture['away_name']}"
+
+                    stripe_link = generate_stripe_payment_link(
+                        uid=update.effective_user.id,
+                        match_id=fixture["fixture_id"],
+                    )
+
                     await wait_msg.edit_text(
                         text=TEXTS[lang]["analyze_game_ai_result"].format(
                             format_datetime(
@@ -238,6 +255,7 @@ async def handle_match_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
                             fixture["league_name"],
                             fixture["venue"],
                             teams,
+                            stripe_link,
                         ),
                         reply_markup=InlineKeyboardMarkup(keyboard),
                     )
@@ -261,6 +279,18 @@ back_to_handle_match_input = choose_sport
 async def pay(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
+
+        payment_ok = await check_stripe_payment_webhook(
+            uid=update.effective_user.id,
+            match_id=context.user_data["match_info"]["fixture_id"],
+        )
+        if not payment_ok:
+            await update.callback_query.answer(
+                text=TEXTS[lang]["payment_failed"],
+                show_alert=True,
+            )
+            return
+
         sport = context.user_data["analyze_game_sport"]
         home_id = context.user_data["match_info"]["home_id"]
         away_id = context.user_data["match_info"]["away_id"]

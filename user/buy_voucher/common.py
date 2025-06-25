@@ -19,6 +19,8 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 import json
 import models
+import stripe
+import aiohttp
 import logging
 
 log = logging.getLogger(__name__)
@@ -427,3 +429,107 @@ async def gift_voucher(uid: int, s: Session, lang: models.Language):
             await TeleClientSingleton().send_message(
                 entity=uid, message=part, parse_mode="md"
             )
+
+
+def generate_voucher_stripe_payment_link(
+    uid: int, price: float, currency: str = "aed"
+):
+    """
+    Generate a Stripe payment link for a voucher purchase.
+    """
+    amount = int(price * 100)
+    stripe.api_key = Config.STRIPE_API_KEY
+    stripe_product_name = f"Voucher Purchase for User {uid}"
+    stripe_price = stripe.Price.create(
+        currency=currency,
+        unit_amount=amount,
+        product_data={
+            "name": stripe_product_name,
+        },
+    )
+    payment_link = stripe.PaymentLink.create(
+        line_items=[
+            {
+                "price": stripe_price.id,
+                "quantity": 1,
+            }
+        ],
+        payment_intent_data={
+            "metadata": {
+                "telegram_id": str(uid),
+                "type": "voucher",
+            }
+        },
+        after_completion={
+            "type": "redirect",
+            "redirect": {"url": "https://t.me/TipsterHubBot"},
+        },
+    )
+    return {
+        "url": payment_link.url,
+        "id": payment_link.id,
+    }
+
+
+async def check_voucher_stripe_payment_webhook(
+    uid: int, price: float, currency: str = "aed"
+):
+    url = f"https://webhook.site/token/{Config.WEBHOOK_TOKEN}/requests"
+    headers = {
+        "Api-Key": Config.WEBHOOK_API_KEY,
+    }
+    params = {"sorting": "newest"}
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, headers=headers, params=params) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    for req in data["data"]:
+                        try:
+                            if not req["user_agent"].lower().startswith("stripe"):
+                                continue
+                            body = json.loads(req.get("content", ""))
+                            meta = body["data"]["object"].get("metadata", {})
+                            if (
+                                meta.get("telegram_id") == str(uid)
+                                and meta.get("type") == "voucher"
+                                and body["type"] == "payment_intent.succeeded"
+                                and int(body["data"]["object"]["amount"])
+                                == int(price * 100)
+                                and body["data"]["object"]["currency"].lower()
+                                == currency.lower()
+                            ):
+                                with models.session_scope() as s:
+                                    transaction = (
+                                        s.query(models.Transaction)
+                                        .filter_by(
+                                            receipt_id=body["data"]["object"]["id"]
+                                        )
+                                        .first()
+                                    )
+                                    if not transaction:
+                                        s.add(
+                                            models.Transaction(
+                                                receipt_id=body["data"]["object"]["id"],
+                                                user_id=uid,
+                                                type="voucher",
+                                                amount=float(
+                                                    body["data"]["object"]["amount"]
+                                                )
+                                                / 100,
+                                                currency=currency,
+                                                status="approved",
+                                            )
+                                        )
+                                        s.commit()
+                                stripe.PaymentLink.modify(
+                                    id=body["data"]["object"]["id"], active=False
+                                )
+                                return body
+                        except Exception as e:
+                            log.error(f"Exception: {e}")
+                            continue
+        return False
+    except Exception as e:
+        log.error(f"Exception: {e}")
+        return False

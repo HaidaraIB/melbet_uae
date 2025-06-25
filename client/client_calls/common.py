@@ -738,6 +738,10 @@ def generate_stripe_payment_link(uid: int, currency: str = "aed"):
                 "non_refundable": "true",
             },
         },
+        after_completion={
+            "type": "redirect",
+            "redirect": {"url": "https://t.me/TipsterHubBot"},
+        },
     )
 
     log.info(f"Payment link created: {payment_link.url}")

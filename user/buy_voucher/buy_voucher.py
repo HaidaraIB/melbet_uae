@@ -20,6 +20,8 @@ from user.buy_voucher.common import (
     summarize_fixtures_with_odds_stats,
     generate_multimatch_coupon,
     parse_user_request,
+    generate_voucher_stripe_payment_link,
+    check_voucher_stripe_payment_webhook,
 )
 from user.buy_voucher.keyboards import (
     build_get_voucher_confirmation_keyboard,
@@ -212,12 +214,18 @@ async def choose_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE)
         keyboard.append(back_buttons[0])
         keyboard.append(back_buttons[1])
         price = round(odds * 5, 2)
+
+        stripe_link = generate_voucher_stripe_payment_link(
+            uid=update.effective_user.id, price=price
+        )
+
         await update.callback_query.edit_message_text(
             text=TEXTS[lang]["voucher_summary"].format(
                 f"{context.user_data['duration_value']} {context.user_data['duration_type']}",
                 odds,
                 price,
                 "Choose for me",
+                stripe_link,
             ),
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
@@ -265,6 +273,11 @@ async def get_league(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append(back_buttons[0])
         keyboard.append(back_buttons[1])
         price = round(float(odds) * 5, 2)
+
+        stripe_link = generate_voucher_stripe_payment_link(
+            uid=update.effective_user.id, price=price
+        )
+
         if update.message:
             wait_msg = await update.message.reply_text(text=TEXTS[lang]["plz_wait"])
             league = await parse_user_request(league=update.message.text)
@@ -303,6 +316,7 @@ async def get_league(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     odds,
                     price,
                     (f"Sport({sport_pref})\n" f"League({league['league_name']})"),
+                    stripe_link,
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
@@ -314,6 +328,7 @@ async def get_league(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     odds,
                     price,
                     (f"Sport({sport_pref})\n" f"League({league_pref})"),
+                    stripe_link,
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
@@ -338,6 +353,11 @@ async def get_matches(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append(back_buttons[0])
         keyboard.append(back_buttons[1])
         price = round(float(odds) * 5, 2)
+
+        stripe_link = generate_voucher_stripe_payment_link(
+            uid=update.effective_user.id, price=price
+        )
+
         if update.message:
             wait_msg = await update.message.reply_text(text=TEXTS[lang]["plz_wait"])
             matches_text = update.message.text.strip()
@@ -387,6 +407,7 @@ async def get_matches(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     odds,
                     price,
                     "\n".join([match["title"] for match in matches_list]),
+                    stripe_link,
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
@@ -398,6 +419,7 @@ async def get_matches(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     odds,
                     price,
                     "\n".join([match["title"] for match in matches_list]),
+                    stripe_link,
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
@@ -410,6 +432,18 @@ back_to_get_matches = choose_preferences
 async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
+        odds = context.user_data["odds"]
+
+        payment_ok = await check_voucher_stripe_payment_webhook(
+            uid=update.effective_user.id, price=round(float(odds) * 5, 2)
+        )
+        if not payment_ok:
+            await update.callback_query.answer(
+                text=TEXTS[lang]["payment_failed"],
+                show_alert=True,
+            )
+            return
+
         q = update.callback_query
         await q.answer()
         if q.data == "cancel_voucher":
@@ -434,7 +468,6 @@ async def handle_payment(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         pref = context.user_data["preferences"]
-        odds = context.user_data["odds"]
         fixtures = []
         if pref == "sport":
             fixtures = context.user_data["buy_voucher_sport_pref_fixtures"]
