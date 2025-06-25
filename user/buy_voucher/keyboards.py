@@ -51,6 +51,8 @@ def build_get_voucher_confirmation_keyboard(
             .order_by(models.Subscription.created_at.desc())
             .all()
         )
+        if not subscriptions:
+            return keyboard
         current_sub = subscriptions[0]
         if user.plan_code and user.plan_code != "capital_management":
             if current_sub.status == "active":

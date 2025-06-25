@@ -120,24 +120,43 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         player["subid"] = abs(player["subid"])
                         user = s.get(models.User, player["subid"])
                         if not user:
-                            u = await TeleClientSingleton().get_entity(
-                                entity=player["subid"]
-                            )
-                            user = models.User(
-                                user_id=player["subid"],
-                                username=u.username or "N/A",
-                                name=(u.first_name or "") + " " + (u.last_name or ""),
-                                lang=(
-                                    models.Language.ARABIC
-                                    if player["country"] == "syr"
-                                    else models.Language.ENGLISH
-                                ),
-                                from_group_id=(
-                                    Config.SYR_MONITOR_GROUP_ID
-                                    if player["country"] == "syr"
-                                    else Config.UAE_MONITOR_GROUP_ID
-                                ),
-                            )
+                            try:
+                                u = await TeleClientSingleton().get_entity(
+                                    entity=player["subid"]
+                                )
+                                user = models.User(
+                                    user_id=player["subid"],
+                                    username=u.username or "N/A",
+                                    name=(u.first_name or "")
+                                    + " "
+                                    + (u.last_name or ""),
+                                    lang=(
+                                        models.Language.ARABIC
+                                        if player["country"] == "syr"
+                                        else models.Language.ENGLISH
+                                    ),
+                                    from_group_id=(
+                                        Config.SYR_MONITOR_GROUP_ID
+                                        if player["country"] == "syr"
+                                        else Config.UAE_MONITOR_GROUP_ID
+                                    ),
+                                )
+                            except ValueError:
+                                user = models.User(
+                                    user_id=player["subid"],
+                                    username="N/A",
+                                    name="N/A",
+                                    lang=(
+                                        models.Language.ARABIC
+                                        if player["country"] == "syr"
+                                        else models.Language.ENGLISH
+                                    ),
+                                    from_group_id=(
+                                        Config.SYR_MONITOR_GROUP_ID
+                                        if player["country"] == "syr"
+                                        else Config.UAE_MONITOR_GROUP_ID
+                                    ),
+                                )
                             s.add(user)
                             s.commit()
                         user_accounts = (

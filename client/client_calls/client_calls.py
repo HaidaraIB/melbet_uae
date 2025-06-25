@@ -443,6 +443,7 @@ async def get_missing(event: events.NewMessage.Event):
                     )
 
             except json.decoder.JSONDecodeError:
+                user = s.get(models.User, uid)
                 if reply == "display_payment_methods_keyboard":
                     await send_and_pin_payment_methods_keyboard(
                         s=s, st=st, group=group.id, from_group_id=user.from_group_id
@@ -503,7 +504,7 @@ async def get_missing(event: events.NewMessage.Event):
 async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
     if not event.is_group:
         return
-    await event.answer()
+    await event.edit(message=(await event.get_message()).message)
     uid = event.sender_id
     cid = event.chat_id
     ent = await TeleClientSingleton().get_entity(entity=cid)
@@ -537,7 +538,8 @@ async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
             )
             if (
                 st == "deposit"
-                and session_data[uid]["deposit"]["currency"] != player_account.currency
+                and session_data[uid]["deposit"].get("currency", None)
+                != player_account.currency
             ):
                 await event.answer(
                     message=TEXTS[user.lang]["mismatch_currency"].format(
