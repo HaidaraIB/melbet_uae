@@ -430,7 +430,13 @@ async def get_missing(event: events.NewMessage.Event):
                         [
                             f"{k}: {v}\n"
                             for k, v in session_data[uid][st]["data"].items()
-                            if not v
+                            if (
+                                not v
+                                and k
+                                in session_data[uid]["metadata"][
+                                    "required_deposit_fields"
+                                ]
+                            )
                         ]
                     )
                     user_msg += TEXTS[user.lang]["missing_required"].format(
@@ -504,7 +510,6 @@ async def get_missing(event: events.NewMessage.Event):
 async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
     if not event.is_group:
         return
-    await event.edit(message=(await event.get_message()).message)
     uid = event.sender_id
     cid = event.chat_id
     ent = await TeleClientSingleton().get_entity(entity=cid)
@@ -517,9 +522,7 @@ async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
                 session_data[uid][st]["state"]
                 != SessionState.AWAITING_CONFIRMATION.name
             ):
-                await event.answer(
-                    message=TEXTS[user.lang]["not_at_this_state_yet"], alert=True
-                )
+                await event.respond(TEXTS[user.lang]["not_at_this_state_yet"])
                 return
             account_number = session_data[uid]["metadata"]["account_number"]
             if not account_number:
@@ -538,14 +541,11 @@ async def send_transaction_to_proccess(event: events.CallbackQuery.Event):
             )
             if (
                 st == "deposit"
-                and session_data[uid]["deposit"].get("currency", None)
+                and session_data[uid]["deposit"]["data"]["currency"].lower()
                 != player_account.currency
             ):
-                await event.answer(
-                    message=TEXTS[user.lang]["mismatch_currency"].format(
-                        account_number
-                    ),
-                    alert=True,
+                await event.respond(
+                    TEXTS[user.lang]["mismatch_currency"].format(account_number)
                 )
                 return
 

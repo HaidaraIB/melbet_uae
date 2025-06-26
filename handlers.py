@@ -247,15 +247,15 @@ def setup_and_run():
         get_missing,
         events.NewMessage(incoming=True),
     )
+    tele_client.add_event_handler(
+        paste_receipte,
+        events.NewMessage(chats=Config.RECEIPTS_GROUP_ID, incoming=True),
+    )
 
     tele_bot = TeleBotSingleton()
     tele_bot.add_event_handler(
         send_transaction_to_proccess,
         events.CallbackQuery(pattern=r"^send_transaction_to_proccess$"),
-    )
-    tele_bot.add_event_handler(
-        paste_receipte,
-        events.NewMessage(chats=Config.RECEIPTS_GROUP_ID, incoming=True),
     )
     tele_bot.add_event_handler(
         choose_payment_method,
