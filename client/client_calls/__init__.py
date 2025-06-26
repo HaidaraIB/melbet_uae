@@ -18,5 +18,6 @@ from client.client_calls.process_transaction import (
     get_decline_reason_handler,
     back_to_edit_amount_handler,
     back_to_handle_transaction_handler,
+    confirm_approve_handler
 )
 from client.client_calls.paste_receipts import paste_receipte

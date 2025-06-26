@@ -93,6 +93,7 @@ def setup_and_run():
     app.add_handler(update_payment_method_handler)
 
     app.add_handler(approve_transaction_handler)
+    app.add_handler(confirm_approve_handler)
     app.add_handler(get_proof_handler)
     app.add_handler(edit_amount_handler)
     app.add_handler(get_new_amount_handler)
