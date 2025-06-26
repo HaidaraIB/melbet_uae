@@ -326,31 +326,35 @@ async def get_missing(event: events.NewMessage.Event):
             txt: str = event.raw_text
             default_prompt = s.get(models.Setting, "gpt_prompt")
             session_prompt = s.get(models.Setting, f"gpt_prompt_{st}")
-            system_msg = (
-                f"This message was sent by user {uid} in a {st} session\n"
-                f"the state of the conversation is {session_data[uid][st]['state']} and the data we have is {session_data[uid][st]['data']}\n"
-                f"the user just sent the msg '{txt}' if we're at AWAITING_MISSING_FIELDS state and the msg contains one of the missing fields please extract it and respond only with it in a JSON like the data I previously provided\n"
-                "Important Notes:"
-                "- Don't use single quotes\n"
-                "- Dates in ISO format\n"
-                "- Withdrawal codes are mix of numbers and letters with no meaning whatsoever\n"
-                "- Payment info is like a bank account number, a wallet address, an IBAN number or something similar\n"
-                "if the user was asking a question related to payment methods just respond with 'display_payment_methods_keyboard'\n"
-                "if the user at AWAITING_CONFIRMATION and asking about the next step respond with 'display_ok_button'\n"
-                "otherwise just respond in the msg language as the following\n"
-                f"{session_prompt.value if session_prompt else default_prompt.value}"
-            )
             if session_data[uid][st]["state"] in [
                 SessionState.AWAITING_PAYMENT.name,
                 SessionState.AWAITING_PAYMENT_METHOD.name,
             ]:
                 system_msg = (
-                    f"This message was sent by user {uid} in a {st} session\n"
-                    f"the state of the conversation is {session_data[uid][st]['state']}\n"
-                    "if the state is AWAITING_PAYMENT there's a payment link already sent to the user and we're waiting for him to press the Done ✅ button so just respond with 'display_done_button'\n"
-                    "if the user is asking a question related to payment methods or the state is AWAITING_PAYMENT_METHOD just respond with 'display_payment_methods_keyboard'\n"
-                    "otherwise just respond in the msg language as the following\n"
-                    f"{session_prompt.value if session_prompt else default_prompt.value}"
+                    f"User {uid} in state {session_data[uid][st]['state']}.\n"
+                    "Handle ONLY as follows:\n"
+                    "- If awaiting payment confirmation (AWAITING_PAYMENT), respond only: 'display_done_button'.\n"
+                    "- If awaiting payment method or user asks payment-related question, respond only: 'display_payment_methods_keyboard'.\n"
+                    "- Otherwise, respond briefly and humanly in user's language:\n"
+                    f"{session_prompt.value if session_prompt else default_prompt.value}\n"
+                    "Keep response concise, natural, and human-like."
+                )
+            else:
+                system_msg = (
+                    f"User {uid}, session: {st}, state: {session_data[uid][st]['state']}.\n"
+                    f"Collected data: {session_data[uid][st]['data']}.\n"
+                    f"User message: '{txt}'.\n"
+                    "Instructions:\n"
+                    "- If at AWAITING_MISSING_FIELDS and missing data provided, respond ONLY with provided data in strict JSON format:\n"
+                    "  * No single quotes\n"
+                    "  * Dates ISO format\n"
+                    "  * Withdrawal codes random alphanumeric\n"
+                    "  * Payment info examples: bank accounts, wallet addresses, IBAN\n"
+                    "- If user asks payment methods, respond only: 'display_payment_methods_keyboard'.\n"
+                    "- If at AWAITING_CONFIRMATION and user asks next step, respond only: 'display_ok_button'.\n"
+                    "- Otherwise, respond briefly, conversationally, and naturally:\n"
+                    f"{session_prompt.value if session_prompt else default_prompt.value}\n"
+                    "Keep response concise, natural, and human-like."
                 )
 
             resp = await openai.chat.completions.create(

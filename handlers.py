@@ -232,10 +232,6 @@ def setup_and_run():
     )
     # private
     tele_client.add_event_handler(
-        respond_in_private,
-        events.NewMessage(incoming=True),
-    )
-    tele_client.add_event_handler(
         end_session,
         events.NewMessage(pattern="/end", outgoing=True),
     )
