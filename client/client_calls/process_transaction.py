@@ -51,6 +51,16 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
         transaction_id = int(update.callback_query.data.split("_")[-1])
         with models.session_scope() as s:
             transaction = s.get(models.Transaction, transaction_id)
+            if transaction.status == "approved":
+                await update.callback_query.edit_message_reply_markup(
+                    reply_markup=InlineKeyboardMarkup.from_button(
+                        InlineKeyboardButton(
+                            text="تمت الموافقة ✅",
+                            callback_data="✅✅✅",
+                        )
+                    )
+                )
+                return
             user = s.get(models.User, transaction.user_id)
             player_account = (
                 s.query(models.PlayerAccount)
@@ -107,17 +117,13 @@ async def confirm_approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     message=message,
                     parse_mode="html",
                 )
-                await update.message.reply_to_message.edit_reply_markup(
+                await update.callback_query.edit_message_reply_markup(
                     reply_markup=InlineKeyboardMarkup.from_button(
                         InlineKeyboardButton(
                             text="تمت الموافقة ✅",
                             callback_data="✅✅✅",
                         )
                     )
-                )
-                await update.message.reply_text(
-                    text="تمت الموافقة ✅",
-                    reply_to_message_id=update.message.reply_to_message.id,
                 )
                 s.commit()
             else:
