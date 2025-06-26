@@ -324,7 +324,7 @@ async def get_fixtures_by_sport(
                         fixture_id=fix["fixture_id"],
                         league_id=fix["league_id"],
                         season=fix["season"],
-                        fixture_date=fix["date"],
+                        fixture_date=datetime.fromisoformat(fix["date"]),
                         data=fix,
                         sport=sport,
                     )

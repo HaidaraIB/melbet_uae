@@ -141,6 +141,8 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                         else Config.UAE_MONITOR_GROUP_ID
                                     ),
                                 )
+                            except KeyError:
+                                continue
                             except ValueError:
                                 user = models.User(
                                     user_id=player["subid"],
@@ -277,14 +279,19 @@ async def handle_excel(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                                 "💸 Once you complete both conditions, you will immediately receive 50 points credited directly to your main account!\n\n"
                                                 "⏳ Note: If you do not complete the requirements within 10 days of registration, the offer will automatically expire."
                                             )
-                            await TeleClientSingleton().send_message(
-                                entity=player["subid"],
-                                message=TEXTS[user.lang]["account_link_success"].format(
-                                    player["player_id"]
+                            try:
+                                await TeleClientSingleton().send_message(
+                                    entity=player["subid"],
+                                    message=TEXTS[user.lang][
+                                        "account_link_success"
+                                    ].format(player["player_id"])
+                                    + offer_text,
+                                    parse_mode="html",
                                 )
-                                + offer_text,
-                                parse_mode="html",
-                            )
+                            except ValueError:
+                                await update.message.reply_text(
+                                    text=f"خطأ في أرسال رسالة ربط الحساب {player['player_id']} إلى المستخدم <code>{player['subid']}</code>"
+                                )
         await update.message.reply_text(text="تم ✅")
     except Exception as e:
         log.error(f"Error processing Excel: {e}")
