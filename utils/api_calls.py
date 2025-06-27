@@ -10,7 +10,6 @@ from utils.functions import (
     draw_double_lineup_image,
     filter_fixtures,
     build_enhanced_poster_prompt,
-    structure_fixtures,
 )
 from utils.helpers import _get_request, BASE_URL
 import logging
@@ -328,6 +327,7 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
         # )
         # image_data = requests.get(lineup_img.data[0].url).content
         for chat_id in MONITOR_GROUPS:
+            lineup_img.seek(0)
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=lineup_img,
