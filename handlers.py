@@ -204,6 +204,7 @@ def setup_and_run():
             "replace_existing": True,
         },
     )
+    # app.job_queue.run_once(callback=schedule_daily_fixtures, when=10)
 
     app.job_queue.run_daily(
         callback=cache_monthly_fixtures,
@@ -213,6 +214,7 @@ def setup_and_run():
             "replace_existing": True,
         },
     )
+    # app.job_queue.run_once(callback=cache_monthly_fixtures, when=10)
 
     tele_client = TeleClientSingleton()
     # monitor

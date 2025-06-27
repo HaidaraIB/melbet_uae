@@ -10,6 +10,7 @@ from utils.functions import (
     draw_double_lineup_image,
     filter_fixtures,
     build_enhanced_poster_prompt,
+    structure_fixtures,
 )
 from utils.helpers import _get_request, BASE_URL
 import logging
@@ -82,13 +83,13 @@ async def get_daily_fixtures() -> list[dict]:
     }
 
     try:
-        fixtures = filter_fixtures(await _get_request(url, querystring))
+        fixtures = await _get_request(url, querystring)
         for fixture in fixtures:
             all_fixtures.append(_extract_fixture_data(fixture=fixture))
     except Exception as e:
         log.error(f"Error fetching fixtures: {e}")
 
-    return all_fixtures
+    return filter_fixtures(all_fixtures)
 
 
 def _extract_fixture_data(fixture: dict):
@@ -386,6 +387,7 @@ async def _send_post_match_stats(fixture_id: int, context: ContextTypes.DEFAULT_
             team1=team1, stats1=stats1, team2=team2, stats2=stats2
         )
         for chat_id in MONITOR_GROUPS:
+            infographic.seek(0)
             await context.bot.send_photo(
                 chat_id=chat_id,
                 photo=infographic,
