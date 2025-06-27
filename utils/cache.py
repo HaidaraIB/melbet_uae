@@ -1,6 +1,6 @@
 from telegram.ext import ContextTypes
+from utils.functions import filter_fixtures
 from utils.constants import SPORT_API
-from common.constants import TIMEZONE
 from utils.api_calls_by_sport import (
     get_last_matches_by_sport,
     get_h2h_by_sport,
@@ -11,6 +11,7 @@ from utils.api_calls_by_sport import (
     get_team_injuries_by_sport,
 )
 from utils.api_calls import get_fixture_stats
+from common.constants import TIMEZONE
 from datetime import datetime, timedelta
 import asyncio
 import models
@@ -23,8 +24,8 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
     now = datetime.now(TIMEZONE)
 
     for sport in SPORT_API:
-        monthly_fixtures = await get_fixtures_by_sport(
-            from_date=now, duration_in_days=30, sport=sport
+        monthly_fixtures = filter_fixtures(
+            await get_fixtures_by_sport(from_date=now, duration_in_days=30, sport=sport)
         )
 
         if not monthly_fixtures:
@@ -41,7 +42,7 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
 
                 context.job_queue.run_repeating(
                     callback=store_fixture_odds,
-                    interval=60 * 60,
+                    interval=4 * 60 * 60,
                     first=10,
                     data={
                         "fixture_id": fixture_id,

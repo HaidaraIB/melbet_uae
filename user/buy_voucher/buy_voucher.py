@@ -29,10 +29,8 @@ from user.buy_voucher.keyboards import (
 )
 from user.buy_voucher.functions import calc_from_to_dates_and_duration_in_days
 from user.analyze_game.keyboards import build_sports_keyboard
-from utils.api_calls_by_sport import get_fixtures_by_sport
-from utils.functions import filter_fixtures
 import models
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 (
     DURATION_TYPE,
@@ -50,8 +48,9 @@ async def buy_voucher(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
 
-        await update.callback_query.answer(text=TEXTS[lang]["soon"], show_alert=True)
-        return ConversationHandler.END
+        if not update.effective_user.id == 5558614802:
+            await update.callback_query.answer(text=TEXTS[lang]["soon"], show_alert=True)
+            return ConversationHandler.END
 
         await update.callback_query.edit_message_text(
             text=TEXTS[lang]["send_voucher_odd_number"],

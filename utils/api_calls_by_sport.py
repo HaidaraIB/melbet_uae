@@ -235,7 +235,7 @@ async def get_fixture_odds_by_sport(fixture_id: int, sport: str):
                 # TODO if it's not there, get and cache it.
                 s.add(
                     models.CachedOdds(
-                        cached_fixture_id=cached_fixture.id,
+                        fixture_id=cached_fixture.id,
                         data=response,
                         last_updated=datetime.now(),
                         sport=sport,

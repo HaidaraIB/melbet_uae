@@ -9,7 +9,6 @@ from telegram.ext import (
 from telegram.constants import ParseMode
 from utils.api_calls_by_sport import search_team_id_by_name
 from utils.functions import (
-    filter_fixtures,
     structure_team_standing,
     format_last_matches,
     summarize_odds,
@@ -45,9 +44,9 @@ SPORT, GAME_INFO, PAY = range(3)
 async def analyze_game(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE:
         lang = get_lang(update.effective_user.id)
-
-        await update.callback_query.answer(text=TEXTS[lang]["soon"], show_alert=True)
-        return ConversationHandler.END
+        if not update.effective_user.id == 5558614802:
+            await update.callback_query.answer(text=TEXTS[lang]["soon"], show_alert=True)
+            return ConversationHandler.END
 
         keyboard = build_sports_keyboard(lang=lang, prefix="analyze")
         keyboard.append(build_back_to_home_page_button(lang=lang, is_admin=False)[0])
@@ -80,7 +79,6 @@ async def choose_sport(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     .all()
                 )
                 fixtures = [f.data for f in cached_fixtures]
-            fixtures = filter_fixtures(fixtures=fixtures, sport=sport)
             context.user_data["analyze_game_sport"] = sport
             context.user_data["analyze_game_fixtures"] = fixtures
         else:
