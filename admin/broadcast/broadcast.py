@@ -1,4 +1,4 @@
-from telegram import Chat, Update, InlineKeyboardMarkup, error
+from telegram import Chat, Update, InlineKeyboardMarkup
 from telegram.ext import (
     ContextTypes,
     ConversationHandler,
@@ -22,7 +22,8 @@ from custom_filters import Admin
     THE_MESSAGE,
     SEND_TO,
     USERS,
-) = range(3)
+    CHAT_ID,
+) = range(4)
 
 
 async def broadcast_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -55,16 +56,23 @@ back_to_the_message = broadcast_message
 
 async def choose_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        back_buttons = [
+            build_back_button("back_to_send_to"),
+            build_back_to_home_page_button()[0],
+        ]
         if update.callback_query.data == "specific_users":
-            back_buttons = [
-                build_back_button("back_to_send_to"),
-                build_back_to_home_page_button()[0],
-            ]
             await update.callback_query.edit_message_text(
                 text="قم بإرسال آيديات المستخدمين الذين تريد إرسال الرسالة لهم سطراً سطراً.",
                 reply_markup=InlineKeyboardMarkup(back_buttons),
             )
             return USERS
+        elif update.callback_query.data == "channel_or_group":
+            await update.callback_query.edit_message_text(
+                text="أرسل آيدي القناة/المجموعة",
+                reply_markup=InlineKeyboardMarkup(back_buttons),
+            )
+            return CHAT_ID
+
         with models.session_scope() as s:
             if update.callback_query.data == "all_users":
                 users = (
@@ -86,9 +94,9 @@ async def choose_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 users = (
                     s.query(models.User).filter(models.User.is_banned == False).all()
                 )
-            
+
             users = [user.user_id for user in users]
-            
+
             asyncio.create_task(
                 send_to(
                     users=users,
@@ -117,6 +125,24 @@ async def get_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
 
+async def get_chat_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
+        chat_id = int(update.message.text)
+        try:
+            chat = await context.bot.get_chat(chat_id=chat_id)
+        except:
+            await update.message.reply_text(
+                text="يجب أن يكون البوت مشتركاً في هذه القناة/المجموعة حتى يتمكن من النشر فيها"
+            )
+            return
+        await send_to(users=[chat_id], context=context)
+        await update.message.reply_text(
+            text=f"تم نشر الرسالة في <b>{chat.title}</b> بنجاح ✅",
+            reply_markup=build_admin_keyboard(),
+        )
+        return ConversationHandler.END
+
+
 broadcast_message_handler = ConversationHandler(
     entry_points=[
         CallbackQueryHandler(
@@ -139,7 +165,7 @@ broadcast_message_handler = ConversationHandler(
         SEND_TO: [
             CallbackQueryHandler(
                 callback=choose_users,
-                pattern="^((all)|(specific))_((users)|(admins))$|^everyone$",
+                pattern=r"^((all)|(specific))_((users)|(admins))$|^everyone$|^channel_or_group$",
             )
         ],
         USERS: [
@@ -148,12 +174,20 @@ broadcast_message_handler = ConversationHandler(
                 callback=get_users,
             ),
         ],
+        CHAT_ID: [
+            MessageHandler(
+                filters=filters.Regex(r"^-?[0-9]+(?:\n-?[0-9]+)*$"),
+                callback=get_chat_id,
+            ),
+        ],
     },
     fallbacks=[
         back_to_admin_home_page_handler,
         start_command,
         admin_command,
-        CallbackQueryHandler(back_to_the_message, "^back_to_the_message$"),
-        CallbackQueryHandler(back_to_send_to, "^back_to_send_to$"),
+        CallbackQueryHandler(back_to_the_message, r"^back_to_the_message$"),
+        CallbackQueryHandler(back_to_send_to, r"^back_to_send_to$"),
     ],
+    name="broadcast_conversation",
+    persistent=True,
 )

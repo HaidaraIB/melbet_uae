@@ -26,6 +26,12 @@ def build_broadcast_keyboard():
                 callback_data="all_admins",
             ),
         ],
+        [
+            InlineKeyboardButton(
+                text="قناة أو مجموعة 📢",
+                callback_data="channel_or_group",
+            ),
+        ],
         build_back_button("back_to_the_message"),
         build_back_to_home_page_button()[0],
     ]
