@@ -233,7 +233,6 @@ def setup_and_run():
             incoming=True,
         ),
     )
-    # private
     tele_client.add_event_handler(
         paste_receipte,
         events.NewMessage(chats=Config.RECEIPTS_GROUP_ID, incoming=True),

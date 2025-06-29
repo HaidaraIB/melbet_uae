@@ -312,19 +312,28 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
             players_home=extract_players(home_lineup_data),
             players_away=extract_players(away_lineup_data),
         )
-        # GPT analysis prompt
+
+        players_home_list = ", ".join(
+            p["name"] for p in extract_players(home_lineup_data)
+        )
+        players_away_list = ", ".join(
+            p["name"] for p in extract_players(away_lineup_data)
+        )
+
         prompt = (
-            f"The confirmed lineups for {match['home_team']} vs {match['away_team']} "
-            f"are set.\nHome formation: {home_lineup_data['formation']} (coach: {home_lineup_data['coach']['name']})\n"
-            f"Away formation: {away_lineup_data['formation']} (coach: {away_lineup_data['coach']['name']})\n\n"
+            f"The confirmed lineups for {match['home_team']} vs {match['away_team']} are set.\n"
+            f"Home formation: {home_lineup_data['formation']} (coach: {home_lineup_data['coach']['name']})\n"
+            f"Home lineup: {players_home_list}\n"
+            f"Away formation: {away_lineup_data['formation']} (coach: {away_lineup_data['coach']['name']})\n"
+            f"Away lineup: {players_away_list}\n\n"
             "Write a short, exciting 3-line analysis for fans that includes:\n"
             "1. Tactical expectations from formations\n"
-            "2. Possible impact players\n"
+            "2. Possible impact players ONLY from the confirmed lineup\n"
             "3. End with: 'Want exclusive pre-match insights? Get your Player account through us now!'"
         )
 
         response = await openai.chat.completions.create(
-            model=Config.GPT_MODEL,
+            model='o3-pro',
             messages=[
                 {
                     "role": "user",
