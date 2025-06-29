@@ -40,11 +40,9 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
                 season = fixture["season"]
                 fixture_date = datetime.fromisoformat(fixture["date"])
 
-                context.job_queue.run_repeating(
+                context.job_queue.run_once(
                     callback=store_fixture_odds,
-                    interval=4 * 60 * 60,
-                    first=10,
-                    last=fixture_date + timedelta(hours=2),
+                    when=10,
                     data={
                         "fixture_id": fixture_id,
                         "sport": sport,
