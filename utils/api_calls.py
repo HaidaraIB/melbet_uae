@@ -145,9 +145,7 @@ async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
         return
 
     last_event_id = match.get("last_event_id", 0)
-    new_events = [e for e in events if events.index(e) > last_event_id]
-
-    for event in new_events:
+    for event in events[last_event_id + 1 :]:
         if event["type"].lower() in ["goal", "redcard", "penalty"]:
             emoji = {"goal": "⚽", "redcard": "🟥", "penalty": "🎯"}.get(
                 event["type"].lower(), "ℹ"
