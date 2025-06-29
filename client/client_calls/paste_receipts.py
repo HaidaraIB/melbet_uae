@@ -12,11 +12,7 @@ from user.buy_voucher.common import gift_voucher
 
 
 async def paste_receipte(event: events.NewMessage.Event):
-    if (
-        not event.raw_text
-        or event.chat_id != Config.RECEIPTS_GROUP_ID
-        or event.sender_id != Config.PAYLINK_BOT_ID
-    ):
+    if not event.raw_text:
         return
 
     message_text = event.raw_text.strip()
