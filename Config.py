@@ -16,6 +16,7 @@ class Config:
     SYR_MONITOR_GROUP_ID = int(os.getenv("SYR_MONITOR_GROUP_ID"))
     ACCOUNTS_GROUP_ID = int(os.getenv("ACCOUNTS_GROUP_ID"))
     RECEIPTS_GROUP_ID = int(os.getenv("RECEIPTS_GROUP_ID"))
+    PAYLINK_BOT_ID = int(os.getenv("PAYLINK_BOT_ID"))
     PHONE = os.getenv("PHONE")
     ERRORS_CHANNEL = int(os.getenv("ERRORS_CHANNEL"))
 

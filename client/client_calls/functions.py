@@ -92,9 +92,9 @@ def now_iso() -> datetime:
 
 def classify_intent(text: str):
     t = (text or "").lower()
-    if any(k in t for k in ("dp", "deposit", "ايداع", "إيداع")):
+    if any(k in t for k in ("dp", "deposit", "ايداع", "إيداع", "depo", "dep")):
         return "deposit"
-    if any(k in t for k in ("wd", "withdraw", "سحب")):
+    if any(k in t for k in ("wd", "withdraw", "سحب", "withd", "withdrawal")):
         return "withdraw"
     return None
 

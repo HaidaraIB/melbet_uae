@@ -235,6 +235,10 @@ def setup_and_run():
     )
     # private
     tele_client.add_event_handler(
+        paste_receipte,
+        events.NewMessage(chats=Config.RECEIPTS_GROUP_ID, incoming=True),
+    )
+    tele_client.add_event_handler(
         end_session,
         events.NewMessage(pattern="/end", outgoing=True),
     )
@@ -245,10 +249,6 @@ def setup_and_run():
     tele_client.add_event_handler(
         get_missing,
         events.NewMessage(incoming=True),
-    )
-    tele_client.add_event_handler(
-        paste_receipte,
-        events.NewMessage(chats=Config.RECEIPTS_GROUP_ID, incoming=True),
     )
 
     tele_bot = TeleBotSingleton()
