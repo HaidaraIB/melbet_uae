@@ -224,7 +224,7 @@ async def choose_preferences(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 odds,
                 price,
                 "Choose for me",
-                stripe_link,
+                stripe_link['url'],
             ),
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
@@ -315,7 +315,7 @@ async def get_league(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     odds,
                     price,
                     (f"Sport({sport_pref})\n" f"League({league['league_name']})"),
-                    stripe_link,
+                    stripe_link['url'],
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
@@ -327,7 +327,7 @@ async def get_league(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     odds,
                     price,
                     (f"Sport({sport_pref})\n" f"League({league_pref})"),
-                    stripe_link,
+                    stripe_link['url'],
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
@@ -406,7 +406,7 @@ async def get_matches(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     odds,
                     price,
                     "\n".join([match["title"] for match in matches_list]),
-                    stripe_link,
+                    stripe_link['url'],
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )
@@ -418,7 +418,7 @@ async def get_matches(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     odds,
                     price,
                     "\n".join([match["title"] for match in matches_list]),
-                    stripe_link,
+                    stripe_link['url'],
                 ),
                 reply_markup=InlineKeyboardMarkup(keyboard),
             )

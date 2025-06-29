@@ -4,6 +4,7 @@ from Config import Config
 from telegram.ext import ContextTypes
 from telegram import InputMediaPhoto
 from common.constants import *
+from utils.constants import *
 from client.client_calls.constants import openai
 from utils.functions import (
     generate_infographic,
@@ -14,6 +15,7 @@ from utils.functions import (
 from utils.helpers import _get_request, BASE_URL
 import logging
 import models
+import random
 from io import BytesIO
 
 log = logging.getLogger(__name__)
@@ -249,8 +251,6 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
                 },
             )
 
-        # Schedule post-match stats (either immediately or at scheduled time)
-        stats_time: datetime = start_time + timedelta(hours=2)
         if status == "FT":
             # Match already finished, post stats now
             await _send_post_match_stats(
@@ -332,18 +332,27 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
             "3. End with: 'Want exclusive pre-match insights? Get your Player account through us now!'"
         )
 
-        response = await openai.chat.completions.create(
-            model='o3-pro',
-            messages=[
+        # response = await openai.chat.completions.create(
+        #     model=Config.GPT_MODEL,
+        #     messages=[
+        #         {
+        #             "role": "user",
+        #             "content": prompt,
+        #         }
+        #     ],
+        #     max_tokens=150,
+        # )
+        # analysis = response.choices[0].message.content.strip()
+        response = await openai.responses.create(
+            model="o3-pro",
+            input=[
                 {
                     "role": "user",
                     "content": prompt,
                 }
             ],
-            max_tokens=150,
         )
-
-        analysis = response.choices[0].message.content.strip()
+        analysis = response.output_text
 
         for chat_id in MONITOR_GROUPS:
             lineup_img.seek(0)
@@ -360,6 +369,7 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
 
 async def _send_post_match_stats(fixture_id: int, context: ContextTypes.DEFAULT_TYPE):
     stats_data = await get_fixture_stats(fixture_id)
+    fix = await get_fixture(fixture_id)
 
     if stats_data:
         team1, stats1, team2, stats2 = extract_stats(stats_data)
@@ -367,7 +377,10 @@ async def _send_post_match_stats(fixture_id: int, context: ContextTypes.DEFAULT_
             team1=team1, team2=team2, stats1=stats1, stats2=stats2
         )
         summary = await generate_match_summary(
-            team1=team1, team2=team2, summary_stats=summary_stats
+            team1=team1,
+            team2=team2,
+            summary_stats=summary_stats,
+            final_score=f"{fix[0]['teams']['home']['name']} {fix[0]['goals']['home']}-{fix[0]['goals']['away']} {fix[0]['teams']['away']['name']}",
         )
         infographic = generate_infographic(
             team1=team1, stats1=stats1, team2=team2, stats2=stats2
@@ -508,47 +521,38 @@ def generate_summary_stats(team1: str, team2: str, stats1: dict, stats2: dict):
     return summary_stats
 
 
-async def generate_match_summary(team1: str, team2: str, summary_stats: list):
-    match_details = (
-        f"Match: {team1} vs {team2}\n" "Stats:\n" f"{"\n".join(summary_stats)}\n\n"
-    )
-    with models.session_scope() as s:
-        prompt = s.get(models.Setting, "gpt_prompt_match_summary")
-        if prompt:
-            prompt = prompt.value
-        else:
-            prompt = (
-                "You're a smart football analyst writing a short match summary.\n\n"
-                "Write a concise, stylish summary in English (max 4 lines) that:\n"
-                "- Starts with storytelling (not just stats)\n"
-                "- Weaves in some of the stats smoothly\n"
-                "- Ends with a soft CTA inviting the reader to create a Player account to access pre-match insights and analysis\n\n"
-                "Avoid exaggeration or direct 'betting' words. Use a confident, professional tone."
-            )
+async def generate_match_summary(
+    team1: str, team2: str, summary_stats: list, final_score: str = None
+):
+    extra_facts = []
+    if final_score:
+        extra_facts.append(f"Final score: {final_score}")
+    for stat in summary_stats:
+        if (
+            "card" in stat.lower()
+            or "goal" in stat.lower()
+            or "penalty" in stat.lower()
+        ):
+            extra_facts.append(stat)
 
-    response = await openai.chat.completions.create(
-        model=Config.GPT_MODEL,
-        messages=[
-            {
-                "role": "system",
-                "content": prompt,
-            },
-            {
-                "role": "user",
-                "content": match_details,
-            },
-        ],
-        max_completion_tokens=150,
+    prompt = (
+        f"You are a professional football match analyst. Write a concise, stylish match summary (max 5 lines) for the game between {team1} and {team2}, using ONLY the statistics and final facts below.\n"
+        "- Start with a storytelling, atmospheric sentence, but every statement must be directly supported by the provided data.\n"
+        "- Weave all stats naturally: possession, shots, goals, fouls, cards, corners, etc.\n"
+        "- Mention the final score clearly if available.\n"
+        "- Highlight any key facts (goals, cards, penalties) if given.\n"
+        "- Avoid any invented context, names, or drama.\n"
+        "- End with a single, smart call-to-action inviting the reader to get a Player account for more insights.\n\n"
+        f"Match: {team1} vs {team2}\n"
+        f"{'Final score: ' + final_score if final_score else ''}\n"
+        "Stats:\n" + "\n".join(summary_stats)
     )
 
-    cta = (
-        "\n\n"
-        "Want to see the full picture before kickoff?\n"
-        "Request your Player account through us and receive:\n"
-        "— Pre-match insights\n"
-        "— Tactical breakdowns\n"
-        "— Exclusive strategic advantages\n"
-        "<i>Only for our users.</i>"
+    response = await openai.responses.create(
+        model="o3-pro",
+        input=prompt,
     )
+    analysis = response.output_text
 
-    return response.choices[0].message.content.strip() + cta
+    cta = "\n\n" + random.choice(CTA_LIST)
+    return analysis + cta

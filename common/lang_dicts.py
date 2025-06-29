@@ -32,7 +32,7 @@ TEXTS = {
             "• البطولة: <b>{}</b>\n"
             "• الملعب: <b>{}</b>\n"
             "• المواجهة: <b>{}</b>\n\n"
-            "هل تريد تحليلًا ذكيًا؟ ادفع عن طريق <a href={}>الرابط</a> واضغط دفع عند الانتهاء."
+            "هل تريد تحليلًا ذكيًا؟ ادفع عن طريق <a href='{}'>الرابط</a> واضغط دفع عند الانتهاء."
         ),
         "no_upcoming_games": "لا توجد مواجهة قادمة بين الفريقين.",
         "plz_wait": "الرجاء الانتظار ⏳",
@@ -51,7 +51,7 @@ TEXTS = {
             "- Odds: {}\n"
             "- السعر: {} AED\n"
             "- التفضيلات:\n{}\n\n"
-            "الرجاء الدفع عن طريق الرابط <a href={}>الرابط</a> ومن ثم الضغط على الزر أدناه"
+            "الرجاء الدفع عن طريق الرابط <a href='{}'>الرابط</a> ومن ثم الضغط على الزر أدناه"
         ),
         "voucher_canceled": "تم إلغاء القسيمة",
         "choose_preferences": "اختر تفضيلاتك من أجل هذه القسيمة",
@@ -93,9 +93,9 @@ TEXTS = {
         "choose_sport": "اختر رياضة من القائمة أدناه",
         "create_account_group_reply": (
             "👋 مرحباً <b>{}</b>!\n\n"
-            "🔗 رابطك الشخصي للتسجيل: <a href={}>رابط التسجيل</a>\n"
-            "⬇️ لتحميل التطبيق: <a href={}>رابط التحميل</a>\n"
-            "⚽️ تسجيل الرياضة: <a href={}>رابط الرياضة</a>\n"
+            "🔗 رابطك الشخصي للتسجيل: <a href='{}'>رابط التسجيل</a>\n"
+            "⬇️ لتحميل التطبيق: <a href='{}'>رابط التحميل</a>\n"
+            "⚽️ تسجيل الرياضة: <a href='{}'>رابط الرياضة</a>\n"
             "استخدم هذا الرابط حتى نتمكّن من تتبع مكافآتك 🎁\n\n"
             "<i><b>أنشئ حسابك بنقرة واحدة ولا تنسى الاحتفاظ برقم اللاعب وكلمة المرور</b></i>\n\n"
         ),
@@ -144,7 +144,7 @@ TEXTS = {
             "• League: <b>{}</b>\n"
             "• Venue: <b>{}</b>\n"
             "• Teams: <b>{}</b>\n\n"
-            "Want smart analysis? pay through the <a href={}>Link</a> and press Pay when you're done."
+            "Want smart analysis? pay through the <a href='{}'>Link</a> and press Pay when you're done."
         ),
         "no_upcoming_games": "There's no upcoming games between these teams.",
         "plz_wait": "Please Wait ⏳",
@@ -163,7 +163,7 @@ TEXTS = {
             "- Odds: {}\n"
             "- Price: {} AED\n"
             "- Preferences:\n{}\n\n"
-            "Please pay through the following <a href={}>Link</a> and then press the button below"
+            "Please pay through the following <a href='{}'>Link</a> and then press the button below"
         ),
         "voucher_canceled": "Voucher Canceled",
         "choose_preferences": "Choose your preferences for this voucher.",
@@ -206,9 +206,9 @@ TEXTS = {
         "choose_sport": "Choose a sport from the menue below",
         "create_account_group_reply": (
             "👋 Hello <b>{}</b>!\n\n"
-            "🔗 Your Personal link to register: <a href={}>Registeration Link</a>\n"
-            "⬇️ Download the app: <a href={}>Download Link</a>\n"
-            "⚽️ Sport registration: <a href={}>Sport Registration Link</a>\n"
+            "🔗 Your Personal link to register: <a href='{}'>Registeration Link</a>\n"
+            "⬇️ Download the app: <a href='{}'>Download Link</a>\n"
+            "⚽️ Sport registration: <a href='{}'>Sport Registration Link</a>\n"
             "🎁 Use This link to be able to keep track of your rewards\n\n"
             "<i><b>Create your account with one click and don't forget to save your account's palyer id and password.</b></i>\n\n"
         ),

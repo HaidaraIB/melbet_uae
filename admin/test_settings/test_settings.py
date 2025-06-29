@@ -6,11 +6,10 @@ from utils.api_calls import (
     _send_pre_match_lineup,
     _send_post_match_stats,
     _extract_fixture_data,
+    get_fixture,
 )
-from utils.helpers import HEADERS, BASE_URL
 from common.keyboards import build_back_to_home_page_button
 import logging
-import aiohttp
 
 log = logging.getLogger(__name__)
 
@@ -43,14 +42,7 @@ async def test_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def test_match_lineup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type == Chat.PRIVATE and Admin().filter(update):
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                    f"{BASE_URL}/fixtures",
-                    params={"id": 1208814},
-                    headers=HEADERS,
-                ) as response:
-                    data = await response.json()
-            fixture = data["response"]
+            fixture = get_fixture(1208814)
             if fixture:
                 fixtrue_data = _extract_fixture_data(fixture=fixture[0])
                 await _send_pre_match_lineup(match=fixtrue_data, context=context)

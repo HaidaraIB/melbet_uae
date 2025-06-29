@@ -31,3 +31,11 @@ SPORT_API = {
         "team_injuries_url": None,
     },
 }
+
+
+CTA_LIST = [
+    "For deeper tactical breakdowns, unlock your Player account before the next kickoff.",
+    "Get your Player account now and never miss exclusive pre-match analysis.",
+    "Stay ahead—join Player for expert pre-match insights and tactical angles.",
+    "Serious about football? Player gives you the edge with in-depth match analytics.",
+]

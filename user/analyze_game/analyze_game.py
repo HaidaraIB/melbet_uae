@@ -157,14 +157,13 @@ async def choose_from_todays_matches(
         stripe_link = generate_stripe_payment_link(
             uid=update.effective_user.id, match_id=fixture_id
         )
-
         await update.callback_query.edit_message_text(
             text=TEXTS[lang]["analyze_game_ai_result"].format(
                 format_datetime(datetime.fromisoformat(str(fixture["date"]))),
                 fixture["league_name"],
                 fixture["venue"],
                 f"{fixture['home_name']} vs {fixture['away_name']}",
-                stripe_link,
+                stripe_link['url'],
             ),
             reply_markup=InlineKeyboardMarkup(keyboard),
         )
@@ -253,7 +252,7 @@ async def handle_match_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
                             fixture["league_name"],
                             fixture["venue"],
                             teams,
-                            stripe_link,
+                            stripe_link['url'],
                         ),
                         reply_markup=InlineKeyboardMarkup(keyboard),
                     )

@@ -187,12 +187,10 @@ async def check_stripe_payment_webhook(
                                 )
                                 return body
                         except Exception as e:
-                            print(f"Exception: {e}")
                             continue
         return False
 
     except Exception as e:
-        print(f"Exception: {e}")
         return False
 
 
