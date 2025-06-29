@@ -18,13 +18,13 @@ from telethon.tl.functions.channels import (
 from telethon.tl.functions.messages import ExportChatInviteRequest
 from telethon.tl.types import ChatBannedRights, ChatAdminRights
 from telethon import Button
-from openai import AsyncOpenAI
 from Config import Config
 import json
 import asyncio
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
+import sqlalchemy.exc as sa_exc
 from common.constants import *
 from client.client_calls.lang_dicts import *
 from client.client_calls.keyboards import build_process_transaction_keyboard
@@ -531,9 +531,12 @@ async def process_deposit(user: models.User, s: Session):
         .filter_by(id=session_data[user.user_id]["metadata"]["payment_method"])
         .first()
     )
-    transaction = add_transaction(
-        data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
-    )
+    try:
+        transaction = add_transaction(
+            data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
+        )
+    except sa_exc.IntegrityError:
+        return "Duplicate Receipt Id"
     if payment_method.mode == "auto":
         receipt = s.query(models.Receipt).filter_by(id=transaction.receipt_id).first()
         if receipt and not receipt.transaction_id:

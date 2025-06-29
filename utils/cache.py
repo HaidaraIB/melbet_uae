@@ -44,6 +44,7 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
                     callback=store_fixture_odds,
                     interval=4 * 60 * 60,
                     first=10,
+                    last=fixture_date + timedelta(hours=2),
                     data={
                         "fixture_id": fixture_id,
                         "sport": sport,
@@ -57,7 +58,7 @@ async def cache_monthly_fixtures(context: ContextTypes.DEFAULT_TYPE):
                 if sport == "football":
                     context.job_queue.run_once(
                         callback=store_fixture_stats,
-                        when=fixture_date + timedelta(hours=2),  # 1 hour after match
+                        when=fixture_date + timedelta(hours=2),  # 2 hour after match
                         data={
                             "fixture_id": fixture_id,
                         },

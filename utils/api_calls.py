@@ -145,7 +145,7 @@ async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
         return
 
     last_event_id = match.get("last_event_id", 0)
-    new_events = [e for e in events if e.get("id", 0) > last_event_id]
+    new_events = [e for e in events if events.index(e) > last_event_id]
 
     for event in new_events:
         if event["type"].lower() in ["goal", "redcard", "penalty"]:
@@ -163,7 +163,7 @@ async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
                     chat_id=chat_id,
                     text=message,
                 )
-            match["last_event_id"] = event["id"]
+            match["last_event_id"] = events.index(event)
 
 
 async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
@@ -247,20 +247,6 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
             await _send_post_match_stats(
                 fixture_id=match_data["fixture_id"], context=context
             )
-        else:
-            # Schedule normal stats posting
-            context.job_queue.run_once(
-                callback=send_post_match_stats,
-                when=(stats_time - now).total_seconds(),
-                data={
-                    "match": match_data,
-                },
-                name=f"match_update_{fixture['fixture_id']}_stats",
-                job_kwargs={
-                    "id": f"send_post_match_stats_{fixture['fixture_id']}",
-                    "replace_existing": True,
-                },
-            )
 
     # Send confirmation with status information
     match_list = []
@@ -317,24 +303,6 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
             players_home=extract_players(home_lineup_data),
             players_away=extract_players(away_lineup_data),
         )
-
-        # img_prompt = f"A dynamic sports-themed illustration showing two soccer teams lined up facing each other. The left side shows the home team with formation {home_lineup_data['formation']}, coached by {home_lineup_data['coach']['name']}, and the right side shows the away team with formation {away_lineup_data['formation']}, coached by {away_lineup_data['coach']['name']}. The background features a packed stadium under night lights. Overlay tactical arrows, players in action stances, and highlight 1-2 star players from each team with a glow effect. Include bold, modern text at the bottom: “Want exclusive pre-match insights? Get your MELBET account through us now!” - keep the style cinematic and dramatic."
-        # lineup_img = await openai.images.generate(
-        #     model=Config.DALL_E_MODEL,
-        #     prompt=img_prompt,
-        #     n=1,
-        #     size="1024x1024",
-        # )
-        # image_data = requests.get(lineup_img.data[0].url).content
-        for chat_id in MONITOR_GROUPS:
-            lineup_img.seek(0)
-            await context.bot.send_photo(
-                chat_id=chat_id,
-                photo=lineup_img,
-                caption=f"⚠️ <b>{match['home_team']} vs {match['away_team']} - Confirmed Lineups</b>",
-                parse_mode="HTML",
-            )
-
         # GPT analysis prompt
         prompt = (
             f"The confirmed lineups for {match['home_team']} vs {match['away_team']} "
@@ -360,16 +328,16 @@ async def _send_pre_match_lineup(match, context: ContextTypes.DEFAULT_TYPE):
         analysis = response.choices[0].message.content.strip()
 
         for chat_id in MONITOR_GROUPS:
-            await context.bot.send_message(
+            lineup_img.seek(0)
+            await context.bot.send_photo(
                 chat_id=chat_id,
-                text=f"{analysis}\n\n⏰ Kickoff at <code>{match['start_time'].strftime('%H:%M')}</code>",
+                photo=lineup_img,
+                caption=(
+                    f"⚠️ <b>{match['home_team']} vs {match['away_team']} - Confirmed Lineups</b>\n\n"
+                    f"{analysis}\n\n⏰ Kickoff at <code>{match['start_time'].strftime('%H:%M')}</code>"
+                ),
                 parse_mode="HTML",
             )
-
-
-async def send_post_match_stats(context: ContextTypes.DEFAULT_TYPE):
-    match = context.job.data["match"]
-    await _send_post_match_stats(fixture_id=match["fixture_id"], context=context)
 
 
 async def _send_post_match_stats(fixture_id: int, context: ContextTypes.DEFAULT_TYPE):
