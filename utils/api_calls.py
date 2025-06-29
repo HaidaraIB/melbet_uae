@@ -163,6 +163,19 @@ async def monitor_live_events(context: ContextTypes.DEFAULT_TYPE):
                 )
             match["last_event_id"] = events.index(event)
 
+    context.job_queue.run_once(
+        callback=monitor_live_events,
+        when=10,
+        data={
+            "match": match,
+        },
+        name=f"match_update_{match['fixture_id']}_monitor",
+        job_kwargs={
+            "id": f"monitor_live_events_{match['fixture_id']}",
+            "replace_existing": True,
+        },
+    )
+
 
 async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
     # Get today's fixtures
@@ -187,10 +200,9 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
 
             if status != "FT":
                 # Match is in progress, schedule immediate monitoring
-                context.job_queue.run_repeating(
+                context.job_queue.run_once(
                     callback=monitor_live_events,
-                    interval=600,
-                    first=10,
+                    when=10,
                     data={
                         "match": match_data,
                     },
@@ -224,10 +236,9 @@ async def schedule_daily_fixtures(context: ContextTypes.DEFAULT_TYPE):
 
             # Schedule live monitoring
             monitor_start: datetime = start_time - timedelta(minutes=5)
-            context.job_queue.run_repeating(
+            context.job_queue.run_once(
                 callback=monitor_live_events,
-                interval=600,
-                first=(monitor_start - now).total_seconds(),
+                when=(monitor_start - now).total_seconds(),
                 data={
                     "match": match_data,
                 },
