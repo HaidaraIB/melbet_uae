@@ -536,6 +536,7 @@ async def process_deposit(user: models.User, s: Session):
             data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
         )
     except sa_exc.IntegrityError:
+        s.rollback()
         return "Duplicate Receipt Id"
     if payment_method.mode == "auto":
         receipt = s.query(models.Receipt).filter_by(id=transaction.receipt_id).first()
@@ -640,9 +641,13 @@ async def process_withdraw(user: models.User, s: Session):
         .filter_by(id=session_data[user.user_id]["metadata"]["payment_method"])
         .first()
     )
-    transaction = add_transaction(
-        data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
-    )
+    try:
+        transaction = add_transaction(
+            data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
+        )
+    except sa_exc.IntegrityError:
+        s.rollback()
+        return "Duplicate Withdrawal Code"
     player_account = (
         s.query(models.PlayerAccount).filter_by(account_number=account_number).first()
     )
@@ -652,9 +657,7 @@ async def process_withdraw(user: models.User, s: Session):
         country=player_account.country,
     )
     if res["Success"]:
-        transaction.status = "approved"
         transaction.mobi_operation_id = res["OperationId"]
-        transaction.completed_at = now_iso()
         s.commit()
         await TeleBotSingleton().send_message(
             entity=Config.ADMIN_ID,

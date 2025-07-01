@@ -175,14 +175,13 @@ async def summarize_fixtures_with_odds_stats(fixtures: list) -> str:
             h2h_obj = (
                 session.query(models.CachedH2H)
                 .filter_by(
-                    fixture_id=fixture_id,
                     home_id=home_id,
                     away_id=away_id,
                     sport=fix["sport"],
                 )
-                .first()
+                .all()
             )
-            h2h = h2h_obj.data if h2h_obj else None
+            h2h = [h.data for h in h2h_obj if h]
         if h2h:
             fix_summary += "\nLast 5 Head-to-Head:\n"
             for h in h2h:
@@ -431,9 +430,7 @@ async def gift_voucher(uid: int, s: Session, lang: models.Language):
             )
 
 
-def generate_voucher_stripe_payment_link(
-    uid: int, price: float, currency: str = "aed"
-):
+def generate_voucher_stripe_payment_link(uid: int, price: float, currency: str = "aed"):
     """
     Generate a Stripe payment link for a voucher purchase.
     """

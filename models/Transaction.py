@@ -171,7 +171,6 @@ class Transaction(Base):
     def __str__(self):
         base_str = (
             f"New {self.type.capitalize()} request from {f'@{self.user.username}' if self.user.username else self.user.name}:\n"
-            f"Amount: <code>{self.amount:.2f}</code> {self.currency}\n"
             f"Payment Method: <b>{self.payment_method.name}</b>\n"
             f"Account: <code>{self.account_number}</code>\n"
             f"Status: {self.status}\n"
@@ -181,6 +180,7 @@ class Transaction(Base):
             return base_str + (
                 f"Receipt ID: <code>{self.receipt_id}</code>\n"
                 f"Date: {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+                f"Amount: <code>{self.amount:.2f}</code> {self.currency}\n"
             )
         else:
             return base_str + (
