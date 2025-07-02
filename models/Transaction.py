@@ -93,7 +93,7 @@ class Transaction(Base):
 
     mobi_operation_id = sa.Column(sa.String, nullable=True)
 
-    receipt_id = sa.Column(sa.String, unique=True, nullable=True)
+    receipt_id = sa.Column(sa.String, nullable=True)
     withdrawal_code = sa.Column(sa.String(32), unique=True, nullable=True)
     payment_info = sa.Column(sa.Text, nullable=True)
 
@@ -179,8 +179,8 @@ class Transaction(Base):
         if self.type == "deposit":
             return base_str + (
                 f"Receipt ID: <code>{self.receipt_id}</code>\n"
-                f"Date: {self.created_at.strftime('%Y-%m-%d %H:%M')}"
-                f"Amount: <code>{self.amount:.2f}</code> {self.currency}\n"
+                f"Date: {self.created_at.strftime('%Y-%m-%d %H:%M')}\n"
+                f"Amount: <code>{self.amount:.2f}</code> {self.currency}"
             )
         else:
             return base_str + (

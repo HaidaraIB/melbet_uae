@@ -531,16 +531,22 @@ async def process_deposit(user: models.User, s: Session):
         .filter_by(id=session_data[user.user_id]["metadata"]["payment_method"])
         .first()
     )
-    try:
-        transaction = add_transaction(
-            data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
-        )
-    except sa_exc.IntegrityError:
-        s.rollback()
-        return "Duplicate Receipt Id"
+    existing_transaction = (
+        s.query(models.Transaction)
+        .filter_by(receipt_id=data["receipt_id"])
+        .order_by(models.Transaction.created_at.desc())
+        .first()
+    )
+    if existing_transaction.status == "approved":
+        return "Transaction already approved"
+    transaction = add_transaction(
+        data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
+    )
     if payment_method.mode == "auto":
         receipt = s.query(models.Receipt).filter_by(id=transaction.receipt_id).first()
-        if receipt and not receipt.transaction_id:
+        if receipt.payment_method_id != payment_method.id:
+            return f"Wrong payment method: {payment_method.name}, Choose: {receipt.payment_method.name}"
+        elif receipt and not receipt.transaction_id:
             receipt.transaction_id = transaction.id
             transaction.amount = receipt.amount
             player_account = (
@@ -643,7 +649,11 @@ async def process_withdraw(user: models.User, s: Session):
     )
     try:
         transaction = add_transaction(
-            data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
+            data=data,
+            user_id=user.user_id,
+            st=st,
+            payment_method_id=payment_method.id,
+            s=s,
         )
     except sa_exc.IntegrityError:
         s.rollback()
