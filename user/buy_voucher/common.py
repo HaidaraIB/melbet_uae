@@ -16,11 +16,12 @@ from utils.functions import (
     filter_fixtures,
 )
 from sqlalchemy.orm import Session
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
 import models
 import stripe
 import aiohttp
+import random
 import logging
 
 log = logging.getLogger(__name__)
@@ -361,13 +362,16 @@ async def parse_user_request(matches_text: str = None, league: str = None):
 
 
 async def gift_voucher(uid: int, s: Session, lang: models.Language):
-    now = datetime.now(TIMEZONE)
+    now = datetime.now(TIMEZONE) + timedelta(days=1)
     football_fixtures = await get_fixtures_by_sport(
-        from_date=now, duration_in_days=2, sport="football"
+        from_date=now, duration_in_days=3, sport="football"
     )
     if not football_fixtures:
         return
-    fixtures = filter_fixtures(fixtures=football_fixtures, sport="football")
+    fixtures = random.shuffle(
+        filter_fixtures(fixtures=football_fixtures, sport="football")
+    )
+    fixtures = fixtures[:5]
     fixtures_summary = await summarize_fixtures_with_odds_stats(fixtures=fixtures)
     coupon_json, message_md = await generate_multimatch_coupon(
         fixtures_summary=fixtures_summary, odds=4

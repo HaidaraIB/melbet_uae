@@ -533,11 +533,11 @@ async def process_deposit(user: models.User, s: Session):
     )
     existing_transaction = (
         s.query(models.Transaction)
-        .filter_by(receipt_id=data["receipt_id"])
+        .filter_by(receipt_id=data["receipt_id"], status="approved")
         .order_by(models.Transaction.created_at.desc())
         .first()
     )
-    if existing_transaction.status == "approved":
+    if existing_transaction:
         return "Transaction already approved"
     transaction = add_transaction(
         data=data, user_id=user.user_id, st=st, payment_method_id=payment_method.id, s=s
