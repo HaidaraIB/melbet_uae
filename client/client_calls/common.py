@@ -668,6 +668,8 @@ async def process_withdraw(user: models.User, s: Session):
     )
     if res["Success"]:
         transaction.mobi_operation_id = res["OperationId"]
+        transaction.amount = res["Summa"]
+        transaction.currency = player_account.currency
         s.commit()
         await TeleBotSingleton().send_message(
             entity=Config.ADMIN_ID,
@@ -677,9 +679,13 @@ async def process_withdraw(user: models.User, s: Session):
                 transaction_type=st, transaction_id=transaction.id, lib="telethon"
             ),
         )
+        await TeleBotSingleton().send_message(
+            entity=user.user_id, message=f"{res['Summa']} AED successfully withdrawn"
+        )
         return transaction.id
     transaction.status = "failed"
     transaction.fail_reason = res["Message"]
+    s.commit()
     return res["Message"]
 
 
