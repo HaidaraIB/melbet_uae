@@ -174,13 +174,13 @@ class Transaction(Base):
             f"Payment Method: <b>{self.payment_method.name}</b>\n"
             f"Account: <code>{self.account_number}</code>\n"
             f"Status: {self.status}\n"
+            f"Amount: <code>{self.amount:.2f}</code> {self.currency}\n"
         )
 
         if self.type == "deposit":
             return base_str + (
                 f"Receipt ID: <code>{self.receipt_id}</code>\n"
-                f"Date: {self.created_at.strftime('%Y-%m-%d %H:%M')}\n"
-                f"Amount: <code>{self.amount:.2f}</code> {self.currency}"
+                f"Date: {self.created_at.strftime('%Y-%m-%d %H:%M')}"
             )
         else:
             return base_str + (
